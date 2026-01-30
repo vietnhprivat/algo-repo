@@ -1,0 +1,21 @@
+[project]
+name = "algo-repo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "data-cli",
+    "infrastructure-entsoe",
+]
+
+[tool.uv.workspace]
+members = [
+    "data_cli",
+    "src/data_cli",
+    "src/infrastructure_entsoe",
+]
+
+[tool.uv.sources]
+data-cli = { workspace = true }
+infrastructure-entsoe = { workspace = true }
