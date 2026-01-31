@@ -1,0 +1,9 @@
+data_path: src/backtesting/src/backtesting/data/DE_data.csv
+model_name: lear
+model_params: {}
+calibration_window: 168
+train_test_split: 0.8
+target_column: price
+date_column: date
+feature_columns: null
+results_dir: results

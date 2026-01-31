@@ -1,23 +1,15 @@
-from abc import ABC, abstractmethod
 import numpy as np
+import pandas as pd
 from typing import Dict
 from sklearn.linear_model import Lasso, LassoLarsIC
 from sklearn.preprocessing import StandardScaler
 from sklearn.exceptions import ConvergenceWarning
 import warnings
-import pandas as pd
 
-class ForecastingModel(ABC):
-    @abstractmethod
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
-        pass
-
-    @abstractmethod
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        pass
+from backtesting.models.base import BaseModel
 
 
-class LearModel(ForecastingModel):
+class LearModel(BaseModel):
     def __init__(self) -> None:
         self.models: Dict[int, Lasso] = {}
         self.scaler_x: StandardScaler = StandardScaler()
@@ -63,35 +55,16 @@ class LearModel(ForecastingModel):
 
         y_pred_trans = self.scaler_y.inverse_transform(y_pred_scaled)
         return self._asinh_transform(y_pred_trans, inverse=True)
-    
 
-class ModelWrapper:
-    """Wrapper class to adapt LearModel to BacktestEngine interface."""
-    
-    def __init__(self) -> None:
-        self.model: LearModel = LearModel()
-    
     def recalibrate_and_forecast_next_day(
-        self, 
-        df: pd.DataFrame, 
-        calibration_window: int | None, 
-        next_day_date: pd.Timestamp
+        self,
+        df: pd.DataFrame,
+        calibration_window: int | None,
+        next_day_date: pd.Timestamp,
+        target_column: str,
+        feature_columns: list
     ) -> np.ndarray:
-        """
-        Recalibrate the model on recent data and forecast for the next 24 hours.
-        
-        Args:
-            df: DataFrame with price and exogenous features
-            calibration_window: Number of hours to use for training
-            next_day_date: Date for which to forecast
-            
-        Returns:
-            Forecast array for next 24 hours
-        """
-        price_col = 'Price' if 'Price' in df.columns else 'price'
-        feature_cols = [col for col in df.columns if col != price_col and col.lower() != 'date']
-        
-        calibration_data = df.dropna(subset=[price_col]).copy()
+        calibration_data = df.dropna(subset=[target_column]).copy()
         
         if calibration_window:
             calibration_data = calibration_data.iloc[-calibration_window:].copy()
@@ -99,8 +72,8 @@ class ModelWrapper:
         if len(calibration_data) < 24:
             return np.zeros(24)
         
-        X_train = calibration_data[feature_cols].values
-        y_train = calibration_data[price_col].values.reshape(-1, 1)
+        X_train = calibration_data[feature_columns].values
+        y_train = calibration_data[target_column].values.reshape(-1, 1)
         
         if len(X_train) < 24:
             pad_size = 24 - len(X_train)
@@ -112,10 +85,10 @@ class ModelWrapper:
             X_reshaped = X_train[-num_windows*24:].reshape(num_windows, -1)
             y_reshaped = y_train[-num_windows*24:].reshape(num_windows, 24)
             
-            self.model.fit(X_reshaped, y_reshaped)
+            self.fit(X_reshaped, y_reshaped)
             
             X_test = X_train[-24:].reshape(1, -1)
-            forecast = self.model.predict(X_test)
+            forecast = self.predict(X_test)
             return forecast.flatten()
         else:
             return np.zeros(24)
