@@ -43,7 +43,9 @@ def test_handle_energy_prices_response_plain_xml(monkeypatch):
     def fake_mapper(xml_data: bytes):
         return [xml_data.decode("utf-8")]
 
-    monkeypatch.setattr(client_module, "_parse_energy_prices_xml_to_observation", fake_mapper)
+    monkeypatch.setattr(
+        client_module, "_parse_energy_prices_xml_to_observation", fake_mapper
+    )
 
     response = httpx.Response(
         200,
@@ -61,7 +63,9 @@ def test_handle_energy_prices_response_zip(monkeypatch):
     def fake_mapper(xml_data: bytes):
         return [xml_data.decode("utf-8")]
 
-    monkeypatch.setattr(client_module, "_parse_energy_prices_xml_to_observation", fake_mapper)
+    monkeypatch.setattr(
+        client_module, "_parse_energy_prices_xml_to_observation", fake_mapper
+    )
 
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w") as zf:
@@ -90,7 +94,9 @@ def test_fetch_energy_prices_uses_httpx_and_handler(monkeypatch):
     def fake_get(url, params):
         captured["url"] = url
         captured["params"] = params
-        return httpx.Response(200, headers={"Content-Type": "application/xml"}, content=b"<xml/>")
+        return httpx.Response(
+            200, headers={"Content-Type": "application/xml"}, content=b"<xml/>"
+        )
 
     def fake_handler(response):
         return ["handled"]

@@ -29,17 +29,17 @@ class LearModel(BaseModel):
         X_scaled = np.hstack([X_scaled_values, X_trans[:, -7:]])
 
         warnings.filterwarnings("ignore", category=ConvergenceWarning)
-        
+
         n_samples, n_features = X_scaled.shape
-        
+
         for h in range(24):
             if n_samples > n_features:
-                selector = LassoLarsIC(criterion='aic', max_iter=2500)
+                selector = LassoLarsIC(criterion="aic", max_iter=2500)
                 selector.fit(X_scaled, y_scaled[:, h])
                 alpha = selector.alpha_
             else:
                 alpha = 0.1
-            
+
             model = Lasso(alpha=alpha, max_iter=2500)
             model.fit(X_scaled, y_scaled[:, h])
             self.models[h] = model
@@ -62,31 +62,31 @@ class LearModel(BaseModel):
         calibration_window: int | None,
         next_day_date: pd.Timestamp,
         target_column: str,
-        feature_columns: list
+        feature_columns: list,
     ) -> np.ndarray:
         calibration_data = df.dropna(subset=[target_column]).copy()
-        
+
         if calibration_window:
             calibration_data = calibration_data.iloc[-calibration_window:].copy()
-        
+
         if len(calibration_data) < 24:
             return np.zeros(24)
-        
+
         X_train = calibration_data[feature_columns].values
         y_train = calibration_data[target_column].values.reshape(-1, 1)
-        
+
         if len(X_train) < 24:
             pad_size = 24 - len(X_train)
             X_train = np.vstack([np.zeros((pad_size, X_train.shape[1])), X_train])
             y_train = np.vstack([np.zeros((pad_size, 1)), y_train])
-        
+
         num_windows = len(y_train) // 24
         if num_windows > 0:
-            X_reshaped = X_train[-num_windows*24:].reshape(num_windows, -1)
-            y_reshaped = y_train[-num_windows*24:].reshape(num_windows, 24)
-            
+            X_reshaped = X_train[-num_windows * 24 :].reshape(num_windows, -1)
+            y_reshaped = y_train[-num_windows * 24 :].reshape(num_windows, 24)
+
             self.fit(X_reshaped, y_reshaped)
-            
+
             X_test = X_train[-24:].reshape(1, -1)
             forecast = self.predict(X_test)
             return forecast.flatten()

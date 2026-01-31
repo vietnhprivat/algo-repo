@@ -6,7 +6,9 @@ from infrastructure_entsoe.client_factory import create_entsoe_client, ENTSOE_AP
 def test_create_entsoe_client_requires_env_var(monkeypatch):
     monkeypatch.delenv(ENTSOE_API_KEY, raising=False)
 
-    with pytest.raises(ValueError, match="ENTSOE_API_KEY environment variable is not set"):
+    with pytest.raises(
+        ValueError, match="ENTSOE_API_KEY environment variable is not set"
+    ):
         create_entsoe_client()
 
 

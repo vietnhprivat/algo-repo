@@ -1,5 +1,6 @@
 import polars as pl
 
+
 class EnergyPrice:
     SCHEMA = {
         "source": pl.Utf8,

@@ -8,8 +8,4 @@ client = create_entsoe_client()
 start = datetime(2026, 1, 28)
 end = start + timedelta(days=1)
 
-prices = client.fetch_energy_prices(
-    area=DK1, 
-    start_date=start, 
-    end_date=end
-)
+prices = client.fetch_energy_prices(area=DK1, start_date=start, end_date=end)

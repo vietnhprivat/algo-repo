@@ -4,7 +4,6 @@ import pandas as pd
 
 
 class BaseModel(ABC):
-    
     @abstractmethod
     def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         pass
@@ -20,6 +19,6 @@ class BaseModel(ABC):
         calibration_window: int | None,
         next_day_date: pd.Timestamp,
         target_column: str,
-        feature_columns: list
+        feature_columns: list,
     ) -> np.ndarray:
         pass
