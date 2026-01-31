@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from typing import Any
+from backtesting.models.base import BaseModel
 
 
 class BacktestEngine:
@@ -9,7 +10,7 @@ class BacktestEngine:
 
     def run(
         self,
-        model: Any,
+        model: BaseModel,
         df_train: pd.DataFrame,
         df_test: pd.DataFrame,
         target_column: str,
