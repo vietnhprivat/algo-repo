@@ -5,8 +5,18 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "data-cli",
+    "assets",
+    "httpx>=0.28.1",
     "infrastructure-entsoe",
+    "ipykernel>=7.1.0",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.1",
+    "pandas>=3.0.0",
+    "polars>=1.37.1",
+    "pytest>=9.0.2",
+    "requests>=2.32.5",
+    "ruff>=0.14.14",
 ]
 
 [tool.uv.workspace]
@@ -14,8 +24,10 @@ members = [
     "data_cli",
     "src/data_cli",
     "src/infrastructure_entsoe",
+    "src/assets",
 ]
 
 [tool.uv.sources]
 data-cli = { workspace = true }
 infrastructure-entsoe = { workspace = true }
+assets = { workspace = true }
