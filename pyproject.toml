@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "assets",
+    "backtesting",
     "httpx>=0.28.1",
     "infrastructure-entsoe",
     "ipykernel>=7.1.0",
@@ -17,6 +18,7 @@ dependencies = [
     "pytest>=9.0.2",
     "requests>=2.32.5",
     "ruff>=0.14.14",
+    "scikit-learn>=1.8.0",
 ]
 
 [tool.uv.workspace]
@@ -25,9 +27,11 @@ members = [
     "src/data_cli",
     "src/infrastructure_entsoe",
     "src/assets",
+    "src/backtesting",
 ]
 
 [tool.uv.sources]
 data-cli = { workspace = true }
 infrastructure-entsoe = { workspace = true }
 assets = { workspace = true }
+backtesting = { workspace = true }
