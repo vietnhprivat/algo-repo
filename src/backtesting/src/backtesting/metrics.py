@@ -6,7 +6,7 @@ def calculate_mae(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
 
 def calculate_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    return np.sqrt(np.mean((y_true - y_pred)**2))
+    return np.sqrt(np.mean((y_true - y_pred) ** 2))
 
 
 def calculate_smape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
