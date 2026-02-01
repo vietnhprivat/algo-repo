@@ -53,6 +53,5 @@ poetry.lock
 *.pdf
 
 # data files
-data/
 *.csv
 
