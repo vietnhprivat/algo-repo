@@ -50,7 +50,6 @@ poetry.lock
 
 
 # PDFs
-*.pdf
 
 # data files
 *.csv
