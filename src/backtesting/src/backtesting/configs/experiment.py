@@ -1,19 +1,32 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
 
+from datetime import timedelta
+from typing import List, Dict, Any
+import yaml
 
 @dataclass
 class ExperimentConfig:
+    experiment_name: str
+    results_dir: str
     data_path: str
-    model_name: str
-    calibration_window: int = 7 * 24
-    train_test_split: float = 0.8
-    target_column: str = "Price"
-    date_column: str = "Date"
-    feature_columns: Optional[List[str]] = None
-    model_params: Dict[str, Any] = field(default_factory=dict)
-    results_dir: str = "results"
+    target_column: str = "price"    
+    test_start_date: str = "2019-01-01"
+    test_end_date: str = "2019-12-31"
+    
+    """LEAR Benchmark uses [56, 84, 1092, 1456]"""
+    calibration_windows: List[int] = field(default_factory=lambda: [56, 84, 1092, 1456])
+    
+    """Optimization: Retrain every N days (1 for LEAR, 7 for DNN)"""
+    refit_interval_days: int = 1
 
-    def __post_init__(self) -> None:
-        if self.feature_columns is None:
-            self.feature_columns = []
+    model_type: str = "LEAR"
+    
+    """Specific args passed to the model class (e.g. {'alpha': 0.1} or {'layers': [256, 24]})"""
+    exogenous_features: list[str] = field(default_factory=list)
+    model_params: Dict[str, Any] = field(default_factory=dict)
+
+    # @classmethod
+    # def load(cls, path: str) -> "ExperimentConfig":
+    #     with open(path, "r") as f:
+    #         return cls(**yaml.safe_load(f))
+    
