@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 class BaseModel(ABC):
+    """Interface to ensure Engine can run any model (LEAR or DNN)."""
+    
     @abstractmethod
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
+    def fit(self, features: np.ndarray, targets: np.ndarray) -> None:
         pass
 
     @abstractmethod
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, features: np.ndarray) -> np.ndarray:
         pass

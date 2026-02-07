@@ -1,15 +1,19 @@
 from backtesting.models.base import BaseModel
 import numpy as np
 
-class DnnModel(BaseModel):
-    def __init__(self, **kwargs):
-        self.network = None
+class DNNModel(BaseModel):
+    """
+    Placeholder for Deep Learning implementation.
+    - Multivariate: Trains 1 model for all 24 outputs.
+    """
+    def __init__(self, hidden_units: int = 256):
+        # Initialize Keras/PyTorch model here
+        pass 
 
-    def _build_network(self) -> None:
+    def fit(self, features: np.ndarray, targets: np.ndarray) -> None:
+        # Fit single neural net
         pass
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> None:
-        pass
-
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, features: np.ndarray) -> np.ndarray:
+        # Predict (1, 24) vector directly
         pass
