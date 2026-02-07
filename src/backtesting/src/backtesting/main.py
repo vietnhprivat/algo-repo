@@ -20,14 +20,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-import pandas as pd
-df = pd.DataFrame({
-    'timestamp': pd.date_range(start='2019-01-01', periods=100, freq='D'),
-    'price': range(100),
-    'exogenous_1': range(100, 200),
-    'exogenous_2': range(200, 300),
-}) 
-

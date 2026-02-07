@@ -136,7 +136,6 @@ class BacktestEngine:
         print(f"Starting backtest on {len(test_dates)} days...")
 
         for date in test_dates:
-            # Execute the ensemble logic for this specific day
             daily_prediction = self._ensemble_forecast(
                 model_factory, features, targets, date
             )
@@ -145,7 +144,6 @@ class BacktestEngine:
 
             print(f"Forecasted {date.date()}")
 
-        # Format as DataFrame
         columns = [f"h{i}" for i in range(24)]
         forecast_df = pd.DataFrame(forecasts, index=test_dates, columns=columns)
         actuals_df = pd.DataFrame(actuals, index=test_dates, columns=columns)

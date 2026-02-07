@@ -10,7 +10,7 @@ from backtesting.models.base import BaseModel
 class LearModel(BaseModel):
     def __init__(
         self,
-        alpha: float | str | None = 0.01,
+        alpha: float | None = 0.01,
         maximum_iterations: int = 5000,
         cross_validation_folds: int = 5,
         lasso_alphas: Iterable[float] | None = None,
@@ -26,20 +26,19 @@ class LearModel(BaseModel):
     def fit(self, features: np.ndarray, targets: np.ndarray) -> None:
         for hour in range(24):
             targets_hour = targets[:, hour]
+
             if self.alpha in (None, "auto"):
-                cross_validation_split = TimeSeriesSplit(
-                    n_splits=self.cross_validation_folds
-                )
                 model = LassoCV(
                     alphas=self.lasso_alphas,
-                    cv=cross_validation_split,
+                    cv=TimeSeriesSplit(n_splits=self.cross_validation_folds),
                     max_iter=self.maximum_iterations,
                 )
                 model.fit(features, targets_hour)
                 self.best_alphas[hour] = float(model.alpha_)
                 self.hourly_models[hour] = model
+            
             else:
-                model = Lasso(alpha=float(self.alpha), max_iter=self.maximum_iterations)
+                model = Lasso(alpha=self.alpha, max_iter=self.maximum_iterations)
                 model.fit(features, targets_hour)
                 self.hourly_models[hour] = model
 
