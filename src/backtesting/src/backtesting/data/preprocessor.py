@@ -85,9 +85,7 @@ class DataPreprocessor:
         all_blocks = []
         for column in self.exogenous_columns:
             daily = self._pivot_hourly_to_daily(hourly_dataframe, column)
-            # Target day forecast (d0)
             all_blocks.append(daily.copy().add_prefix(f"{column}_d0_"))
-            # Historical values (d-1, d-7)
             all_blocks.append(daily.shift(1).add_prefix(f"{column}_d1_"))
             all_blocks.append(daily.shift(7).add_prefix(f"{column}_d7_"))
         return pd.concat(all_blocks, axis=1)

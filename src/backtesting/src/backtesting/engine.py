@@ -68,11 +68,16 @@ class BacktestEngine:
         window_size: int,
     ) -> np.ndarray:
         state = self._window_state.get(window_size)
-        days_since_last_fit = (target_date - state.last_fit_date).days
-        needs_refit : bool = (
-            state is None or  
-            days_since_last_fit >= self.refit_interval_days
-            )
+        if state is None:
+            days_since_last_fit = None
+        else:
+            days_since_last_fit = (target_date - state.last_fit_date).days
+
+        needs_refit: bool = (
+            state is None
+            or days_since_last_fit is None
+            or days_since_last_fit >= self.refit_interval_days
+        )
 
         if needs_refit:
             features_train, targets_train, features_test = self._slice_data(
@@ -84,7 +89,7 @@ class BacktestEngine:
             )
             model = model_factory()
             model.fit(features_train_scaled, targets_train_scaled)
-            prediction_scaled = model.predict(features_test_scaled)
+            prediction_scaled = model.predict_day(features_test_scaled)
             prediction = preprocessor.inverse_transform_predictions(prediction_scaled)
 
             self._window_state[window_size] = WindowState(
@@ -96,7 +101,7 @@ class BacktestEngine:
 
         features_test = self._get_test_features(features, target_date)
         features_test_scaled = state.preprocessor.transform_features(features_test)
-        prediction_scaled = state.model.predict(features_test_scaled)
+        prediction_scaled = state.model.predict_day(features_test_scaled)
         return state.preprocessor.inverse_transform_predictions(prediction_scaled)
 
     def _ensemble_forecast(
@@ -109,12 +114,10 @@ class BacktestEngine:
         window_forecasts = []
 
         for window_size in self.windows:
-            try:
-                prediction = self._fit_and_predict_window(
-                    model_factory, features, targets, date, window_size
-                )
-            except ValueError:
-                continue
+            prediction = self._fit_and_predict_window(
+                model_factory, features, targets, date, window_size
+            )
+            
             window_forecasts.append(prediction)
 
         if not window_forecasts:

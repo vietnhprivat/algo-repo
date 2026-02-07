@@ -42,12 +42,12 @@ class LearModel(BaseModel):
                 model.fit(features, targets_hour)
                 self.hourly_models[hour] = model
 
-    def predict(self, features: np.ndarray) -> np.ndarray:
+    def predict_day(self, features: np.ndarray) -> np.ndarray:
         if len(self.hourly_models) != 24:
             raise ValueError("LEAR model must be fit before prediction.")
 
         predictions = np.zeros(24)
         for hour in range(24):
-            predictions[hour] = self.hourly_models[hour].predict(features)
+            predictions[hour] = self.hourly_models[hour].predict(features).item()
 
         return predictions

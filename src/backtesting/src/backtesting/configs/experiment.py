@@ -30,4 +30,3 @@ class ExperimentConfig:
     #     with open(path, "r") as f:
     #         return cls(**yaml.safe_load(f))
     
-

@@ -14,6 +14,6 @@ class DNNModel(BaseModel):
         # Fit single neural net
         pass
 
-    def predict(self, features: np.ndarray) -> np.ndarray:
+    def predict_day(self, features: np.ndarray) -> np.ndarray:
         # Predict (1, 24) vector directly
         pass

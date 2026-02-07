@@ -9,5 +9,5 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def predict(self, features: np.ndarray) -> np.ndarray:
+    def predict_day(self, features: np.ndarray) -> np.ndarray:
         pass
