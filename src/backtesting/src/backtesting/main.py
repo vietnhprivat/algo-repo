@@ -10,7 +10,7 @@ def main() -> None:
         model_type="lear",
         model_params={"alpha": 0.01},
         exogenous_features=[],
-        test_start_date="2017-01-01",
+        test_start_date="2017-12-01",
         test_end_date="2017-12-31",
         calibration_windows=[56, 84, 352],
         refit_interval_days=1,
