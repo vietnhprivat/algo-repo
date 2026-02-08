@@ -21,12 +21,13 @@ dependencies = [
     "scikit-learn>=1.8.0",
     "infrastructure-clickhouse",
     "clickhouse-connect>=0.10.0",
+    "typer>=0.21.1",
+    "pyarrow>=23.0.0",
+    "python-dotenv>=1.2.1",
 ]
 
 [tool.uv.workspace]
 members = [
-    "data_cli",
-    "src/data_cli",
     "src/infrastructure_entsoe",
     "src/infrastructure_clickhouse",
     "src/assets",

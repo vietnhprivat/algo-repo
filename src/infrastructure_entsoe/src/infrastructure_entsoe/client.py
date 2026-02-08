@@ -1,7 +1,13 @@
 from datetime import datetime, timedelta
-from assets.areas import Area
+from urllib import response
+
 import httpx
-from .mappers import _parse_energy_prices_xml_to_observation
+import polars as pl
+from typing import cast, Self
+
+from assets.areas import Area
+from infrastructure_entsoe.mappers import _parse_energy_prices_xml_to_observation
+from assets.data_objects import EnergyPriceObservation
 
 import zipfile
 from io import BytesIO
@@ -12,21 +18,25 @@ class EntsoeClientBase:
         self.api_key = api_key
         self.base_url = "https://web-api.tp.entsoe.eu/api"
 
-    def _handle_energy_prices_response(self, response: httpx.Response) -> list[dict]:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def _handle_energy_prices_response(self, response: httpx.Response) -> list[EnergyPriceObservation]:
         response.raise_for_status()
         raw_data = response.content
-        content_type = response.headers.get("Content-Type", "").lower()
-
-        all_observations = []
+        content_type = cast(str, response.headers.get("Content-Type", "")).lower()  
+      
+        energy_price_observations: list[EnergyPriceObservation] = []
         if "zip" in content_type or raw_data.startswith(b"PK"):
             for xml_file in self._extract_xml_from_zip(raw_data):
-                observations = _parse_energy_prices_xml_to_observation(xml_file)
-                all_observations.extend(observations)
+                energy_price_observations.append(_parse_energy_prices_xml_to_observation(xml_file))
         else:
-            observations = _parse_energy_prices_xml_to_observation(raw_data)
-            all_observations.extend(observations)
+            energy_price_observations.append(_parse_energy_prices_xml_to_observation(raw_data))
 
-        return all_observations
+        return energy_price_observations
 
     def _build_energy_prices_params(
         self,
@@ -67,8 +77,19 @@ class EntsoeClientBase:
 
 
 class EntsoeClient(EntsoeClientBase):
-    def fetch_energy_prices(self, area: Area, start_date: datetime, end_date: datetime):
+    def fetch_energy_prices(self, area: Area, start_date: datetime, end_date: datetime) -> list[EnergyPriceObservation]:
         params = self._build_energy_prices_params(area, start_date, end_date)
         response = httpx.get(self.base_url, params=params)
 
         return self._handle_energy_prices_response(response)
+    
+    def __enter__(self) -> Self:
+        self.client = httpx.Client()
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        if self.client is None:
+            return
+        
+        self.client.close()
+        self.client = None
