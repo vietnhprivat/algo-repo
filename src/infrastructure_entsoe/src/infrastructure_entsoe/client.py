@@ -8,6 +8,7 @@ from typing import cast, Self
 from assets.areas import Area
 from infrastructure_entsoe.mappers import _parse_energy_prices_xml_to_observation
 from assets.data_objects import EnergyPriceObservation
+from ratelimit import limits, sleep_and_retry
 
 import zipfile
 from io import BytesIO
@@ -24,17 +25,15 @@ class EntsoeClientBase:
     def __exit__(self, exc_type, exc, tb):
         return False
 
-    def _handle_energy_prices_response(self, response: httpx.Response) -> list[EnergyPriceObservation]:
-        response.raise_for_status()
-        raw_data = response.content
-        content_type = cast(str, response.headers.get("Content-Type", "")).lower()  
-      
+    def _handle_energy_prices_response(self, content_types_and_contents: list[tuple[str, bytes]]) -> list[EnergyPriceObservation]:
+        
         energy_price_observations: list[EnergyPriceObservation] = []
-        if "zip" in content_type or raw_data.startswith(b"PK"):
-            for xml_file in self._extract_xml_from_zip(raw_data):
-                energy_price_observations.append(_parse_energy_prices_xml_to_observation(xml_file))
-        else:
-            energy_price_observations.append(_parse_energy_prices_xml_to_observation(raw_data))
+        for content_type, raw_data in content_types_and_contents:
+            if "zip" in content_type or raw_data.startswith(b"PK"):
+                for xml_file in self._extract_xml_from_zip(raw_data):
+                    energy_price_observations.append(_parse_energy_prices_xml_to_observation(xml_file))
+            else:
+                energy_price_observations.append(_parse_energy_prices_xml_to_observation(raw_data))
 
         return energy_price_observations
 
@@ -43,11 +42,13 @@ class EntsoeClientBase:
         area: Area,
         start_date: datetime,
         end_date: datetime,
+        offset: int = 0,
     ):
         params = {
             "documentType": "A44",
             "out_Domain": area.energy_identification_code,
             "in_Domain": area.energy_identification_code,
+            "offset": offset,
         }
         params = self._add_start_end_timestamps(params, start_date, end_date)
         params = self._add_api_key(params)
@@ -78,10 +79,34 @@ class EntsoeClientBase:
 
 class EntsoeClient(EntsoeClientBase):
     def fetch_energy_prices(self, area: Area, start_date: datetime, end_date: datetime) -> list[EnergyPriceObservation]:
-        params = self._build_energy_prices_params(area, start_date, end_date)
-        response = httpx.get(self.base_url, params=params)
 
-        return self._handle_energy_prices_response(response)
+        content_types_and_contents: list[tuple[str, bytes]] = []
+        current_offset = 0
+        for iteration in range(49):
+            if iteration == 48:
+                raise Exception("Reached maximum number of iterations while fetching energy prices. This likely means that there is more data to fetch, but the API is not responding with the expected data. Please investigate the issue.")
+            params = self._build_energy_prices_params(area, start_date, end_date, offset=current_offset)
+            response = self._rate_limit_get(self.base_url, params, timeout=30)
+            current_offset += 100
+
+            if response.status_code != 200:
+                continue
+
+            raw = response.content
+            text = raw.decode("utf-8", errors="ignore")
+            if "no matching data found for data item" in text.lower():
+                break
+
+            content_type = response.headers.get("Content-Type", "").lower()
+            content_types_and_contents.append((content_type, raw))
+
+        return self._handle_energy_prices_response(content_types_and_contents)
+    
+
+    @sleep_and_retry
+    @limits(calls=400, period=60)
+    def _rate_limit_get(self, base_url: str, params: dict, timeout: int = 30) -> httpx.Response:
+        return httpx.get(base_url, params=params, timeout=timeout)
     
     def __enter__(self) -> Self:
         self.client = httpx.Client()
