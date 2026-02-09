@@ -1,0 +1,17 @@
+name: ruff lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+jobs:
+  ruff-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+        - uses: actions/checkout@v4
+        - uses: astral-sh/setup-uv@v5
+          with:
+            args: "check ."
