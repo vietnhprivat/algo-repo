@@ -25,6 +25,7 @@ dependencies = [
     "pyarrow>=23.0.0",
     "python-dotenv>=1.2.1",
     "ratelimit>=2.2.1",
+    "typos>=1.43.3",
 ]
 
 [tool.uv.workspace]

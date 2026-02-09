@@ -126,7 +126,7 @@ class MarketAgreementType(Enum):
 
 # https://transparencyplatform.zendesk.com/hc/en-us/articles/15857089373076-Standard-MarketProduct
 # https://transparencyplatform.zendesk.com/hc/en-us/articles/15857105955988-Original-MarketProduct
-# Standard-MarketProduct and Orignal-MarketProduct mapping are identical
+# Standard-MarketProduct and Original-MarketProduct mapping are identical
 class MarketProduct(Enum):
     Standard = "A01"
     Specific = "A02"

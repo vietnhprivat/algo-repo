@@ -4,22 +4,21 @@ import polars as pl
 
 class EnergyPriceObservation:
     SCHEMA = {
-        "source":               pl.Utf8,
-        "area":                 pl.Utf8,
-        "area_timezone":        pl.Utf8,
-        "start_utc":            pl.Datetime(time_zone = timezone.utc),
-        "end_utc":              pl.Datetime(time_zone = timezone.utc),
-        "auction_type":         pl.Utf8,
-        "business_type":        pl.Utf8,
-        "contract_type":        pl.Utf8,
-        "price":                pl.Float64,
-        "currency":             pl.Utf8,
-        "ingestion_timestamp":  pl.Datetime(time_zone = timezone.utc),
+        "source": pl.Utf8,
+        "area": pl.Utf8,
+        "area_timezone": pl.Utf8,
+        "start_utc": pl.Datetime(time_zone=timezone.utc),
+        "end_utc": pl.Datetime(time_zone=timezone.utc),
+        "auction_type": pl.Utf8,
+        "business_type": pl.Utf8,
+        "contract_type": pl.Utf8,
+        "price": pl.Float64,
+        "currency": pl.Utf8,
+        "ingestion_timestamp": pl.Datetime(time_zone=timezone.utc),
     }
 
     def __init__(self, data_frame: pl.DataFrame):
         self.data_frame = enforce_schema(data_frame, self.SCHEMA)
-
 
 
 def enforce_schema(df: pl.DataFrame, schema: dict[str, pl.DataType]) -> pl.DataFrame:

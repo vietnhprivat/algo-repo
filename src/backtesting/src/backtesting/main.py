@@ -1,6 +1,7 @@
 from backtesting.configs.experiment import ExperimentConfig
 from backtesting.runner import BacktestRunner, LiveRunner
 
+
 def main() -> None:
     config = ExperimentConfig(
         experiment_name="local_backtest",
@@ -25,6 +26,7 @@ def main() -> None:
     outputs = runner.execute()
     print("Backtest forecast sample:")
     print(outputs["forecasts"].head())
+
 
 if __name__ == "__main__":
     main()

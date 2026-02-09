@@ -5,11 +5,14 @@ from infrastructure_clickhouse.client_factory import create_client
 from infrastructure_entsoe.client_factory import create_entsoe_client
 from infrastructure_clickhouse.ingest import insert_energy_prices_batch
 
+
 def main(input_area: str, start_date: datetime, end_date: datetime):
     clickhouse_client = create_client()
     area = get_area_from_tag(input_area)
     with create_entsoe_client() as client:
-        energy_prices = client.fetch_energy_prices(area=area, start_date=start_date, end_date=end_date)
+        energy_prices = client.fetch_energy_prices(
+            area=area, start_date=start_date, end_date=end_date
+        )
         insert_energy_prices_batch(clickhouse_client, energy_prices)
 
 

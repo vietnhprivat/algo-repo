@@ -1,5 +1,6 @@
 from infrastructure_clickhouse.client_factory import create_client
 
+
 def create_energy_prices_table():
     engine = "ReplacingMergeTree"
     command = f"""
@@ -21,11 +22,10 @@ def create_energy_prices_table():
         ORDER BY (source, area, contract_type, start_utc)
         PARTITION BY toStartOfQuarter(start_utc)
         """
-    
+
     client = create_client()
-    
+
     try:
         client.command(command)
     finally:
         client.close()
-

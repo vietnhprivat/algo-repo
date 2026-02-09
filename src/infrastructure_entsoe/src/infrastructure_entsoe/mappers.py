@@ -19,16 +19,26 @@ def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> EnergyPriceObser
 
     final_observations: list[pl.DataFrame] = []
     for timeseries in root.findall("ns:TimeSeries", ns):
-        in_area = get_area_from_energy_code(timeseries.find("ns:in_Domain.mRID", ns).text)
-        out_area = get_area_from_energy_code(timeseries.find("ns:out_Domain.mRID", ns).text)
+        in_area = get_area_from_energy_code(
+            timeseries.find("ns:in_Domain.mRID", ns).text
+        )
+        out_area = get_area_from_energy_code(
+            timeseries.find("ns:out_Domain.mRID", ns).text
+        )
         base_data = {
             "doc_type": DocumentType(doc_type).name,
             "mrid": timeseries.find("ns:mRID", ns).text,
             "in_Domain.mRID": in_area.tag,
             "out_Domain.mRID": out_area.tag,
-            "auction_type": AuctionType(timeseries.find("ns:auction.type", ns).text).name,
-            "business_type": BusinessType(timeseries.find("ns:businessType", ns).text).name,
-            "contract_type": MarketAgreementType(timeseries.find("ns:contract_MarketAgreement.type", ns).text).name,
+            "auction_type": AuctionType(
+                timeseries.find("ns:auction.type", ns).text
+            ).name,
+            "business_type": BusinessType(
+                timeseries.find("ns:businessType", ns).text
+            ).name,
+            "contract_type": MarketAgreementType(
+                timeseries.find("ns:contract_MarketAgreement.type", ns).text
+            ).name,
             "curve_type": timeseries.find("ns:curveType", ns).text,
             "currency": timeseries.find("ns:currency_Unit.name", ns).text,
             "unit": timeseries.find("ns:price_Measure_Unit.name", ns).text,
@@ -64,7 +74,9 @@ def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> EnergyPriceObser
             start_timestamps_df = pl.DataFrame(
                 {"start_utc": all_start_timestamps, "price": all_prices}
             )
-            merged_df = start_entries.join(start_timestamps_df, on="start_utc", how="left")
+            merged_df = start_entries.join(
+                start_timestamps_df, on="start_utc", how="left"
+            )
             merged_df = merged_df.with_columns(pl.col("price").forward_fill())
             merged_df = merged_df.sort("start_utc")
             merged_df = merged_df.with_columns(
@@ -73,20 +85,20 @@ def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> EnergyPriceObser
 
             ingestion_ts = datetime.now(timezone.utc)
             merged_df = merged_df.with_columns(
-                source =                pl.lit("ENTSOE"),
-                area =                  pl.lit(in_area.tag),
-                area_timezone =         pl.lit(in_area.timezone.key),
-                auction_type =          pl.lit(base_data["auction_type"]),
-                business_type =         pl.lit(base_data["business_type"]),
-                contract_type =         pl.lit(base_data["contract_type"]),
-                currency =              pl.lit(base_data["currency"]),
-                ingestion_timestamp =   pl.lit(ingestion_ts)
+                source=pl.lit("ENTSOE"),
+                area=pl.lit(in_area.tag),
+                area_timezone=pl.lit(in_area.timezone.key),
+                auction_type=pl.lit(base_data["auction_type"]),
+                business_type=pl.lit(base_data["business_type"]),
+                contract_type=pl.lit(base_data["contract_type"]),
+                currency=pl.lit(base_data["currency"]),
+                ingestion_timestamp=pl.lit(ingestion_ts),
             )
             final_observations.append(merged_df)
 
     polars_df = pl.concat(final_observations)
     polars_df = polars_df.select(list(EnergyPriceObservation.SCHEMA.keys()))
-  
+
     return EnergyPriceObservation(polars_df)
 
 

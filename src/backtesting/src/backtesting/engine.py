@@ -17,6 +17,7 @@ class WindowState:
     model: BaseModel
     preprocessor: DataPreprocessor
 
+
 class BacktestEngine:
     def __init__(self, config: ExperimentConfig):
         self.config = config
@@ -32,15 +33,19 @@ class BacktestEngine:
         window_size: int,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if target_date not in features.index:
-            raise ValueError(f"Target date {target_date.date()} not found in feature index.")
+            raise ValueError(
+                f"Target date {target_date.date()} not found in feature index."
+            )
 
         start_date = target_date - pd.Timedelta(days=window_size)
         end_date = target_date - pd.Timedelta(days=1)
 
         train_mask = (features.index >= start_date) & (features.index <= end_date)
-        features_train_frame = features.loc[train_mask]     # shape: (window_size, num_features)
-        targets_train_frame = targets.loc[train_mask]       # shape: (window_size, 24)
-        features_test_frame = features.loc[[target_date]]   # shape: (1, num_features)
+        features_train_frame = features.loc[
+            train_mask
+        ]  # shape: (window_size, num_features)
+        targets_train_frame = targets.loc[train_mask]  # shape: (window_size, 24)
+        features_test_frame = features.loc[[target_date]]  # shape: (1, num_features)
 
         if len(features_train_frame) < window_size:
             raise ValueError(
@@ -54,9 +59,13 @@ class BacktestEngine:
             features_test_frame.to_numpy(),
         )
 
-    def _get_test_features(self, features: pd.DataFrame, target_date: pd.Timestamp) -> np.ndarray:
+    def _get_test_features(
+        self, features: pd.DataFrame, target_date: pd.Timestamp
+    ) -> np.ndarray:
         if target_date not in features.index:
-            raise ValueError(f"Target date {target_date.date()} not found in feature index.")
+            raise ValueError(
+                f"Target date {target_date.date()} not found in feature index."
+            )
         return features.loc[[target_date]].to_numpy()
 
     def _fit_and_predict_window(
@@ -84,8 +93,10 @@ class BacktestEngine:
                 features, targets, target_date, window_size
             )
             preprocessor = DataPreprocessor(self.config)
-            features_train_scaled, targets_train_scaled, features_test_scaled = preprocessor.transform_data(
-                features_train, targets_train, features_test
+            features_train_scaled, targets_train_scaled, features_test_scaled = (
+                preprocessor.transform_data(
+                    features_train, targets_train, features_test
+                )
             )
             model = model_factory()
             model.fit(features_train_scaled, targets_train_scaled)
@@ -117,7 +128,7 @@ class BacktestEngine:
             prediction = self._fit_and_predict_window(
                 model_factory, features, targets, date, window_size
             )
-            
+
             window_forecasts.append(prediction)
 
         if not window_forecasts:

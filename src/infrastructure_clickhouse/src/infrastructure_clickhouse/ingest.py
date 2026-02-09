@@ -11,13 +11,9 @@ def insert_energy_prices_batch(
     insert_polars_dataframe(client, data_frames, "algo.energy_prices")
 
 
-
 def insert_polars_dataframe(
-        client, 
-        dataframe: pl.DataFrame, 
-        table_name: str, 
-        batch_size: int = 10_000
-        ) -> None:
+    client, dataframe: pl.DataFrame, table_name: str, batch_size: int = 10_000
+) -> None:
     """Insert a Polars DataFrame into ClickHouse in batches using insert_arrow.
 
     Args:

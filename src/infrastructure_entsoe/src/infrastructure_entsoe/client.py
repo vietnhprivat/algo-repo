@@ -1,9 +1,7 @@
-from datetime import datetime, timedelta
-from urllib import response
+from datetime import datetime
 
 import httpx
-import polars as pl
-from typing import cast, Self
+from typing import Literal, Self
 
 from assets.areas import Area
 from infrastructure_entsoe.mappers import _parse_energy_prices_xml_to_observation
@@ -19,21 +17,20 @@ class EntsoeClientBase:
         self.api_key = api_key
         self.base_url = "https://web-api.tp.entsoe.eu/api"
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        return False
-
-    def _handle_energy_prices_response(self, content_types_and_contents: list[tuple[str, bytes]]) -> list[EnergyPriceObservation]:
-        
+    def _handle_energy_prices_response(
+        self, content_types_and_contents: list[tuple[str, bytes]]
+    ) -> list[EnergyPriceObservation]:
         energy_price_observations: list[EnergyPriceObservation] = []
         for content_type, raw_data in content_types_and_contents:
             if "zip" in content_type or raw_data.startswith(b"PK"):
                 for xml_file in self._extract_xml_from_zip(raw_data):
-                    energy_price_observations.append(_parse_energy_prices_xml_to_observation(xml_file))
+                    energy_price_observations.append(
+                        _parse_energy_prices_xml_to_observation(xml_file)
+                    )
             else:
-                energy_price_observations.append(_parse_energy_prices_xml_to_observation(raw_data))
+                energy_price_observations.append(
+                    _parse_energy_prices_xml_to_observation(raw_data)
+                )
 
         return energy_price_observations
 
@@ -78,14 +75,19 @@ class EntsoeClientBase:
 
 
 class EntsoeClient(EntsoeClientBase):
-    def fetch_energy_prices(self, area: Area, start_date: datetime, end_date: datetime) -> list[EnergyPriceObservation]:
-
+    def fetch_energy_prices(
+        self, area: Area, start_date: datetime, end_date: datetime
+    ) -> list[EnergyPriceObservation]:
         content_types_and_contents: list[tuple[str, bytes]] = []
         current_offset = 0
         for iteration in range(49):
             if iteration == 48:
-                raise Exception("Reached maximum number of iterations while fetching energy prices. This likely means that there is more data to fetch, but the API is not responding with the expected data. Please investigate the issue.")
-            params = self._build_energy_prices_params(area, start_date, end_date, offset=current_offset)
+                raise Exception(
+                    "Reached maximum number of iterations while fetching energy prices. This likely means that there is more data to fetch, but the API is not responding with the expected data. Please investigate the issue."
+                )
+            params = self._build_energy_prices_params(
+                area, start_date, end_date, offset=current_offset
+            )
             response = self._rate_limit_get(self.base_url, params, timeout=30)
             current_offset += 100
 
@@ -101,20 +103,22 @@ class EntsoeClient(EntsoeClientBase):
             content_types_and_contents.append((content_type, raw))
 
         return self._handle_energy_prices_response(content_types_and_contents)
-    
 
     @sleep_and_retry
     @limits(calls=400, period=60)
-    def _rate_limit_get(self, base_url: str, params: dict, timeout: int = 30) -> httpx.Response:
+    def _rate_limit_get(
+        self, base_url: str, params: dict, timeout: int = 30
+    ) -> httpx.Response:
         return httpx.get(base_url, params=params, timeout=timeout)
-    
+
     def __enter__(self) -> Self:
         self.client = httpx.Client()
         return self
-    
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+
+    def __exit__(self, exc_type, exc_value, traceback) -> Literal[False]:
         if self.client is None:
-            return
-        
+            return False
+
         self.client.close()
         self.client = None
+        return False
