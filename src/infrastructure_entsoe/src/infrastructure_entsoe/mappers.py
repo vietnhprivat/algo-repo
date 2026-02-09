@@ -1,3 +1,4 @@
+
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 import polars as pl
@@ -12,51 +13,52 @@ from infrastructure_entsoe.entsoe_types import (
 )
 
 
+def get_required_text(element: ET.Element, tag: str, ns: dict) -> str:
+    found = element.find(tag, ns)
+    if found is None or found.text is None:
+        raise ValueError(f"Missing required XML element or text: {tag}")
+    return found.text
+
+
 def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> EnergyPriceObservation:
     root = ET.fromstring(xml_data)
     ns = {"ns": "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3"}
-    doc_type = root.find("ns:type", ns).text
+    doc_type = get_required_text(root, "ns:type", ns)
 
     final_observations: list[pl.DataFrame] = []
     for timeseries in root.findall("ns:TimeSeries", ns):
         in_area = get_area_from_energy_code(
-            timeseries.find("ns:in_Domain.mRID", ns).text
+            get_required_text(timeseries, "ns:in_Domain.mRID", ns)
         )
         out_area = get_area_from_energy_code(
-            timeseries.find("ns:out_Domain.mRID", ns).text
+            get_required_text(timeseries, "ns:out_Domain.mRID", ns)
         )
         base_data = {
             "doc_type": DocumentType(doc_type).name,
-            "mrid": timeseries.find("ns:mRID", ns).text,
+            "mrid": get_required_text(timeseries, "ns:mRID", ns),
             "in_Domain.mRID": in_area.tag,
             "out_Domain.mRID": out_area.tag,
-            "auction_type": AuctionType(
-                timeseries.find("ns:auction.type", ns).text
-            ).name,
-            "business_type": BusinessType(
-                timeseries.find("ns:businessType", ns).text
-            ).name,
-            "contract_type": MarketAgreementType(
-                timeseries.find("ns:contract_MarketAgreement.type", ns).text
-            ).name,
-            "curve_type": timeseries.find("ns:curveType", ns).text,
-            "currency": timeseries.find("ns:currency_Unit.name", ns).text,
-            "unit": timeseries.find("ns:price_Measure_Unit.name", ns).text,
+            "auction_type": AuctionType(get_required_text(timeseries, "ns:auction.type", ns)).name,
+            "business_type": BusinessType(get_required_text(timeseries, "ns:businessType", ns)).name,
+            "contract_type": MarketAgreementType(get_required_text(timeseries, "ns:contract_MarketAgreement.type", ns)).name,
+            "curve_type": get_required_text(timeseries, "ns:curveType", ns),
+            "currency": get_required_text(timeseries, "ns:currency_Unit.name", ns),
+            "unit": get_required_text(timeseries, "ns:price_Measure_Unit.name", ns),
         }
 
         for period in timeseries.findall("ns:Period", ns):
-            resolution = period.find("ns:resolution", ns).text
+            resolution = get_required_text(period, "ns:resolution", ns)
             delta = _map_resolution_to_timedelta(resolution)
-            start_raw = period.find("ns:timeInterval/ns:start", ns).text
-            end_raw = period.find("ns:timeInterval/ns:end", ns).text
+            start_raw = get_required_text(period, "ns:timeInterval/ns:start", ns)
+            end_raw = get_required_text(period, "ns:timeInterval/ns:end", ns)
             start_utc = datetime.fromisoformat(start_raw).astimezone(timezone.utc)
             end_utc = datetime.fromisoformat(end_raw).astimezone(timezone.utc)
 
             all_prices: list[float] = []
             all_positions: list[int] = []
             for point in period.findall("ns:Point", ns):
-                position = int(point.find("ns:position", ns).text)
-                price = float(point.find("ns:price.amount", ns).text)
+                position = int(get_required_text(point, "ns:position", ns))
+                price = float(get_required_text(point, "ns:price.amount", ns))
                 all_positions.append(position)
                 all_prices.append(price)
 
@@ -102,7 +104,7 @@ def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> EnergyPriceObser
     return EnergyPriceObservation(polars_df)
 
 
-def _map_A03_curve(start_utc: datetime, delta: str, positions: list[int]) -> list[dict]:
+def _map_A03_curve(start_utc: datetime, delta: timedelta, positions: list[int]) -> list[dict]:
     all_time_step_start = []
     for point in positions:
         time_step_start = start_utc + (point - 1) * delta
