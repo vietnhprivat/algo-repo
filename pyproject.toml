@@ -19,13 +19,19 @@ dependencies = [
     "requests>=2.32.5",
     "ruff>=0.14.14",
     "scikit-learn>=1.8.0",
+    "infrastructure-clickhouse",
+    "clickhouse-connect>=0.10.0",
+    "typer>=0.21.1",
+    "pyarrow>=23.0.0",
+    "python-dotenv>=1.2.1",
+    "ratelimit>=2.2.1",
+    "typos>=1.43.3",
 ]
 
 [tool.uv.workspace]
 members = [
-    "data_cli",
-    "src/data_cli",
     "src/infrastructure_entsoe",
+    "src/infrastructure_clickhouse",
     "src/assets",
     "src/backtesting",
 ]
@@ -33,5 +39,6 @@ members = [
 [tool.uv.sources]
 data-cli = { workspace = true }
 infrastructure-entsoe = { workspace = true }
+infrastructure-clickhouse = { workspace = true }
 assets = { workspace = true }
 backtesting = { workspace = true }

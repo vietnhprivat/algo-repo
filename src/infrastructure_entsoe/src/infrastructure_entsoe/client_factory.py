@@ -1,7 +1,10 @@
 import os
-from .client import EntsoeClient
 
+from dotenv import load_dotenv
 
+from infrastructure_entsoe.client import EntsoeClient
+
+load_dotenv()
 ENTSOE_API_KEY = "ENTSOE_API_KEY"
 
 

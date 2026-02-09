@@ -73,7 +73,9 @@ class BacktestRunner(BaseRunner):
         forecasts = outputs["forecasts"]
         actuals = outputs["actuals"]
 
-        forecasts_path = results_directory / f"{self.config.experiment_name}_forecasts.csv"
+        forecasts_path = (
+            results_directory / f"{self.config.experiment_name}_forecasts.csv"
+        )
         actuals_path = results_directory / f"{self.config.experiment_name}_actuals.csv"
         forecasts.to_csv(forecasts_path)
         actuals.to_csv(actuals_path)
@@ -82,8 +84,12 @@ class BacktestRunner(BaseRunner):
         metrics_summary = compute_metrics_summary(forecasts, actuals, naive_forecasts)
         metrics_per_hour = compute_metrics_per_hour(forecasts, actuals, naive_forecasts)
 
-        metrics_summary_path = results_directory / f"{self.config.experiment_name}_metrics.json"
-        metrics_per_hour_path = results_directory / f"{self.config.experiment_name}_metrics_per_hour.csv"
+        metrics_summary_path = (
+            results_directory / f"{self.config.experiment_name}_metrics.json"
+        )
+        metrics_per_hour_path = (
+            results_directory / f"{self.config.experiment_name}_metrics_per_hour.csv"
+        )
 
         metrics_summary_path.write_text(json.dumps(metrics_summary, indent=2))
         metrics_per_hour.to_csv(metrics_per_hour_path, index=False)

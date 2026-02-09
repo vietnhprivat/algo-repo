@@ -364,3 +364,23 @@ COUNTRIES = {
     ME,
     MK,
 }
+
+
+ENERGY_CODE_TO_AREA = {area.energy_identification_code: area for area in COUNTRIES}
+TAG_TO_AREA = {area.tag: area for area in COUNTRIES}
+
+
+def get_area_from_energy_code(code: str) -> Area:
+    """Return Area for an energy_identification_code or raise ValueError."""
+    try:
+        return ENERGY_CODE_TO_AREA[code]
+    except KeyError as exc:
+        raise ValueError(f"Unknown energy_identification_code: {code}") from exc
+
+
+def get_area_from_tag(tag: str) -> Area:
+    """Return Area for a tag (e.g., DK1) or raise ValueError."""
+    try:
+        return TAG_TO_AREA[tag]
+    except KeyError as exc:
+        raise ValueError(f"Unknown area tag: {tag}") from exc

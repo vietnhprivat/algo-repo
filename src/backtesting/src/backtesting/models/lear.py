@@ -36,7 +36,7 @@ class LearModel(BaseModel):
                 model.fit(features, targets_hour)
                 self.best_alphas[hour] = float(model.alpha_)
                 self.hourly_models[hour] = model
-            
+
             else:
                 model = Lasso(alpha=self.alpha, max_iter=self.maximum_iterations)
                 model.fit(features, targets_hour)
