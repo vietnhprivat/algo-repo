@@ -1,6 +1,6 @@
 import polars as pl
 from typing import List
-from assets.data_objects import EnergyPriceObservation
+from domain.curves import EnergyPriceObservation
 
 
 def insert_energy_prices_batch(

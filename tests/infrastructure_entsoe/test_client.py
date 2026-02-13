@@ -4,8 +4,8 @@ import pytest
 from datetime import datetime, timezone
 
 from infrastructure_entsoe.client import EntsoeClientBase
-from assets.data_objects import EnergyPriceObservation
-from assets.areas import DE
+from domain.curves import EnergyPriceObservation
+from domain.areas import DE
 
 from tests.infrastructure_entsoe.conftest import SAMPLE_ENERGY_PRICES_XML
 

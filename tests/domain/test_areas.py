@@ -1,7 +1,7 @@
 import pytest
 from zoneinfo import ZoneInfo
 
-from assets.areas import (
+from domain.areas import (
     Area,
     get_area_from_energy_code,
     get_area_from_tag,

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import polars as pl
 import pyarrow as pa
 
-from assets.data_objects import EnergyPriceObservation
+from domain.curves import EnergyPriceObservation
 
 
 class FakeClickHouseClient:
