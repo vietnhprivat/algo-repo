@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from assets.areas import get_area_from_tag
+from domain.areas import get_area_from_tag
 from infrastructure_clickhouse.client_factory import create_client
 from infrastructure_entsoe.client_factory import create_entsoe_client
 from infrastructure_clickhouse.ingest import insert_energy_prices_batch

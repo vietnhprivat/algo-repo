@@ -10,8 +10,8 @@ resolution-markers = [
 [manifest]
 members = [
     "algo-repo",
-    "assets",
     "backtesting",
+    "domain",
     "infrastructure-clickhouse",
     "infrastructure-entsoe",
 ]
@@ -21,7 +21,6 @@ name = "algo-repo"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "assets" },
     { name = "backtesting" },
     { name = "clickhouse-connect" },
     { name = "httpx" },
@@ -46,7 +45,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "assets", editable = "src/assets" },
     { name = "backtesting", editable = "src/backtesting" },
     { name = "clickhouse-connect", specifier = ">=0.10.0" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -145,11 +143,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/b9/33/032cdc44182491aa7
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/c9/d7977eaacb9df673210491da99e6a247e93df98c715fc43fd136ce1d3d33/arrow-1.4.0-py3-none-any.whl", hash = "sha256:749f0769958ebdc79c173ff0b0670d59051a535fa26e8eba02953dc19eb43205", size = 68797, upload-time = "2025-10-18T17:46:45.663Z" },
 ]
-
-[[package]]
-name = "assets"
-version = "0.1.0"
-source = { editable = "src/assets" }
 
 [[package]]
 name = "asttokens"
@@ -416,6 +409,11 @@ wheels = [
 ]
 
 [[package]]
+name = "domain"
+version = "0.1.0"
+source = { editable = "src/domain" }
+
+[[package]]
 name = "executing"
 version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -517,11 +515,23 @@ wheels = [
 name = "infrastructure-clickhouse"
 version = "0.1.0"
 source = { editable = "src/infrastructure_clickhouse" }
+dependencies = [
+    { name = "domain" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "domain", editable = "src/domain" }]
 
 [[package]]
 name = "infrastructure-entsoe"
 version = "0.1.0"
 source = { editable = "src/infrastructure_entsoe" }
+dependencies = [
+    { name = "domain" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "domain", editable = "src/domain" }]
 
 [[package]]
 name = "iniconfig"

@@ -3,8 +3,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 import polars as pl
 
-from assets.areas import get_area_from_energy_code
-from assets.data_objects import EnergyPriceObservation
+from domain.areas import get_area_from_energy_code
+from domain.curves import EnergyPriceObservation
 from infrastructure_entsoe.entsoe_types import (
     MarketAgreementType,
     BusinessType,

@@ -1,6 +1,5 @@
 """Integration tests for ClickHouse queries module (DDL logic only, no real DB)."""
 
-import pytest
 
 from tests.infrastructure_clickhouse.conftest import FakeClickHouseClient
 

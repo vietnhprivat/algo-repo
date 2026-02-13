@@ -3,9 +3,9 @@ from datetime import datetime
 import httpx
 from typing import Literal, Self
 
-from assets.areas import Area
+from domain.areas import Area
 from infrastructure_entsoe.mappers import _parse_energy_prices_xml_to_observation
-from assets.data_objects import EnergyPriceObservation
+from domain.curves import EnergyPriceObservation
 from ratelimit import limits, sleep_and_retry
 
 import zipfile

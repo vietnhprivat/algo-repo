@@ -1,14 +1,13 @@
 """Integration tests for ENTSOE XML mapper."""
 
 import pytest
-from datetime import datetime, timezone
 
 from infrastructure_entsoe.mappers import (
     _parse_energy_prices_xml_to_observation,
     _map_resolution_to_timedelta,
     get_required_text,
 )
-from assets.data_objects import EnergyPriceObservation
+from domain.curves import EnergyPriceObservation
 
 from tests.infrastructure_entsoe.conftest import SAMPLE_ENERGY_PRICES_XML
 

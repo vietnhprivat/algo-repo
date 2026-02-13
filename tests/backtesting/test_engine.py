@@ -1,7 +1,6 @@
 """Integration tests for BacktestEngine using StubModel (no real training)."""
 
 import pytest
-import numpy as np
 import pandas as pd
 
 from backtesting.engine import BacktestEngine
@@ -60,7 +59,9 @@ class TestBacktestEngineRun:
         test_dates = pd.DatetimeIndex(
             [pd.Timestamp("2019-02-01"), pd.Timestamp("2019-02-02")]
         )
-        factory = lambda: StubModel(prediction_value=42.0)
+
+        def factory():
+            return StubModel(prediction_value=42.0)
 
         forecasts, actuals = engine.run(factory, features, targets, test_dates)
 
@@ -75,7 +76,9 @@ class TestBacktestEngineRun:
         features, targets = make_synthetic_features_and_targets()
         test_dates = pd.DatetimeIndex([pd.Timestamp("2019-02-01")])
 
-        factory = lambda: StubModel(prediction_value=99.0)
+        def factory():
+            return StubModel(prediction_value=99.0)
+
         forecasts, _ = engine.run(factory, features, targets, test_dates)
 
         # StubModel returns 99.0 but goes through scaler -> inverse_transform
@@ -89,7 +92,9 @@ class TestBacktestEngineRun:
         features, targets = make_synthetic_features_and_targets()
         test_dates = pd.DatetimeIndex([pd.Timestamp("2019-02-15")])
 
-        factory = lambda: StubModel(prediction_value=50.0)
+        def factory():
+            return StubModel(prediction_value=50.0)
+
         forecasts, actuals = engine.run(factory, features, targets, test_dates)
 
         assert forecasts.shape == (1, 24)
@@ -115,12 +120,12 @@ class TestBacktestEngineRefit:
 
         models_created = []
 
-        def counting_factory():
+        def factory():
             model = StubModel(prediction_value=42.0)
             models_created.append(model)
             return model
 
-        forecasts, _ = engine.run(counting_factory, features, targets, test_dates)
+        forecasts, _ = engine.run(factory, features, targets, test_dates)
         assert forecasts.shape[0] == 4
 
         # With refit_interval_days=7 and 4 consecutive days,

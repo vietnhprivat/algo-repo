@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import polars as pl
 
-from assets.data_objects import EnergyPriceObservation, enforce_schema
+from domain.curves import EnergyPriceObservation, enforce_schema
 
 
 def _make_valid_df(n_rows: int = 2) -> pl.DataFrame:

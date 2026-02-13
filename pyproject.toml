@@ -5,7 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "assets",
     "backtesting",
     "httpx>=0.28.1",
     "infrastructure-entsoe",
@@ -32,13 +31,12 @@ dependencies = [
 members = [
     "src/infrastructure_entsoe",
     "src/infrastructure_clickhouse",
-    "src/assets",
+    "src/domain",
     "src/backtesting",
 ]
 
 [tool.uv.sources]
-data-cli = { workspace = true }
+domain = { workspace = true }
 infrastructure-entsoe = { workspace = true }
 infrastructure-clickhouse = { workspace = true }
-assets = { workspace = true }
 backtesting = { workspace = true }
