@@ -25,7 +25,6 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "ratelimit>=2.2.1",
     "typos>=1.43.3",
-    "domain>=0.1.4",
 ]
 
 [tool.uv.workspace]
@@ -37,7 +36,7 @@ members = [
 ]
 
 [tool.uv.sources]
-data-cli = { workspace = true }
+domain = { workspace = true }
 infrastructure-entsoe = { workspace = true }
 infrastructure-clickhouse = { workspace = true }
 backtesting = { workspace = true }

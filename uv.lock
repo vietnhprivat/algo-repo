@@ -11,6 +11,7 @@ resolution-markers = [
 members = [
     "algo-repo",
     "backtesting",
+    "domain",
     "infrastructure-clickhouse",
     "infrastructure-entsoe",
 ]
@@ -22,7 +23,6 @@ source = { virtual = "." }
 dependencies = [
     { name = "backtesting" },
     { name = "clickhouse-connect" },
-    { name = "domain" },
     { name = "httpx" },
     { name = "infrastructure-clickhouse" },
     { name = "infrastructure-entsoe" },
@@ -47,7 +47,6 @@ dependencies = [
 requires-dist = [
     { name = "backtesting", editable = "src/backtesting" },
     { name = "clickhouse-connect", specifier = ">=0.10.0" },
-    { name = "domain", specifier = ">=0.1.4" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "infrastructure-clickhouse", editable = "src/infrastructure_clickhouse" },
     { name = "infrastructure-entsoe", editable = "src/infrastructure_entsoe" },
@@ -411,13 +410,8 @@ wheels = [
 
 [[package]]
 name = "domain"
-version = "0.1.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyyaml" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/20/eb/3628831d90001c71dea9dd51b51fac2c0a3cb661bd58c581f73db22446de/domain-0.1.4.tar.gz", hash = "sha256:221ac353139bb915c23d0788d1a46327b782d377ee49beefa28cb7f6c186739a", size = 11416, upload-time = "2018-10-09T12:01:21.564Z" }
+version = "0.1.0"
+source = { editable = "src/domain" }
 
 [[package]]
 name = "executing"
@@ -521,11 +515,23 @@ wheels = [
 name = "infrastructure-clickhouse"
 version = "0.1.0"
 source = { editable = "src/infrastructure_clickhouse" }
+dependencies = [
+    { name = "domain" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "domain", editable = "src/domain" }]
 
 [[package]]
 name = "infrastructure-entsoe"
 version = "0.1.0"
 source = { editable = "src/infrastructure_entsoe" }
+dependencies = [
+    { name = "domain" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "domain", editable = "src/domain" }]
 
 [[package]]
 name = "iniconfig"
