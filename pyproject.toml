@@ -32,7 +32,7 @@ dependencies = [
 members = [
     "src/infrastructure_entsoe",
     "src/infrastructure_clickhouse",
-    "src/assets",
+    "src/domain",
     "src/backtesting",
 ]
 
