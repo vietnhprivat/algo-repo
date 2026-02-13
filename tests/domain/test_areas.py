@@ -2,7 +2,6 @@ import pytest
 from zoneinfo import ZoneInfo
 
 from domain.areas import (
-    Area,
     get_area_from_energy_code,
     get_area_from_tag,
     DE,
