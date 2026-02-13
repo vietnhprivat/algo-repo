@@ -40,3 +40,9 @@ domain = { workspace = true }
 infrastructure-entsoe = { workspace = true }
 infrastructure-clickhouse = { workspace = true }
 backtesting = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
