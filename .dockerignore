@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Development
+# .env - INCLUDED in image for local deployment
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Data files (don't need in image)
+results/
+*.csv
+*.json
+
+# Documentation
+README.md
+researh_material/
+
+# Docker
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Tests (can include if needed, but not required in image)
+tests/
