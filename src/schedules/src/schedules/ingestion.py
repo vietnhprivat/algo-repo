@@ -1,16 +1,12 @@
 """ENTSOE to ClickHouse ingestion flow."""
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from dotenv import load_dotenv
-from prefect import flow, task
 
-# Load environment variables from .env
-load_dotenv(Path("/app/.env"))
+from prefect import flow, task
 
 from domain.areas import get_area_from_tag
 from infrastructure_clickhouse.client_factory import create_client
-from infrastructure_entsoe.client_factory import create_entsoe_client
 from infrastructure_clickhouse.ingest import insert_energy_prices_batch
+from infrastructure_entsoe.client_factory import create_entsoe_client
 
 
 @task(retries=2, retry_delay_seconds=60, log_prints=True)
@@ -54,7 +50,7 @@ def entsoe_ingestion_flow():
     end_time = datetime.now(timezone.utc)
     start_time = end_time - timedelta(hours=24)
     
-    print(f"Starting ENTSOE ingestion flow")
+    print("Starting ENTSOE ingestion flow")
     print(f"Time window: {start_time} to {end_time}")
     
     areas = ["DK1"]
@@ -77,3 +73,7 @@ def entsoe_ingestion_flow():
         }
     }
 
+
+if __name__ == "__main__":
+    # Run the flow locally for testing
+    entsoe_ingestion_flow()

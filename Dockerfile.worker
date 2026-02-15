@@ -1,0 +1,5 @@
+# Dockerfile for the Prefect Docker worker.
+# Pre-installs prefect-docker so the worker starts immediately without pip install at runtime.
+FROM prefecthq/prefect:3-latest
+
+RUN pip install --no-cache-dir prefect-docker
