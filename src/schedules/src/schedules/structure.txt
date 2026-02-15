@@ -1,0 +1,148 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ALGO-REPO ARCHITECTURE                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PERSISTENT INFRASTRUCTURE (docker-compose up -d)                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐       │
+│  │   ClickHouse     │    │  Prefect Server  │    │  Prefect Worker  │       │
+│  │  (Database)      │    │   (API + UI)     │    │  (Job Spawner)   │       │
+│  │                  │    │                  │    │                  │       │
+│  │  Port: 8123      │    │  Port: 4200      │    │  + prefect-docker│       │
+│  │  Port: 9000      │    │                  │    │  + docker.sock   │       │
+│  │                  │    │                  │    │                  │       │
+│  │  algo.energy_    │◄───┤  Stores jobs     │◄───┤  Polls for jobs  │       │
+│  │  prices table    │    │  & schedules     │    │  every 10s       │       │
+│  └──────────────────┘    └──────────────────┘    └──────────────────┘       │
+│           ▲                       ▲                        │                │
+│           │                       │                        │                │
+└───────────┼───────────────────────┼────────────────────────┼────────────────┘
+            │                       │                        │
+            │                       │                        │
+┌───────────┼───────────────────────┼────────────────────────┼───────────────┐
+│ ON-DEMAND EXECUTION (spawned hourly)                       │               │
+├────────────────────────────────────────────────────────────┼───────────────┤
+│                                                            │               │
+│                                                            ▼               │
+│                                              ┌──────────────────────┐      │
+│                                              │  Worker spawns       │      │
+│                                              │  Docker container:   │      │
+│                                              │                      │      │
+│  ┌──────────────┐                            │  algo-repo:latest    │      │
+│  │ ENTSOE API   │                            │  ┌────────────────┐  │      │
+│  │ (External)   │◄────────────────────────── ┼──┤ ingestion.py   │  │      │
+│  │              │  1. Fetch prices           │  │                │  │      │
+│  │ Day-ahead    │     (last 24h DK1)         │  │ .env (baked)   │  │      │
+│  │ spot prices  │                            │  │ - API keys     │  │      │
+│  └──────────────┘                            │  │ - DB creds     │  │      │
+│                                              │  │ - Hosts        │  │      │
+│         │                                    │  └────────────────┘  │      │
+│         │                                    │          │           │      │
+│         │ 2. Transform & Load                │          │           │      │
+│         └────────────────────────────────────┼──────────┘           │      │
+│                                              │                      │      │
+│                                              │  Status: Running     │      │
+│                                              │  auto_remove: True   │      │
+│                                              │  network: algo-repo  │      │
+│                                              │  _default            │      │
+│                                              └──────────────────────┘      │
+│                                                       │                    │
+│                                                       ▼                    │
+│                                              Container removed             │
+│                                              after ~10 seconds             │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DEPLOYMENT WORKFLOW (Developer Actions)                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Developer Laptop                                                           │
+│  ─────────────────                                                          │
+│                                                                             │
+│  1. Build image with .env baked in:                                         │
+│     $ docker build -t algo-repo:latest .                                    │
+│                                                                             │
+│  2. Create work pool (one-time):                                            │
+│     $ PREFECT_API_URL="http://localhost:4200/api" \                         │
+│       uv run python src/schedules/scripts/setup_work_pool.py                │
+│                                                                             │
+│  3. Deploy flow (updates schedule/config):                                  │
+│     $ PREFECT_API_URL="http://localhost:4200/api" \                         │
+│       uv run python src/schedules/scripts/deploy_ingestion.py               │
+│                                                                             │
+│                          ▼                                                  │
+│              ┌───────────────────────┐                                      │
+│              │  Prefect Deployment   │                                      │
+│              │  Registration         │                                      │
+│              │                       │                                      │
+│              │  Name: ingestion-     │                                      │
+│              │        hourly         │                                      │
+│              │  Schedule: 0 * * * *  │                                      │
+│              │  Image: algo-repo:    │                                      │
+│              │         latest        │                                      │
+│              │  Network: algo-repo_  │                                      │
+│              │           default     │                                      │
+│              └───────────────────────┘                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ DATA FLOW (Hourly Execution)                                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  00:00 ──► Worker detects scheduled run                                     │
+│            │                                                                │
+│            ▼                                                                │
+│  00:00 ──► Spawn algo-repo:latest container                                 │
+│            │                                                                │
+│            ▼                                                                │
+│  00:01 ──► load_dotenv("/app/.env")                                         │
+│            │                                                                │
+│            ▼                                                                │
+│  00:02 ──► Calculate time window: now - 24h → now                           │
+│            │                                                                │
+│            ▼                                                                │
+│  00:03 ──► Fetch DK1 prices from ENTSOE API                                 │
+│            │ (with retry: 2x, 60s delay)                                    │
+│            ▼                                                                │
+│  00:08 ──► Insert ~192 records to ClickHouse                                │
+│            │ (ReplacingMergeTree deduplicates)                              │
+│            ▼                                                                │
+│  00:09 ──► Flow completes, return summary                                   │
+│            │                                                                │
+│            ▼                                                                │
+│  00:10 ──► Container auto-removed                                           │
+│            │                                                                │
+│            ▼                                                                │
+│  01:00 ──► Repeat...                                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PROJECT STRUCTURE                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  algo-repo/                                                                 │
+│  ├── .env                          ← Secrets (baked into image)             │
+│  ├── Dockerfile                    ← Builds algo-repo:latest                │
+│  ├── docker-compose.yml            ← Persistent infrastructure              │
+│  ├── pyproject.toml                ← Dependencies                           │
+│  │                                                                          │
+│  ├── src/                                                                   │
+│  │   ├── domain/                   ← Business models (Area, Currency)       │
+│  │   ├── infrastructure_entsoe/    ← ENTSOE API client                      │
+│  │   ├── infrastructure_clickhouse/← ClickHouse client                      │
+│  │   │                                                                      │
+│  │   └── schedules/                ← PREFECT FLOWS                          │
+│  │       ├── src/schedules/                                                 │
+│  │       │   └── ingestion.py      ← Flow definition                        │
+│  │       │                                                                  │
+│  │       └── scripts/              ← Deployment scripts                     │
+│  │           ├── setup_work_pool.py                                         │
+│  │           └── deploy_ingestion.py                                        │
+│  │                                                                          │
+│  └── tests/                        ← Unit/integration tests                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
