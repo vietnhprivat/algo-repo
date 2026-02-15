@@ -142,10 +142,10 @@ class FlowDirection(Enum):
     Down = "A02"
     Symmetric = "A03"
 
-
+# https://transparencyplatform.zendesk.com/hc/en-us/articles/15856951293972-Auction-Type
 class AuctionType(Enum):
-    Explicit = "A01"
-    Implicit = "A02"
+    Implicit= "A01"
+    Explicit= "A02"
 
 
 # https://transparencyplatform.zendesk.com/hc/en-us/articles/15857043092756-DocumentType

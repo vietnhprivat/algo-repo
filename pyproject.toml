@@ -25,6 +25,8 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "ratelimit>=2.2.1",
     "typos>=1.43.3",
+    "schedules",
+    "prefect>=3.6.17",
 ]
 
 [tool.uv.workspace]
@@ -33,6 +35,7 @@ members = [
     "src/infrastructure_clickhouse",
     "src/domain",
     "src/backtesting",
+    "src/schedules",
 ]
 
 [tool.uv.sources]
@@ -40,6 +43,7 @@ domain = { workspace = true }
 infrastructure-entsoe = { workspace = true }
 infrastructure-clickhouse = { workspace = true }
 backtesting = { workspace = true }
+schedules = { workspace = true }
 
 [dependency-groups]
 dev = [
