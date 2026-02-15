@@ -24,5 +24,5 @@ Quick reference (scripts auto-load `.env`):
 PREFECT_API_URL="http://localhost:4200/api" uv run python scripts/setup_work_pool.py
 
 # Deploy flows
-PREFECT_API_URL="http://localhost:4200/api" uv run python scripts/deploy_ingestion.py
+PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_ingestion.py
 ```
