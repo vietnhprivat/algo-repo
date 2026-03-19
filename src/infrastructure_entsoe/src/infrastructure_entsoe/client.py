@@ -5,7 +5,7 @@ from typing import Literal, Self
 
 from domain.areas import Area
 from infrastructure_entsoe.mappers import _parse_energy_prices_xml_to_observation
-from domain.curves import EnergyPriceObservation
+from domain.curves import Observations
 from ratelimit import limits, sleep_and_retry
 
 import zipfile
@@ -19,20 +19,20 @@ class EntsoeClientBase:
 
     def _handle_energy_prices_response(
         self, content_types_and_contents: list[tuple[str, bytes]]
-    ) -> list[EnergyPriceObservation]:
-        energy_price_observations: list[EnergyPriceObservation] = []
+    ) -> list[Observations]:
+        observations: list[Observations] = []
         for content_type, raw_data in content_types_and_contents:
             if "zip" in content_type or raw_data.startswith(b"PK"):
                 for xml_file in self._extract_xml_from_zip(raw_data):
-                    energy_price_observations.append(
+                    observations.extend(
                         _parse_energy_prices_xml_to_observation(xml_file)
                     )
             else:
-                energy_price_observations.append(
+                observations.extend(
                     _parse_energy_prices_xml_to_observation(raw_data)
                 )
 
-        return energy_price_observations
+        return observations
 
     def _build_energy_prices_params(
         self,
@@ -77,7 +77,7 @@ class EntsoeClientBase:
 class EntsoeClient(EntsoeClientBase):
     def fetch_energy_prices(
         self, area: Area, start_date: datetime, end_date: datetime
-    ) -> list[EnergyPriceObservation]:
+    ) -> list[Observations]:
         content_types_and_contents: list[tuple[str, bytes]] = []
         current_offset = 0
         for iteration in range(49):
