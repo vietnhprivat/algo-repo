@@ -20,7 +20,6 @@ def get_required_text(element: ET.Element, tag: str, ns: dict) -> str:
 def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> list[Observations]:
     root = ET.fromstring(xml_data)
     ns = {"ns": "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3"}
-    doc_type = get_required_text(root, "ns:type", ns)
 
     # Group rows by curve_name so we can return one Observations per curve
     curves: dict[str, list[pl.DataFrame]] = {}
@@ -29,9 +28,7 @@ def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> list[Observation
         in_area = get_area_from_energy_code(
             get_required_text(timeseries, "ns:in_Domain.mRID", ns)
         )
-        out_area = get_area_from_energy_code(
-            get_required_text(timeseries, "ns:out_Domain.mRID", ns)
-        )
+
         contract_type = MarketAgreementType(get_required_text(timeseries, "ns:contract_MarketAgreement.type", ns)).name
         currency = get_required_text(timeseries, "ns:currency_Unit.name", ns)
         curve_name = f"ENTSOE.{in_area.tag}.{contract_type}.{currency}"
