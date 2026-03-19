@@ -1,6 +1,14 @@
 import polars as pl
 from typing import List
-from domain.curves import EnergyPriceObservation
+from domain.curves import EnergyPriceObservation, Observations
+
+
+def insert_observations_batch(
+    client,
+    observations: List[Observations],
+) -> None:
+    data_frames = pl.concat([obs.data_frame for obs in observations])
+    insert_polars_dataframe(client, data_frames, "algo.timeseries")
 
 
 def insert_energy_prices_batch(

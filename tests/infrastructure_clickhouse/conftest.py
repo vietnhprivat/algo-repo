@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import polars as pl
 import pyarrow as pa
 
-from domain.curves import EnergyPriceObservation
+from domain.curves import EnergyPriceObservation, Observations
 
 
 class FakeClickHouseClient:
@@ -66,3 +66,37 @@ def make_sample_energy_price_observation(n_rows: int = 24) -> EnergyPriceObserva
         },
     )
     return EnergyPriceObservation(df)
+
+
+def make_sample_observations(curve_name: str = "ENTSOE.DE.Daily.EUR", n_rows: int = 24) -> Observations:
+    """Create a sample Observations matching the expected schema."""
+    now = datetime.now(timezone.utc)
+    base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    rows = []
+    for i in range(n_rows):
+        rows.append(
+            {
+                "source": "ENTSOE",
+                "curve_name": curve_name,
+                "area": "DE",
+                "timezone": "Europe/Berlin",
+                "timestamp_utc": base_time.replace(hour=i % 24),
+                "value": float(50 + i),
+                "ingested_utc": now,
+            }
+        )
+
+    df = pl.DataFrame(
+        rows,
+        schema={
+            "source": pl.Utf8,
+            "curve_name": pl.Utf8,
+            "area": pl.Utf8,
+            "timezone": pl.Utf8,
+            "timestamp_utc": pl.Datetime(time_zone=str(timezone.utc)),
+            "value": pl.Float32,
+            "ingested_utc": pl.Datetime(time_zone=str(timezone.utc)),
+        },
+    )
+    return Observations(curve_name, df)

@@ -1,6 +1,30 @@
 from infrastructure_clickhouse.client_factory import create_client
 
 
+def create_observations_table():
+    command = """
+        CREATE TABLE IF NOT EXISTS algo.timeseries
+        (
+            source        LowCardinality(String),
+            curve_name    String,
+            area          LowCardinality(String),
+            timezone      LowCardinality(String),
+            timestamp_utc DateTime('UTC'),
+            value         Float32,
+            ingested_utc  DateTime('UTC')
+        )
+        ENGINE = ReplacingMergeTree(ingested_utc)
+        ORDER BY (curve_name, timestamp_utc)
+        PARTITION BY toStartOfQuarter(timestamp_utc)
+        """
+
+    client = create_client()
+    try:
+        client.command(command)
+    finally:
+        client.close()
+
+
 def create_energy_prices_table():
     engine = "ReplacingMergeTree"
     command = f"""

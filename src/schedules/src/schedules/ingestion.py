@@ -5,7 +5,7 @@ from prefect import flow, task
 
 from domain.areas import get_area_from_tag
 from infrastructure_clickhouse.client_factory import create_client
-from infrastructure_clickhouse.ingest import insert_energy_prices_batch
+from infrastructure_clickhouse.ingest import insert_observations_batch
 from infrastructure_entsoe.client_factory import create_entsoe_client
 
 
@@ -24,7 +24,7 @@ def batch_ingest_energy_prices_task(area_tag: str, start_time: datetime, end_tim
         if not all_energy_prices:
             return None
         
-        insert_energy_prices_batch(clickhouse_client, all_energy_prices)
+        insert_observations_batch(clickhouse_client, all_energy_prices)
 
 @flow(name="entsoe-ingestion", log_prints=True)
 def batch_ingest_energy_prices_flow():

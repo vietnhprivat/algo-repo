@@ -5,12 +5,14 @@ import pyarrow as pa
 
 from infrastructure_clickhouse.ingest import (
     insert_energy_prices_batch,
+    insert_observations_batch,
     insert_polars_dataframe,
 )
 
 from tests.infrastructure_clickhouse.conftest import (
     FakeClickHouseClient,
     make_sample_energy_price_observation,
+    make_sample_observations,
 )
 
 
@@ -43,6 +45,35 @@ class TestInsertEnergyPricesBatch:
         client = FakeClickHouseClient()
         with pytest.raises(Exception):
             insert_energy_prices_batch(client, [])
+
+
+class TestInsertObservationsBatch:
+    """Test the observations batch insert pipeline with fake client."""
+
+    def test_single_observations_inserts_one_batch(self):
+        client = FakeClickHouseClient()
+        obs = make_sample_observations(n_rows=24)
+        insert_observations_batch(client, [obs])
+
+        assert len(client.inserted) == 1
+        table_name, arrow_table = client.inserted[0]
+        assert table_name == "algo.timeseries"
+        assert isinstance(arrow_table, pa.Table)
+        assert arrow_table.num_rows == 24
+
+    def test_multiple_observations_are_concatenated(self):
+        client = FakeClickHouseClient()
+        obs1 = make_sample_observations("ENTSOE.DE.Daily.EUR", n_rows=24)
+        obs2 = make_sample_observations("ENTSOE.DK1.Daily.EUR", n_rows=24)
+        insert_observations_batch(client, [obs1, obs2])
+
+        total_rows = sum(t.num_rows for _, t in client.inserted if isinstance(t, pa.Table))
+        assert total_rows == 48
+
+    def test_empty_list_raises(self):
+        client = FakeClickHouseClient()
+        with pytest.raises(Exception):
+            insert_observations_batch(client, [])
 
 
 class TestInsertPolarsDataframe:

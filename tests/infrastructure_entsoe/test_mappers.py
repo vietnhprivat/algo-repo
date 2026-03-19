@@ -7,60 +7,60 @@ from infrastructure_entsoe.mappers import (
     _map_resolution_to_timedelta,
     get_required_text,
 )
-from domain.curves import EnergyPriceObservation
+from domain.curves import Observations
 
 from tests.infrastructure_entsoe.conftest import SAMPLE_ENERGY_PRICES_XML
 
 
 class TestParseEnergyPricesXml:
-    """Test the full XML -> EnergyPriceObservation pipeline with sample data."""
+    """Test the full XML -> list[Observations] pipeline with sample data."""
 
-    def test_returns_energy_price_observation(self):
+    def test_returns_list_of_observations(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        assert isinstance(result, EnergyPriceObservation)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], Observations)
 
     def test_correct_number_of_rows(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
         # 24 hours in the sample data
-        assert result.data_frame.shape[0] == 24
+        assert result[0].data_frame.shape[0] == 24
 
     def test_output_schema_matches(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        expected_columns = list(EnergyPriceObservation.SCHEMA.keys())
-        assert list(result.data_frame.columns) == expected_columns
+        expected_columns = list(Observations.SCHEMA.keys())
+        assert list(result[0].data_frame.columns) == expected_columns
 
     def test_area_is_DE(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        areas = result.data_frame["area"].unique().to_list()
+        areas = result[0].data_frame["area"].unique().to_list()
         assert areas == ["DE"]
 
-    def test_prices_are_positive_floats(self):
+    def test_values_are_positive_floats(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        prices = result.data_frame["price"].to_list()
-        assert all(isinstance(p, float) for p in prices)
-        assert all(p > 0 for p in prices)
-
-    def test_start_utc_is_before_end_utc(self):
-        result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        df = result.data_frame
-        starts = df["start_utc"].to_list()
-        ends = df["end_utc"].to_list()
-        for s, e in zip(starts, ends):
-            assert s < e
+        values = result[0].data_frame["value"].to_list()
+        assert all(isinstance(v, float) for v in values)
+        assert all(v > 0 for v in values)
 
     def test_timestamps_are_utc(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        first_start = result.data_frame["start_utc"][0]
-        assert first_start.tzinfo is not None
+        first_ts = result[0].data_frame["timestamp_utc"][0]
+        assert first_ts.tzinfo is not None
 
-    def test_currency_is_EUR(self):
+    def test_curve_name_contains_currency(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        currencies = result.data_frame["currency"].unique().to_list()
-        assert currencies == ["EUR"]
+        curve_name = result[0].curve_name
+        assert "EUR" in curve_name
+
+    def test_curve_name_format(self):
+        result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
+        curve_name = result[0].curve_name
+        # Expected: ENTSOE.DE.Daily.EUR
+        assert curve_name == "ENTSOE.DE.Daily.EUR"
 
     def test_source_is_ENTSOE(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
-        sources = result.data_frame["source"].unique().to_list()
+        sources = result[0].data_frame["source"].unique().to_list()
         assert sources == ["ENTSOE"]
 
 
@@ -100,6 +100,9 @@ class TestXmlParsingWithMalformedData:
         xml = b"""\
         <Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3">
             <mRID>Doc001</mRID>
+            <TimeSeries>
+                <mRID>TS001</mRID>
+            </TimeSeries>
         </Publication_MarketDocument>
         """
         with pytest.raises(ValueError, match="Missing required XML element"):

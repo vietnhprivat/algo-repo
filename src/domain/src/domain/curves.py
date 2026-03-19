@@ -2,6 +2,119 @@ from datetime import timezone
 import polars as pl
 
 
+
+class Forecast:
+    SCHEMA = {
+        "source":                pl.Utf8,
+        "curve_name":            pl.Utf8,
+        "area":                  pl.Utf8,
+        "area_timezone":         pl.Utf8,
+        "model":                 pl.Utf8,
+        "issued_utc":            pl.Datetime(time_zone = timezone.utc),
+        "issued_timezone":       pl.Utf8,
+        "timestamp_utc":         pl.Datetime(time_zone = timezone.utc),
+        "value":                 pl.Float32,
+        "hours_since_forecast":  pl.Float32,
+        "ingested_utc":          pl.Datetime(time_zone = timezone.utc),
+    }
+
+    def __init__(
+        self, 
+        curve_name: str,
+        data_frame: pl.DataFrame
+    ):
+        if not curve_name or not curve_name.strip():
+            raise ValueError("curve_name must have a value")
+
+        self.curve_name = curve_name
+        self.data_frame = enforce_schema(data_frame, self.SCHEMA)
+
+    @staticmethod
+    def empty(curve_name: str) -> "Forecast":
+        return Forecast(
+            curve_name = curve_name,
+            data_frame = pl.DataFrame(schema = Forecast.SCHEMA)
+        )
+
+    @staticmethod
+    def get_updated_forecast(
+        existing: "Forecast",
+        new: "Forecast"
+    ) -> "Forecast":
+        if existing.curve_name != new.curve_name:
+            raise ValueError("Curve names must match")
+        
+        data_frame_joined = new.data_frame.join(
+            existing.data_frame,
+            on = ["model", "issued_utc", "timestamp_utc"],
+            how = "left",
+            suffix = "_old"
+        )
+
+        data_frame_updates = data_frame_joined.filter(
+            (pl.col("value") != pl.col("value_old")) | (pl.col("value_old").is_null())
+        )
+
+        data_frame_updates = data_frame_updates.select(new.data_frame.columns)
+
+        return Forecast(existing.curve_name, data_frame_updates)
+
+
+class Observations:
+    SCHEMA = {
+        "source":          pl.Utf8,
+        "curve_name":      pl.Utf8,
+        "area":            pl.Utf8,
+        "timezone":        pl.Utf8,
+        "timestamp_utc":   pl.Datetime(time_zone = timezone.utc),
+        "value":           pl.Float32,
+        "ingested_utc":    pl.Datetime(time_zone = timezone.utc),
+    }
+
+
+    def __init__(
+        self, 
+        curve_name: str,
+        data_frame: pl.DataFrame
+    ):
+        if not curve_name or not curve_name.strip():
+            raise ValueError("curve_name must have a value")
+        
+        self.curve_name = curve_name
+        self.data_frame = enforce_schema(data_frame, self.SCHEMA)
+
+
+    @staticmethod
+    def empty(curve_name: str) -> "Observations":
+        return Observations(
+            curve_name = curve_name,
+            data_frame = pl.DataFrame(schema = Observations.SCHEMA)
+        )
+    
+    @staticmethod
+    def get_updated_observations(
+        existing: "Observations",
+        new: "Observations"
+    ) -> "Observations":
+        if existing.curve_name != new.curve_name:
+            raise ValueError("Curve names must match")
+        
+        data_frame_joined = new.data_frame.join(
+            existing.data_frame,
+            on = ["timestamp_utc"],
+            how = "left",
+            suffix = "_old"
+        )
+
+        data_frame_updates = data_frame_joined.filter(
+            (pl.col("value") != pl.col("value_old")) | (pl.col("value_old").is_null())
+        )
+
+        data_frame_updates = data_frame_updates.select(new.data_frame.columns)
+
+        return Observations(existing.curve_name, data_frame_updates)
+
+
 class EnergyPriceObservation:
     SCHEMA = {
         "source": pl.Utf8,

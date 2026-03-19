@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime, timezone
 
 from infrastructure_entsoe.client import EntsoeClientBase
-from domain.curves import EnergyPriceObservation
+from domain.curves import Observations
 from domain.areas import DE
 
 from tests.infrastructure_entsoe.conftest import SAMPLE_ENERGY_PRICES_XML
@@ -41,11 +41,11 @@ class TestEntsoeClientBase:
         assert params["offset"] == 200
 
     def test_handle_energy_prices_response_with_xml(self):
-        """Feed sample XML through the response handler -> EnergyPriceObservation."""
+        """Feed sample XML through the response handler -> list[Observations]."""
         content_types_and_contents = [("application/xml", SAMPLE_ENERGY_PRICES_XML)]
         result = self.client._handle_energy_prices_response(content_types_and_contents)
         assert len(result) == 1
-        assert isinstance(result[0], EnergyPriceObservation)
+        assert isinstance(result[0], Observations)
         assert result[0].data_frame.shape[0] == 24
 
     def test_handle_energy_prices_response_multiple_xmls(self):
