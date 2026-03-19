@@ -100,6 +100,9 @@ class TestXmlParsingWithMalformedData:
         xml = b"""\
         <Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3">
             <mRID>Doc001</mRID>
+            <TimeSeries>
+                <mRID>TS001</mRID>
+            </TimeSeries>
         </Publication_MarketDocument>
         """
         with pytest.raises(ValueError, match="Missing required XML element"):
