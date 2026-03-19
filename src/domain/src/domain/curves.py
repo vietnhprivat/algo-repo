@@ -1,9 +1,7 @@
 from datetime import timezone
 import polars as pl
 
-from datetime import timezone
 
-import polars as pl
 
 class Forecast:
     SCHEMA = {

@@ -7,9 +7,6 @@ from domain.areas import get_area_from_energy_code
 from domain.curves import Observations
 from infrastructure_entsoe.entsoe_types import (
     MarketAgreementType,
-    BusinessType,
-    AuctionType,
-    DocumentType,
 )
 
 

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from infrastructure_clickhouse.client_factory import create_client
@@ -14,7 +13,7 @@ def run_migrations() -> None:
             sql = sql_file.read_text().strip()
             print(f"Running migration: {sql_file.name}")
             client.command(sql)
-            print(f"  OK")
+            print("  OK")
     finally:
         client.close()
 
