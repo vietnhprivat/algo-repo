@@ -27,6 +27,8 @@ dependencies = [
     "typos>=1.43.3",
     "schedules",
     "prefect>=3.6.17",
+    "data-cli",
+    "python-dateutil>=2.9.0",
 ]
 
 [tool.uv.workspace]
@@ -36,6 +38,7 @@ members = [
     "src/domain",
     "src/backtesting",
     "src/schedules",
+    "src/data_cli",
 ]
 
 [tool.uv.sources]
@@ -44,6 +47,7 @@ infrastructure-entsoe = { workspace = true }
 infrastructure-clickhouse = { workspace = true }
 backtesting = { workspace = true }
 schedules = { workspace = true }
+data-cli = { workspace = true }
 
 [dependency-groups]
 dev = [
