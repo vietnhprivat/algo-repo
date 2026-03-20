@@ -14,7 +14,6 @@ class Forecast:
         "issued_timezone":       pl.Utf8,
         "timestamp_utc":         pl.Datetime(time_zone = timezone.utc),
         "value":                 pl.Float32,
-        "hours_since_forecast":  pl.Float32,
         "ingested_utc":          pl.Datetime(time_zone = timezone.utc),
     }
 

@@ -1,15 +1,20 @@
 """Integration tests for ENTSOE XML mapper."""
 
 import pytest
+from datetime import datetime, timezone
 
 from infrastructure_entsoe.mappers import (
     _parse_energy_prices_xml_to_observation,
+    _parse_total_load_forecast_xml_to_forecast,
     _map_resolution_to_timedelta,
     get_required_text,
 )
-from domain.curves import Observations
+from domain.curves import Forecast, Observations
 
-from tests.infrastructure_entsoe.conftest import SAMPLE_ENERGY_PRICES_XML
+from tests.infrastructure_entsoe.conftest import (
+    SAMPLE_ENERGY_PRICES_XML,
+    SAMPLE_TOTAL_LOAD_FORECAST_XML,
+)
 
 
 class TestParseEnergyPricesXml:
@@ -55,14 +60,68 @@ class TestParseEnergyPricesXml:
     def test_curve_name_format(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
         curve_name = result[0].curve_name
-        # Expected: ENTSOE.DE.Daily.EUR
-        assert curve_name == "ENTSOE.DE.Daily.EUR"
+        # Expected: ENTSOE DE Daily EUR
+        assert curve_name == "ENTSOE DE Daily EUR"
 
     def test_source_is_ENTSOE(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
         sources = result[0].data_frame["source"].unique().to_list()
         assert sources == ["ENTSOE"]
 
+
+class TestParseTotalLoadForecastXml:
+    """Test the full XML -> list[Forecast] pipeline with sample data."""
+
+    def test_returns_list_of_forecasts(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], Forecast)
+
+    def test_correct_number_of_rows(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        assert result[0].data_frame.shape[0] == 24
+
+    def test_output_schema_matches(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        expected_columns = list(Forecast.SCHEMA.keys())
+        assert list(result[0].data_frame.columns) == expected_columns
+
+    def test_area_is_DE(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        areas = result[0].data_frame["area"].unique().to_list()
+        assert areas == ["DE"]
+
+    def test_values_are_positive_floats(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        values = result[0].data_frame["value"].to_list()
+        assert all(isinstance(v, float) for v in values)
+        assert all(v > 0 for v in values)
+
+    def test_timestamps_are_utc(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        first_ts = result[0].data_frame["timestamp_utc"][0]
+        assert first_ts.tzinfo is not None
+
+    def test_curve_name_format(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        assert result[0].curve_name == "ENTSOE DE TotalLoad Dayahead"
+
+    def test_source_is_ENTSOE(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        sources = result[0].data_frame["source"].unique().to_list()
+        assert sources == ["ENTSOE"]
+
+    def test_model_is_ENTSOE(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        models = result[0].data_frame["model"].unique().to_list()
+        assert models == ["ENTSOE"]
+
+    def test_issued_utc_matches_created_datetime(self):
+        result = _parse_total_load_forecast_xml_to_forecast(SAMPLE_TOTAL_LOAD_FORECAST_XML)
+        issued = result[0].data_frame["issued_utc"][0]
+        expected = datetime(2024, 1, 1, 6, 0, 0, tzinfo=timezone.utc)
+        assert issued == expected
 
 class TestMapResolutionToTimedelta:
     def test_pt60m(self):

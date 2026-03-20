@@ -4,10 +4,13 @@ import pytest
 from datetime import datetime, timezone
 
 from infrastructure_entsoe.client import EntsoeClientBase
-from domain.curves import Observations
+from domain.curves import Forecast, Observations
 from domain.areas import DE
 
-from tests.infrastructure_entsoe.conftest import SAMPLE_ENERGY_PRICES_XML
+from tests.infrastructure_entsoe.conftest import (
+    SAMPLE_ENERGY_PRICES_XML,
+    SAMPLE_TOTAL_LOAD_FORECAST_XML,
+)
 
 
 class TestEntsoeClientBase:
@@ -60,6 +63,55 @@ class TestEntsoeClientBase:
     def test_handle_empty_response_list(self):
         """No response data -> empty list."""
         result = self.client._handle_energy_prices_response([])
+        assert result == []
+
+
+class TestEntsoeClientTotalLoadForecast:
+    """Test EntsoeClientBase total load forecast methods."""
+
+    def setup_method(self):
+        self.client = EntsoeClientBase(api_key="fake-api-key-12345")
+
+    def test_build_total_load_forecast_params(self):
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        params = self.client._build_total_load_forecast_params(DE, start, end)
+
+        assert params["documentType"] == "A65"
+        assert params["processType"] == "A01"
+        assert params["outBiddingZone_Domain"] == DE.energy_identification_code
+        assert params["securityToken"] == "fake-api-key-12345"
+        assert params["periodStart"] == "202401010000"
+        assert params["periodEnd"] == "202401020000"
+
+    def test_build_total_load_forecast_params_custom_process_type(self):
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        params = self.client._build_total_load_forecast_params(DE, start, end, process_type="A16")
+        assert params["processType"] == "A16"
+
+    def test_build_total_load_forecast_params_has_no_offset(self):
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        params = self.client._build_total_load_forecast_params(DE, start, end)
+        assert "offset" not in params
+
+    def test_handle_total_load_forecast_response_with_xml(self):
+        result = self.client._handle_total_load_forecast_response(
+            [SAMPLE_TOTAL_LOAD_FORECAST_XML]
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], Forecast)
+        assert result[0].data_frame.shape[0] == 24
+
+    def test_handle_total_load_forecast_response_multiple_xmls(self):
+        result = self.client._handle_total_load_forecast_response(
+            [SAMPLE_TOTAL_LOAD_FORECAST_XML, SAMPLE_TOTAL_LOAD_FORECAST_XML]
+        )
+        assert len(result) == 2
+
+    def test_handle_total_load_forecast_empty_response(self):
+        result = self.client._handle_total_load_forecast_response([])
         assert result == []
 
 

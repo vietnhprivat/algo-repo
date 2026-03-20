@@ -21,6 +21,7 @@ uv run python -m data_cli.main --help
 uv run python -m data_cli.main entsoe --help
 uv run python -m data_cli.main entsoe backfill --help
 uv run python -m data_cli.main entsoe backfill price-document --help
+uv run python -m data_cli.main entsoe backfill total-load --help
 ```
 
 ## Sources
@@ -66,4 +67,51 @@ uv run python -m data_cli.main entsoe backfill price-document -a DK1 -s 20241224
 
 # Backfill with hour precision using date-hour format
 uv run python -m data_cli.main entsoe backfill price-document -a dk1 -s 2022-06-01-00:00 -e 2022-07-01-00:00
+```
+
+#### `entsoe backfill total-load`
+
+Backfills total load data (document type A65) from the ENTSOE Transparency Platform into `algo.forecasts`. Supports multiple process types: day-ahead forecasts, realised load, week/month/year-ahead forecasts.
+
+Requests are automatically batched in 10-month chunks (API limit is 1 year per request).
+
+**Options:**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--area` | `-a` | Area tag (case-insensitive). See valid tags above. |
+| `--start` | `-s` | Start datetime UTC (flexible format) |
+| `--end` | `-e` | End datetime UTC (flexible format). Optional — defaults to now. |
+| `--processtype` | `-p` | Process type code. Optional — defaults to `A01` (Dayahead). |
+
+**Process types:**
+
+| Code | Name | Description |
+|------|------|-------------|
+| `A01` | Dayahead | Day-ahead total load forecast (default) |
+| `A16` | Realised | Actual realised total load |
+| `A31` | WeekAhead | Week-ahead total load forecast |
+| `A32` | MonthAhead | Month-ahead total load forecast |
+| `A33` | YearAhead | Year-ahead total load forecast |
+
+**Examples:**
+
+```bash
+# Day-ahead load forecast for DK1 (default process type A01)
+uv run python -m data_cli.main entsoe backfill total-load -a dk1 -s 2024-01-01 -e 2024-06-01
+
+# Realised (actual) load for Germany
+uv run python -m data_cli.main entsoe backfill total-load -a de -s 2024-01-01 -e 2024-06-01 -p A16
+
+# Week-ahead forecast for Denmark West
+uv run python -m data_cli.main entsoe backfill total-load -a dk1 -s "1 jan 2024" -e "1 jul 2024" -p A31
+
+# Month-ahead forecast for Norway
+uv run python -m data_cli.main entsoe backfill total-load -a no -s 2024-01-01 -e 2025-01-01 -p A32
+
+# Year-ahead forecast for France, full year
+uv run python -m data_cli.main entsoe backfill total-load -a fr -s 2023-01-01 -e 2024-01-01 -p A33
+
+# Long backfill (auto-batched in 10-month chunks)
+uv run python -m data_cli.main entsoe backfill total-load -a de -s 2020-01-01 -e 2024-01-01 -p A01
 ```

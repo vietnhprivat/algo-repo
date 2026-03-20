@@ -152,3 +152,101 @@ class TestBackfillEntsoePriceDocument:
         )
         assert result.exit_code == 1
         assert "Unknown area tag" in result.output
+
+
+class TestBackfillEntsoeTotalLoad:
+    @patch("data_cli.entsoe.backfill.create_client")
+    @patch("data_cli.entsoe.backfill.create_entsoe_client")
+    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
+    def test_successful_backfill_default_processtype(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
+        mock_forecast = MagicMock()
+        mock_forecast.data_frame.height = 24
+
+        mock_entsoe = MagicMock()
+        mock_entsoe.fetch_total_load_forecasts.return_value = [mock_forecast]
+        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
+        mock_entsoe.__exit__ = MagicMock(return_value=False)
+        mock_entsoe_factory.return_value = mock_entsoe
+
+        mock_ch = MagicMock()
+        mock_ch_factory.return_value = mock_ch
+
+        result = runner.invoke(
+            app,
+            ["entsoe", "backfill", "total-load", "-a", "dk1", "-s", "2024-01-01", "-e", "2024-01-02"],
+        )
+
+        assert result.exit_code == 0
+        assert "Backfilling ENTSOE total load (Dayahead) for DK1" in result.output
+        assert "Successfully inserted into algo.forecasts" in result.output
+        mock_entsoe.fetch_total_load_forecasts.assert_called_once()
+        call_kwargs = mock_entsoe.fetch_total_load_forecasts.call_args
+        assert call_kwargs.kwargs["process_type"] == "A01"
+        assert call_kwargs.kwargs["process_type_name"] == "Dayahead"
+
+    @patch("data_cli.entsoe.backfill.create_client")
+    @patch("data_cli.entsoe.backfill.create_entsoe_client")
+    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
+    def test_custom_processtype(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
+        mock_forecast = MagicMock()
+        mock_forecast.data_frame.height = 24
+
+        mock_entsoe = MagicMock()
+        mock_entsoe.fetch_total_load_forecasts.return_value = [mock_forecast]
+        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
+        mock_entsoe.__exit__ = MagicMock(return_value=False)
+        mock_entsoe_factory.return_value = mock_entsoe
+
+        mock_ch = MagicMock()
+        mock_ch_factory.return_value = mock_ch
+
+        result = runner.invoke(
+            app,
+            ["entsoe", "backfill", "total-load", "-a", "dk1", "-s", "2024-01-01", "-e", "2024-01-02", "-p", "A16"],
+        )
+
+        assert result.exit_code == 0
+        assert "Realised" in result.output
+        call_kwargs = mock_entsoe.fetch_total_load_forecasts.call_args
+        assert call_kwargs.kwargs["process_type"] == "A16"
+        assert call_kwargs.kwargs["process_type_name"] == "Realised"
+
+    def test_invalid_processtype(self):
+        result = runner.invoke(
+            app,
+            ["entsoe", "backfill", "total-load", "-a", "dk1", "-s", "2024-01-01", "-e", "2024-01-02", "-p", "X99"],
+        )
+        assert result.exit_code == 1
+        assert "Unknown process type" in result.output
+
+    def test_invalid_area(self):
+        result = runner.invoke(
+            app,
+            ["entsoe", "backfill", "total-load", "-a", "INVALID", "-s", "2024-01-01", "-e", "2024-01-02"],
+        )
+        assert result.exit_code == 1
+        assert "Unknown area tag" in result.output
+
+    def test_start_after_end(self):
+        result = runner.invoke(
+            app,
+            ["entsoe", "backfill", "total-load", "-a", "dk1", "-s", "2024-02-01", "-e", "2024-01-01"],
+        )
+        assert result.exit_code == 1
+        assert "must be before end" in result.output
+
+    @patch("data_cli.entsoe.backfill.create_entsoe_client")
+    def test_no_data_returned(self, mock_entsoe_factory):
+        mock_entsoe = MagicMock()
+        mock_entsoe.fetch_total_load_forecasts.return_value = []
+        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
+        mock_entsoe.__exit__ = MagicMock(return_value=False)
+        mock_entsoe_factory.return_value = mock_entsoe
+
+        result = runner.invoke(
+            app,
+            ["entsoe", "backfill", "total-load", "-a", "dk1", "-s", "2024-01-01", "-e", "2024-01-02"],
+        )
+
+        assert result.exit_code == 0
+        assert "No data returned" in result.output

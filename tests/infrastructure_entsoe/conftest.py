@@ -61,6 +61,65 @@ SAMPLE_ENERGY_PRICES_XML = b"""\
 """
 
 
+SAMPLE_TOTAL_LOAD_FORECAST_XML = b"""\
+<?xml version="1.0" encoding="UTF-8"?>
+<GL_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0">
+    <mRID>LoadDoc001</mRID>
+    <revisionNumber>1</revisionNumber>
+    <type>A65</type>
+    <process.processType>A01</process.processType>
+    <sender_MarketParticipant.mRID codingScheme="A01">10X1001A1001A450</sender_MarketParticipant.mRID>
+    <sender_MarketParticipant.marketRole.type>A32</sender_MarketParticipant.marketRole.type>
+    <receiver_MarketParticipant.mRID codingScheme="A01">10X1001A1001A450</receiver_MarketParticipant.mRID>
+    <receiver_MarketParticipant.marketRole.type>A33</receiver_MarketParticipant.marketRole.type>
+    <createdDateTime>2024-01-01T06:00:00Z</createdDateTime>
+    <time_Period.timeInterval>
+        <start>2024-01-01T00:00Z</start>
+        <end>2024-01-02T00:00Z</end>
+    </time_Period.timeInterval>
+    <TimeSeries>
+        <mRID>1</mRID>
+        <businessType>A04</businessType>
+        <objectAggregation>A01</objectAggregation>
+        <outBiddingZone_Domain.mRID codingScheme="A01">10Y1001A1001A82H</outBiddingZone_Domain.mRID>
+        <quantity_Measure_Unit.name>MAW</quantity_Measure_Unit.name>
+        <curveType>A03</curveType>
+        <Period>
+            <timeInterval>
+                <start>2024-01-01T00:00Z</start>
+                <end>2024-01-02T00:00Z</end>
+            </timeInterval>
+            <resolution>PT60M</resolution>
+            <Point><position>1</position><quantity>45000</quantity></Point>
+            <Point><position>2</position><quantity>43000</quantity></Point>
+            <Point><position>3</position><quantity>41000</quantity></Point>
+            <Point><position>4</position><quantity>40000</quantity></Point>
+            <Point><position>5</position><quantity>39500</quantity></Point>
+            <Point><position>6</position><quantity>40500</quantity></Point>
+            <Point><position>7</position><quantity>45000</quantity></Point>
+            <Point><position>8</position><quantity>52000</quantity></Point>
+            <Point><position>9</position><quantity>58000</quantity></Point>
+            <Point><position>10</position><quantity>60000</quantity></Point>
+            <Point><position>11</position><quantity>62000</quantity></Point>
+            <Point><position>12</position><quantity>63000</quantity></Point>
+            <Point><position>13</position><quantity>61000</quantity></Point>
+            <Point><position>14</position><quantity>59000</quantity></Point>
+            <Point><position>15</position><quantity>57000</quantity></Point>
+            <Point><position>16</position><quantity>56000</quantity></Point>
+            <Point><position>17</position><quantity>58000</quantity></Point>
+            <Point><position>18</position><quantity>65000</quantity></Point>
+            <Point><position>19</position><quantity>68000</quantity></Point>
+            <Point><position>20</position><quantity>64000</quantity></Point>
+            <Point><position>21</position><quantity>58000</quantity></Point>
+            <Point><position>22</position><quantity>52000</quantity></Point>
+            <Point><position>23</position><quantity>48000</quantity></Point>
+            <Point><position>24</position><quantity>46000</quantity></Point>
+        </Period>
+    </TimeSeries>
+</GL_MarketDocument>
+"""
+
+
 class FakeEntsoeResponse:
     """Mimics the shape of an httpx.Response for testing."""
 
