@@ -9,6 +9,12 @@ from infrastructure_entsoe.entsoe_types import (
     MarketAgreementType,
 )
 
+WIND_SOLAR_PSR_NAMES = {
+    "B16": "Solar",
+    "B18": "WindOffshore",
+    "B19": "WindOnshore",
+}
+
 
 def get_required_text(element: ET.Element, tag: str, ns: dict) -> str:
     found = element.find(tag, ns)
@@ -104,8 +110,16 @@ def _map_resolution_to_timedelta(resolution: str) -> timedelta:
     }.get(resolution, timedelta(hours=1))
 
 
-def _parse_total_load_forecast_xml_to_forecast(
-    xml_data: bytes, process_type_name: str = "Dayahead"
+def _resolve_bidding_zone_domain(timeseries: ET.Element, ns: dict) -> str:
+    for field in ["ns:outBiddingZone_Domain.mRID", "ns:inBiddingZone_Domain.mRID"]:
+        found = timeseries.find(field, ns)
+        if found is not None and found.text is not None:
+            return found.text
+    raise ValueError("Missing required XML element: outBiddingZone_Domain.mRID or inBiddingZone_Domain.mRID")
+
+
+def _parse_gl_market_document_xml_to_forecast(
+    xml_data: bytes, curve_type: str | None, process_type_name: str = "Dayahead"
 ) -> list[Forecast]:
     root = ET.fromstring(xml_data)
     ns = {"ns": "urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0"}
@@ -117,10 +131,19 @@ def _parse_total_load_forecast_xml_to_forecast(
 
     for timeseries in root.findall("ns:TimeSeries", ns):
         area = get_area_from_energy_code(
-            get_required_text(timeseries, "ns:outBiddingZone_Domain.mRID", ns)
+            _resolve_bidding_zone_domain(timeseries, ns)
         )
 
-        curve_name = f"ENTSOE {area.tag} TotalLoad {process_type_name}"
+        if curve_type is not None:
+            ct = curve_type
+        else:
+            psr_el = timeseries.find("ns:MktPSRType/ns:psrType", ns)
+            if psr_el is not None and psr_el.text is not None:
+                ct = WIND_SOLAR_PSR_NAMES.get(psr_el.text, psr_el.text)
+            else:
+                raise ValueError("Missing required XML element: MktPSRType/psrType")
+
+        curve_name = f"ENTSOE {area.tag} {ct} {process_type_name}"
 
         for period in timeseries.findall("ns:Period", ns):
             resolution = get_required_text(period, "ns:resolution", ns)
@@ -177,6 +200,24 @@ def _parse_total_load_forecast_xml_to_forecast(
         Forecast(curve_name, pl.concat(frames))
         for curve_name, frames in curves.items()
     ]
+
+
+def _parse_total_load_forecast_xml_to_forecast(
+    xml_data: bytes, process_type_name: str = "Dayahead"
+) -> list[Forecast]:
+    return _parse_gl_market_document_xml_to_forecast(xml_data, "TotalLoad", process_type_name)
+
+
+def _parse_generation_forecast_xml_to_forecast(
+    xml_data: bytes, process_type_name: str = "Dayahead"
+) -> list[Forecast]:
+    return _parse_gl_market_document_xml_to_forecast(xml_data, "Generation", process_type_name)
+
+
+def _parse_wind_solar_forecast_xml_to_forecast(
+    xml_data: bytes, process_type_name: str = "Dayahead"
+) -> list[Forecast]:
+    return _parse_gl_market_document_xml_to_forecast(xml_data, None, process_type_name)
 
 
 def save_raw_xml_to_file(xml_data: bytes, file_path: str) -> None:

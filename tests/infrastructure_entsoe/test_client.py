@@ -9,7 +9,9 @@ from domain.areas import DE
 
 from tests.infrastructure_entsoe.conftest import (
     SAMPLE_ENERGY_PRICES_XML,
+    SAMPLE_GENERATION_FORECAST_XML,
     SAMPLE_TOTAL_LOAD_FORECAST_XML,
+    SAMPLE_WIND_SOLAR_FORECAST_XML,
 )
 
 
@@ -112,6 +114,83 @@ class TestEntsoeClientTotalLoadForecast:
 
     def test_handle_total_load_forecast_empty_response(self):
         result = self.client._handle_total_load_forecast_response([])
+        assert result == []
+
+
+class TestEntsoeClientGenerationForecast:
+    """Test EntsoeClientBase generation forecast methods."""
+
+    def setup_method(self):
+        self.client = EntsoeClientBase(api_key="fake-api-key-12345")
+
+    def test_build_generation_forecast_params(self):
+        start = datetime(2023, 8, 15, 22, 0, tzinfo=timezone.utc)
+        end = datetime(2023, 8, 16, 22, 0, tzinfo=timezone.utc)
+        params = self.client._build_generation_forecast_params(DE, start, end)
+
+        assert params["documentType"] == "A71"
+        assert params["processType"] == "A01"
+        assert params["in_Domain"] == DE.energy_identification_code
+        assert params["securityToken"] == "fake-api-key-12345"
+        assert "outBiddingZone_Domain" not in params
+
+    def test_build_generation_forecast_params_custom_process_type(self):
+        start = datetime(2023, 8, 15, tzinfo=timezone.utc)
+        end = datetime(2023, 8, 16, tzinfo=timezone.utc)
+        params = self.client._build_generation_forecast_params(DE, start, end, process_type="A16")
+        assert params["processType"] == "A16"
+
+    def test_handle_generation_forecast_response_with_xml(self):
+        result = self.client._handle_generation_forecast_response(
+            [SAMPLE_GENERATION_FORECAST_XML]
+        )
+        assert len(result) == 1
+        assert isinstance(result[0], Forecast)
+        assert result[0].data_frame.shape[0] == 24
+
+    def test_handle_generation_forecast_empty_response(self):
+        result = self.client._handle_generation_forecast_response([])
+        assert result == []
+
+
+class TestEntsoeClientWindSolarForecast:
+    """Test EntsoeClientBase wind/solar forecast methods."""
+
+    def setup_method(self):
+        self.client = EntsoeClientBase(api_key="fake-api-key-12345")
+
+    def test_build_wind_solar_forecast_params(self):
+        start = datetime(2023, 8, 15, 22, 0, tzinfo=timezone.utc)
+        end = datetime(2023, 8, 16, 22, 0, tzinfo=timezone.utc)
+        params = self.client._build_wind_solar_forecast_params(DE, start, end)
+
+        assert params["documentType"] == "A69"
+        assert params["processType"] == "A01"
+        assert params["in_Domain"] == DE.energy_identification_code
+        assert params["securityToken"] == "fake-api-key-12345"
+        assert "PsrType" not in params
+
+    def test_build_wind_solar_forecast_params_with_psr_type(self):
+        start = datetime(2023, 8, 15, 22, 0, tzinfo=timezone.utc)
+        end = datetime(2023, 8, 16, 22, 0, tzinfo=timezone.utc)
+        params = self.client._build_wind_solar_forecast_params(DE, start, end, psr_type="B16")
+        assert params["PsrType"] == "B16"
+
+    def test_build_wind_solar_forecast_params_custom_process_type(self):
+        start = datetime(2023, 8, 15, tzinfo=timezone.utc)
+        end = datetime(2023, 8, 16, tzinfo=timezone.utc)
+        params = self.client._build_wind_solar_forecast_params(DE, start, end, process_type="A18")
+        assert params["processType"] == "A18"
+
+    def test_handle_wind_solar_forecast_response_with_xml(self):
+        result = self.client._handle_wind_solar_forecast_response(
+            [SAMPLE_WIND_SOLAR_FORECAST_XML]
+        )
+        assert len(result) == 2
+        assert all(isinstance(f, Forecast) for f in result)
+
+    def test_handle_wind_solar_forecast_empty_response(self):
+        result = self.client._handle_wind_solar_forecast_response([])
         assert result == []
 
 
