@@ -1,6 +1,6 @@
 import polars as pl
 from typing import List
-from domain.curves import EnergyPriceObservation, Observations
+from domain.curves import EnergyPriceObservation, Forecast, Observations
 
 
 def insert_observations_batch(
@@ -17,6 +17,14 @@ def insert_energy_prices_batch(
 ) -> None:
     data_frames = pl.concat([price.data_frame for price in energy_prices])
     insert_polars_dataframe(client, data_frames, "algo.energy_prices")
+
+
+def insert_forecasts_batch(
+    client,
+    forecasts: List[Forecast],
+) -> None:
+    data_frames = pl.concat([f.data_frame for f in forecasts])
+    insert_polars_dataframe(client, data_frames, "algo.forecasts")
 
 
 def insert_polars_dataframe(

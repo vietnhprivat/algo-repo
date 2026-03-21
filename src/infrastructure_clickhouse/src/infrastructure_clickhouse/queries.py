@@ -25,6 +25,33 @@ def create_observations_table():
         client.close()
 
 
+def create_forecasts_table():
+    command = """
+        CREATE TABLE IF NOT EXISTS algo.forecasts
+        (
+            source               LowCardinality(String),
+            curve_name           String,
+            area                 LowCardinality(String),
+            area_timezone        LowCardinality(String),
+            model                LowCardinality(String),
+            issued_utc           DateTime('UTC'),
+            issued_timezone      LowCardinality(String),
+            timestamp_utc        DateTime('UTC'),
+            value                Float32,
+            ingested_utc         DateTime('UTC')
+        )
+        ENGINE = ReplacingMergeTree(ingested_utc)
+        ORDER BY (curve_name, model, issued_utc, timestamp_utc)
+        PARTITION BY toStartOfQuarter(timestamp_utc)
+        """
+
+    client = create_client()
+    try:
+        client.command(command)
+    finally:
+        client.close()
+
+
 def create_energy_prices_table():
     engine = "ReplacingMergeTree"
     command = f"""
