@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from typing import Tuple
 
-from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.configs import ExperimentConfig
 from price_forecasting.data.clickhouse_loader import load_dataset
 
 

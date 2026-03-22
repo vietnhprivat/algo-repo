@@ -4,15 +4,15 @@ from typing import Callable
 
 import pandas as pd
 
-from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.configs import ExperimentConfig
 from price_forecasting.data.preprocessor import DataPreprocessor
-from price_forecasting.data.splitting import SplitResult, split_dataset
+from price_forecasting.backtesting.splitting import SplitResult, split_dataset
 from price_forecasting.evaluation import (
     build_weekly_naive,
     compute_metrics_per_hour,
     compute_metrics_summary,
 )
-from price_forecasting.engine import BacktestEngine
+from price_forecasting.backtesting.engine import BacktestEngine
 from price_forecasting.models import BaseModel, get_model
 
 
@@ -105,23 +105,3 @@ class BacktestRunner(BaseRunner):
         print(f"Saved actuals to {actuals_path}")
         print(f"Saved metrics to {metrics_summary_path}")
         print(f"Saved per-hour metrics to {metrics_per_hour_path}")
-
-
-class LiveRunner(BaseRunner):
-    def run_live(
-        self, target_date: str, dataframe: pd.DataFrame | None = None
-    ) -> pd.Series:
-        features, targets = self._load_and_preprocess_data(dataframe)
-        target_timestamp = pd.to_datetime(target_date)
-        model_factory = self._get_model_factory()
-        engine = BacktestEngine(self.config)
-
-        if target_timestamp not in features.index:
-            raise ValueError("Target date not found in available data.")
-
-        prediction = engine._ensemble_forecast(
-            model_factory, features, targets, target_timestamp
-        )
-
-        output_index = [f"hour{hour}" for hour in range(24)]
-        return pd.Series(prediction, index=output_index, name=target_date)

@@ -4,7 +4,7 @@ from typing import Callable, Dict, Tuple
 import numpy as np
 import pandas as pd
 
-from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.configs import ExperimentConfig
 from price_forecasting.data.preprocessor import DataPreprocessor
 from price_forecasting.models import BaseModel
 
@@ -41,11 +41,9 @@ class BacktestEngine:
         end_date = target_date - pd.Timedelta(days=1)
 
         train_mask = (features.index >= start_date) & (features.index <= end_date)
-        features_train_frame = features.loc[
-            train_mask
-        ]  # shape: (window_size, num_features)
-        targets_train_frame = targets.loc[train_mask]  # shape: (window_size, 24)
-        features_test_frame = features.loc[[target_date]]  # shape: (1, num_features)
+        features_train_frame = features.loc[train_mask]
+        targets_train_frame = targets.loc[train_mask]
+        features_test_frame = features.loc[[target_date]]
 
         if len(features_train_frame) < window_size:
             raise ValueError(

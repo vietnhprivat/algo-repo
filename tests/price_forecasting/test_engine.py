@@ -3,7 +3,7 @@
 import pytest
 import pandas as pd
 
-from price_forecasting.engine import BacktestEngine
+from price_forecasting.backtesting.engine import BacktestEngine
 from price_forecasting.configs.experiment import ExperimentConfig
 
 from tests.price_forecasting.conftest import (

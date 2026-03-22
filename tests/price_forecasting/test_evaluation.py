@@ -4,13 +4,13 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from price_forecasting.metrics import (
+from price_forecasting.evaluation.metrics import (
     calculate_mae,
     calculate_rmse,
     calculate_smape,
     calculate_rmae,
 )
-from price_forecasting.evaluation import (
+from price_forecasting.evaluation.summary import (
     build_weekly_naive,
     compute_metrics_summary,
     compute_metrics_per_hour,

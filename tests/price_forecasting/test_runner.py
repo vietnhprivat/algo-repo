@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from price_forecasting.runner import BacktestRunner, LiveRunner
+from price_forecasting.backtesting.runner import BacktestRunner
+from price_forecasting.live_runner import LiveRunner
 from price_forecasting.configs.experiment import ExperimentConfig
 
 from tests.price_forecasting.conftest import (

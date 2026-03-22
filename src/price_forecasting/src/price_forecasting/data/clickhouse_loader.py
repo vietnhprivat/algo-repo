@@ -2,7 +2,7 @@ import pandas as pd
 from clickhouse_connect.driver.client import Client
 
 from infrastructure_clickhouse.client_factory import create_client
-from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.configs import ExperimentConfig
 
 
 def _price_curve_pattern(area: str) -> str:
