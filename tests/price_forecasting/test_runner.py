@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtesting.runner import BacktestRunner, LiveRunner
-from backtesting.configs.experiment import ExperimentConfig
+from price_forecasting.runner import BacktestRunner, LiveRunner
+from price_forecasting.configs.experiment import ExperimentConfig
 
-from tests.backtesting.conftest import (
+from tests.price_forecasting.conftest import (
     StubModel,
     make_synthetic_features_and_targets,
 )

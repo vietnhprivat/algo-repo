@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Energy market data platform: fetches data from external APIs (ENTSOE), maps to domain models, stores in ClickHouse, and runs backtesting/forecasting models.
+Energy market data platform: fetches data from external APIs (ENTSOE), maps to domain models, stores in ClickHouse, and runs electricity price forecasting models.
 
 ## Project Structure
 
@@ -13,7 +13,7 @@ src/
   infrastructure_clickhouse/ # ClickHouse client, migrations, ingestion
   data_cli/                  # Typer CLI for backfilling data
   schedules/                 # Prefect workflows
-  backtesting/               # ML models and evaluation
+  price_forecasting/         # Electricity price forecasting models and evaluation
 tests/                       # Mirrors src/ structure
 ```
 

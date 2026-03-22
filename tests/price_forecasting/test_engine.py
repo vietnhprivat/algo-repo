@@ -3,10 +3,10 @@
 import pytest
 import pandas as pd
 
-from backtesting.engine import BacktestEngine
-from backtesting.configs.experiment import ExperimentConfig
+from price_forecasting.engine import BacktestEngine
+from price_forecasting.configs.experiment import ExperimentConfig
 
-from tests.backtesting.conftest import (
+from tests.price_forecasting.conftest import (
     StubModel,
     make_test_config,
     make_synthetic_features_and_targets,

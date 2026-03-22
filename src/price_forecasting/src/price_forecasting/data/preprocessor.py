@@ -3,8 +3,8 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from typing import Tuple
 
-from backtesting.configs.experiment import ExperimentConfig
-from backtesting.data.clickhouse_loader import load_dataset
+from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.data.clickhouse_loader import load_dataset
 
 
 class DataPreprocessor:

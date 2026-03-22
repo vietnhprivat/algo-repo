@@ -4,16 +4,16 @@ from typing import Callable
 
 import pandas as pd
 
-from backtesting.configs.experiment import ExperimentConfig
-from backtesting.data.preprocessor import DataPreprocessor
-from backtesting.data.splitting import SplitResult, split_dataset
-from backtesting.evaluation import (
+from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.data.preprocessor import DataPreprocessor
+from price_forecasting.data.splitting import SplitResult, split_dataset
+from price_forecasting.evaluation import (
     build_weekly_naive,
     compute_metrics_per_hour,
     compute_metrics_summary,
 )
-from backtesting.engine import BacktestEngine
-from backtesting.models import BaseModel, get_model
+from price_forecasting.engine import BacktestEngine
+from price_forecasting.models import BaseModel, get_model
 
 
 class BaseRunner:

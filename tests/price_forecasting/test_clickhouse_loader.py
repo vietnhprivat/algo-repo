@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from backtesting.data.clickhouse_loader import (
+from price_forecasting.data.clickhouse_loader import (
     load_price_series,
     load_exogenous_series,
 )

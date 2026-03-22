@@ -1,10 +1,10 @@
-"""Shared fixtures and helpers for backtesting integration tests."""
+"""Shared fixtures and helpers for price forecasting integration tests."""
 
 import numpy as np
 import pandas as pd
 
-from backtesting.configs.experiment import ExperimentConfig
-from backtesting.models.base import BaseModel
+from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.models.base import BaseModel
 
 
 class StubModel(BaseModel):

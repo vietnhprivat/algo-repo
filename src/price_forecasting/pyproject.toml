@@ -1,7 +1,7 @@
 [project]
-name = "backtesting"
+name = "price-forecasting"
 version = "0.1.0"
-description = "Energy price forecasting backtesting framework"
+description = "Electricity price forecasting framework"
 readme = "README.md"
 authors = [
     { name = "vietnhprivat", email = "vietnhprivat@gmail.com" }

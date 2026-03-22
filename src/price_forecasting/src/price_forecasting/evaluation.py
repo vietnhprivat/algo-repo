@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from backtesting.metrics import (
+from price_forecasting.metrics import (
     calculate_mae,
     calculate_rmae,
     calculate_rmse,

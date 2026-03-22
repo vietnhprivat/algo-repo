@@ -1,16 +1,16 @@
-"""Integration tests for backtesting evaluation and metrics."""
+"""Integration tests for price forecasting evaluation and metrics."""
 
 import pytest
 import numpy as np
 import pandas as pd
 
-from backtesting.metrics import (
+from price_forecasting.metrics import (
     calculate_mae,
     calculate_rmse,
     calculate_smape,
     calculate_rmae,
 )
-from backtesting.evaluation import (
+from price_forecasting.evaluation import (
     build_weekly_naive,
     compute_metrics_summary,
     compute_metrics_per_hour,

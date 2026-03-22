@@ -1,4 +1,4 @@
-from backtesting.models.base import BaseModel
+from price_forecasting.models.base import BaseModel
 import numpy as np
 
 

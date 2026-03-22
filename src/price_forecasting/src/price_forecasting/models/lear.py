@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.linear_model import Lasso, LassoCV
 from sklearn.model_selection import TimeSeriesSplit
 
-from backtesting.models.base import BaseModel
+from price_forecasting.models.base import BaseModel
 
 
 class LearModel(BaseModel):

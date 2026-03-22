@@ -1,6 +1,6 @@
-from backtesting.models.base import BaseModel
-from backtesting.models.lear import LearModel
-from backtesting.models.dnn import DNNModel
+from price_forecasting.models.base import BaseModel
+from price_forecasting.models.lear import LearModel
+from price_forecasting.models.dnn import DNNModel
 
 __all__ = ["BaseModel", "LearModel", "DNNModel", "get_model"]
 

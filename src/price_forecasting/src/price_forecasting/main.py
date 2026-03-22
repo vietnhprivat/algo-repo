@@ -1,5 +1,5 @@
-from backtesting.configs.experiment import ExperimentConfig
-from backtesting.runner import BacktestRunner, LiveRunner
+from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.runner import BacktestRunner, LiveRunner
 
 
 def main() -> None:

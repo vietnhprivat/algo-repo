@@ -3,9 +3,9 @@
 import pytest
 import pandas as pd
 
-from backtesting.data.splitting import split_dataset
+from price_forecasting.data.splitting import split_dataset
 
-from tests.backtesting.conftest import make_synthetic_features_and_targets
+from tests.price_forecasting.conftest import make_synthetic_features_and_targets
 
 
 class TestSplitDataset:

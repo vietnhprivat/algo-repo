@@ -4,9 +4,9 @@ from typing import Callable, Dict, Tuple
 import numpy as np
 import pandas as pd
 
-from backtesting.configs.experiment import ExperimentConfig
-from backtesting.data.preprocessor import DataPreprocessor
-from backtesting.models import BaseModel
+from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.data.preprocessor import DataPreprocessor
+from price_forecasting.models import BaseModel
 
 ModelFactory = Callable[[], BaseModel]
 

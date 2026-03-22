@@ -1,13 +1,13 @@
-"""Integration tests for backtesting models (no real training)."""
+"""Integration tests for price forecasting models (no real training)."""
 
 import pytest
 import numpy as np
 
-from backtesting.models import get_model, BaseModel
-from backtesting.models.lear import LearModel
-from backtesting.models.dnn import DNNModel
+from price_forecasting.models import get_model, BaseModel
+from price_forecasting.models.lear import LearModel
+from price_forecasting.models.dnn import DNNModel
 
-from tests.backtesting.conftest import StubModel
+from tests.price_forecasting.conftest import StubModel
 
 
 class TestModelRegistry:

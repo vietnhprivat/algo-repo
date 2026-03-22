@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "backtesting",
+    "price-forecasting",
     "httpx>=0.28.1",
     "infrastructure-entsoe",
     "ipykernel>=7.1.0",
@@ -36,7 +36,7 @@ members = [
     "src/infrastructure_entsoe",
     "src/infrastructure_clickhouse",
     "src/domain",
-    "src/backtesting",
+    "src/price_forecasting",
     "src/schedules",
     "src/data_cli",
 ]
@@ -45,7 +45,7 @@ members = [
 domain = { workspace = true }
 infrastructure-entsoe = { workspace = true }
 infrastructure-clickhouse = { workspace = true }
-backtesting = { workspace = true }
+price-forecasting = { workspace = true }
 schedules = { workspace = true }
 data-cli = { workspace = true }
 
