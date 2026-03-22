@@ -46,7 +46,7 @@ class EntsoeIngestionFlowDeployment:
                 },
             },
             tags=["entsoe", "ingestion", "production"],
-            description="Fetches all ENTSOE data types for the configured area (last 48h)",
+            description="Fetches all ENTSOE data types for the configured area (last 24h and next 24h)",
         )
 
 AREAS = ["DK1", "DK2", "NL", "BE", "DE", "FR", "PL"]
