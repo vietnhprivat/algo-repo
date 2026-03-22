@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS algo.experiment_runs
 (
-    run_id          UUID,
+    run_id          LowCardinality(String),
     created_utc     DateTime('UTC'),
     experiment_name LowCardinality(String),
     area            LowCardinality(String),

@@ -86,11 +86,11 @@ def predict(
     n_periods = len(prediction)
     minutes_per_period = 1440 // n_periods
     typer.echo(f"{'Period':>6}  {'Time':>5}  {'Price':>10}")
-    for p in range(n_periods):
-        value = prediction.iloc[p]
-        hh = (p * minutes_per_period) // 60
-        mm = (p * minutes_per_period) % 60
-        typer.echo(f"  {p:>4}  {hh:02d}:{mm:02d}  {value:>10.2f}")
+    for period_index in range(n_periods):
+        value = prediction.iloc[period_index]
+        hh = (period_index * minutes_per_period) // 60
+        mm = (period_index * minutes_per_period) % 60
+        typer.echo(f"  {period_index:>4}  {hh:02d}:{mm:02d}  {value:>10.2f}")
 
     if track:
         run_id = track_prediction(config, target_date_str, prediction)

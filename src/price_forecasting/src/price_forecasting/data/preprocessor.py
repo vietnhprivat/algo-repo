@@ -124,6 +124,11 @@ class DataPreprocessor:
     def build_dataset(
         self, dataframe: pd.DataFrame | None = None
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Return (features, targets) aligned on common valid dates.
+
+        If dataframe is None, loads from ClickHouse via the experiment config.
+        Pass a DataFrame directly to skip the DB call (e.g. in tests).
+        """
         if dataframe is None:
             dataframe = load_dataset(self.experiment_config)
 

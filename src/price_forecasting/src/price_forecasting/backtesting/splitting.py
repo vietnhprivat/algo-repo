@@ -65,7 +65,7 @@ def split_by_dates(
             f"test_start_date ({test_start_date}) must be before test_end_date ({test_end_date})"
         )
 
-    index = features.index
+    index : pd.DatetimeIndex = features.index
     train_mask = index < test_start
     test_mask = (index >= test_start) & (index <= test_end)
 

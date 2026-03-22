@@ -20,11 +20,6 @@ def _generate_run_id() -> str:
     return str(uuid.uuid4())
 
 
-def _period_timedelta(period_idx: int, n_periods: int) -> pd.Timedelta:
-    """Convert a period index to a timedelta offset from midnight."""
-    minutes_per_period = 1440 // n_periods
-    return pd.Timedelta(minutes=period_idx * minutes_per_period)
-
 
 def _reshape_wide_to_long(
     run_id: str,
@@ -33,30 +28,22 @@ def _reshape_wide_to_long(
 ) -> pl.DataFrame:
     """Reshape wide DataFrames (days x h0..hN) to long format for ClickHouse."""
     n_periods = forecasts.shape[1]
-    rows = []
-    for date in forecasts.index:
-        for p in range(n_periods):
-            col = f"h{p}"
-            timestamp = pd.Timestamp(date) + _period_timedelta(p, n_periods)
-            rows.append(
-                {
-                    "run_id": run_id,
-                    "timestamp_utc": timestamp.to_pydatetime().replace(
-                        tzinfo=timezone.utc
-                    ),
-                    "actual": float(actuals.loc[date, col]),
-                    "predicted": float(forecasts.loc[date, col]),
-                }
-            )
 
-    return pl.DataFrame(
-        rows,
-        schema={
-            "run_id": pl.String,
-            "timestamp_utc": pl.Datetime("us", "UTC"),
-            "actual": pl.Float32,
-            "predicted": pl.Float32,
-        },
+    # 1440 = minutes in a day; divides evenly for hourly (60) and 15-min (15) resolutions
+    minutes_per_period = 1440 // n_periods  
+
+    forecasts_long = forecasts.reset_index(names="date").melt(id_vars="date", var_name="col", value_name="predicted")
+    actuals_long = actuals.reset_index(names="date").melt(id_vars="date", var_name="col", value_name="actual")
+
+    df = forecasts_long.merge(actuals_long, on=["date", "col"])
+    df["period"] = df["col"].str[1:].astype(int)
+    df["timestamp_utc"] = pd.to_datetime(df["date"]) + pd.to_timedelta(df["period"] * minutes_per_period, unit="m")
+    df["timestamp_utc"] = df["timestamp_utc"].dt.tz_localize("UTC")
+    df["run_id"] = run_id
+
+    return pl.from_pandas(
+        df[["run_id", "timestamp_utc", "actual", "predicted"]],
+        schema_overrides={"actual": pl.Float32, "predicted": pl.Float32},
     )
 
 
@@ -67,29 +54,22 @@ def _prediction_series_to_long(
 ) -> pl.DataFrame:
     """Convert a prediction Series to long format for ClickHouse."""
     n_periods = len(predictions)
-    base_date = pd.Timestamp(target_date)
-    rows = []
-    for p in range(n_periods):
-        timestamp = base_date + _period_timedelta(p, n_periods)
-        rows.append(
+
+    # 1440 = minutes in a day; divides evenly for hourly (60) and 15-min (15) resolutions
+    minutes_per_period = 1440 // n_periods  
+    base_date = pd.Timestamp(target_date, tz="UTC")
+    timestamps = base_date + pd.to_timedelta(range(n_periods), unit="m") * minutes_per_period
+
+    return pl.from_pandas(
+        pd.DataFrame(
             {
                 "run_id": run_id,
-                "timestamp_utc": timestamp.to_pydatetime().replace(
-                    tzinfo=timezone.utc
-                ),
+                "timestamp_utc": timestamps,
                 "actual": 0.0,
-                "predicted": float(predictions.iloc[p]),
+                "predicted": predictions.to_numpy(),
             }
-        )
-
-    return pl.DataFrame(
-        rows,
-        schema={
-            "run_id": pl.String,
-            "timestamp_utc": pl.Datetime("us", "UTC"),
-            "actual": pl.Float32,
-            "predicted": pl.Float32,
-        },
+        ),
+        schema_overrides={"actual": pl.Float32, "predicted": pl.Float32},
     )
 
 

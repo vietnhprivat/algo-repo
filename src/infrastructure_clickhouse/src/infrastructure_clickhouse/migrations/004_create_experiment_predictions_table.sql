@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS algo.experiment_predictions
 (
-    run_id        UUID,
+    run_id        LowCardinality(String),
     timestamp_utc DateTime('UTC'),
     actual        Float32,
     predicted     Float32
