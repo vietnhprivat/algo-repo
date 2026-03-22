@@ -4,12 +4,13 @@ from sklearn.preprocessing import StandardScaler
 from typing import Tuple
 
 from backtesting.configs.experiment import ExperimentConfig
+from backtesting.data.clickhouse_loader import load_dataset
 
 
 class DataPreprocessor:
     def __init__(self, experiment_config: ExperimentConfig):
         self.experiment_config = experiment_config
-        self.exogenous_columns = experiment_config.exogenous_features
+        self.exogenous_columns = experiment_config.exogenous_curve_types
         self.feature_scaler = StandardScaler()
         self.target_scaler = StandardScaler()
 
@@ -17,7 +18,7 @@ class DataPreprocessor:
         self, dataframe: pd.DataFrame | None = None
     ) -> pd.DataFrame:
         if dataframe is None:
-            dataframe = self._load_data()
+            dataframe = load_dataset(self.experiment_config)
         hourly_dataframe = dataframe.copy()
         daily_prices = self._pivot_hourly_to_daily(
             hourly_dataframe, self.experiment_config.target_column
@@ -97,11 +98,13 @@ class DataPreprocessor:
 
         all_blocks = []
         for column in self.exogenous_columns:
+            if column not in hourly_dataframe.columns:
+                continue
             daily = self._pivot_hourly_to_daily(hourly_dataframe, column)
             all_blocks.append(daily.copy().add_prefix(f"{column}_d0_"))
             all_blocks.append(daily.shift(1).add_prefix(f"{column}_d1_"))
             all_blocks.append(daily.shift(7).add_prefix(f"{column}_d7_"))
-        return pd.concat(all_blocks, axis=1)
+        return pd.concat(all_blocks, axis=1) if all_blocks else pd.DataFrame()
 
     def _add_calendar_dummies(self, index: pd.Index) -> pd.DataFrame:
         """Creates 7 binary columns for day-of-week seasonality"""
@@ -110,16 +113,12 @@ class DataPreprocessor:
         dummies.index = index
         return dummies
 
-    def _load_data(self) -> pd.DataFrame:
-        dataframe = pd.read_csv(
-            self.experiment_config.data_path,
-            parse_dates=["timestamp"],
-            index_col="timestamp",
-        )
-        return dataframe
+    def build_dataset(
+        self, dataframe: pd.DataFrame | None = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        if dataframe is None:
+            dataframe = load_dataset(self.experiment_config)
 
-    def build_dataset(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        dataframe = self._load_data()
         features = self.generate_full_feature_matrix(dataframe)
         targets = self._pivot_hourly_to_daily(
             dataframe, self.experiment_config.target_column
@@ -137,19 +136,3 @@ class DataPreprocessor:
         targets = targets.loc[valid_mask]
 
         return features, targets
-
-
-if __name__ == "__main__":
-    test_config = ExperimentConfig(
-        experiment_name="test_experiment",
-        results_dir="/tmp/test_results",
-        data_path="src/backtesting/src/backtesting/data/DE_data.csv",
-        target_column="price",
-        model_type="LEAR",
-        exogenous_features=["exogenous_1", "exogenous_2"],
-        model_params={"alpha": 0.1},
-    )
-
-    data_preprocessor = DataPreprocessor(test_config)
-    feature_matrix = data_preprocessor.build_dataset()
-    print(feature_matrix)

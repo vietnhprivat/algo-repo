@@ -41,7 +41,7 @@ def backfill_entsoe_price_document(
     start: str = typer.Option(..., "-s", "--start", help="Start datetime UTC (flexible formats)"),
     end: Optional[str] = typer.Option(None, "-e", "--end", help="End datetime UTC (flexible formats). Defaults to now."),
 ) -> None:
-    """Backfill ENTSOE price documents (A44) into algo.timeseries."""
+    """Backfill ENTSOE price documents (A44) into algo.timeseries. Requests are automatically batched in 1-year chunks."""
     resolved_area = resolve_area(area)
     start_dt = parse_flexible_datetime(start)
     end_dt = parse_flexible_datetime(end) if end is not None else datetime.now(timezone.utc)

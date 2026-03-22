@@ -6,21 +6,17 @@ def main() -> None:
     config = ExperimentConfig(
         experiment_name="local_backtest",
         results_dir="results",
-        data_path="src/backtesting/src/backtesting/data/DE_data.csv",
+        area="DE",
         target_column="price",
         model_type="lear",
         model_params={"alpha": 0.01},
-        exogenous_features=[],
-        test_start_date="2017-12-01",
-        test_end_date="2017-12-31",
+        exogenous_curve_types=["TotalLoad"],
+        train_ratio=0.7,
+        validation_ratio=0.15,
+        test_ratio=0.15,
         calibration_windows=[56, 84, 352],
         refit_interval_days=1,
     )
-
-    live_runner = LiveRunner(config)
-    live_prediction = live_runner.run_live("2017-12-31")
-    print("Live prediction sample:")
-    print(live_prediction.head())
 
     runner = BacktestRunner(config)
     outputs = runner.execute()

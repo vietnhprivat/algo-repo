@@ -1,14 +1,19 @@
 [project]
 name = "backtesting"
 version = "0.1.0"
-description = "Add your description here"
+description = "Energy price forecasting backtesting framework"
 readme = "README.md"
 authors = [
     { name = "vietnhprivat", email = "vietnhprivat@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "infrastructure-clickhouse",
+]
 
 [build-system]
 requires = ["uv_build>=0.9.28,<0.10.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+infrastructure-clickhouse = { workspace = true }

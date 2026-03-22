@@ -310,6 +310,12 @@ wheels = [
 name = "backtesting"
 version = "0.1.0"
 source = { editable = "src/backtesting" }
+dependencies = [
+    { name = "infrastructure-clickhouse" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "infrastructure-clickhouse", editable = "src/infrastructure_clickhouse" }]
 
 [[package]]
 name = "beartype"

@@ -7,10 +7,14 @@ from typing import List, Dict, Any
 class ExperimentConfig:
     experiment_name: str
     results_dir: str
-    data_path: str
+    area: str
+
     target_column: str = "price"
-    test_start_date: str = "2019-01-01"
-    test_end_date: str = "2019-12-31"
+
+    # Data split ratios (must sum to 1.0)
+    train_ratio: float = 0.7
+    validation_ratio: float = 0.15
+    test_ratio: float = 0.15
 
     """LEAR Benchmark uses [56, 84, 1092, 1456]"""
     calibration_windows: List[int] = field(default_factory=lambda: [56, 84, 1092, 1456])
@@ -20,11 +24,9 @@ class ExperimentConfig:
 
     model_type: str = "LEAR"
 
-    """Specific args passed to the model class (e.g. {'alpha': 0.1} or {'layers': [256, 24]})"""
-    exogenous_features: list[str] = field(default_factory=list)
-    model_params: Dict[str, Any] = field(default_factory=dict)
+    # Exogenous forecast curve types from algo.forecasts
+    # e.g. ["TotalLoad", "Generation", "Solar"]
+    exogenous_curve_types: list[str] = field(default_factory=list)
 
-    # @classmethod
-    # def load(cls, path: str) -> "ExperimentConfig":
-    #     with open(path, "r") as f:
-    #         return cls(**yaml.safe_load(f))
+    """Specific args passed to the model class (e.g. {'alpha': 0.1} or {'layers': [256, 24]})"""
+    model_params: Dict[str, Any] = field(default_factory=dict)

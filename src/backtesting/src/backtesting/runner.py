@@ -6,6 +6,7 @@ import pandas as pd
 
 from backtesting.configs.experiment import ExperimentConfig
 from backtesting.data.preprocessor import DataPreprocessor
+from backtesting.data.splitting import SplitResult, split_dataset
 from backtesting.evaluation import (
     build_weekly_naive,
     compute_metrics_per_hour,
@@ -25,25 +26,26 @@ class BaseRunner:
 
         return factory
 
-    def _load_and_preprocess_data(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def _load_and_preprocess_data(
+        self, dataframe: pd.DataFrame | None = None
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         preprocessor = DataPreprocessor(self.config)
-        features, targets = preprocessor.build_dataset()
+        features, targets = preprocessor.build_dataset(dataframe)
         return features, targets
+
+    def _split_data(
+        self, features: pd.DataFrame, targets: pd.DataFrame
+    ) -> SplitResult:
+        return split_dataset(
+            features,
+            targets,
+            train_ratio=self.config.train_ratio,
+            validation_ratio=self.config.validation_ratio,
+            test_ratio=self.config.test_ratio,
+        )
 
 
 class BacktestRunner(BaseRunner):
-    def _build_test_dates(self, index: pd.DatetimeIndex) -> pd.DatetimeIndex:
-        start_date = pd.to_datetime(self.config.test_start_date)
-        end_date = pd.to_datetime(self.config.test_end_date)
-        test_dates = index[(index >= start_date) & (index <= end_date)]
-
-        if len(test_dates) == 0:
-            raise ValueError(
-                "No test dates found in dataset for the configured test range."
-            )
-
-        return test_dates
-
     def _prepare_outputs(
         self,
         forecasts: pd.DataFrame,
@@ -51,11 +53,16 @@ class BacktestRunner(BaseRunner):
     ) -> dict[str, pd.DataFrame]:
         return {"forecasts": forecasts, "actuals": actuals}
 
-    def execute(self):
+    def execute(self, dataframe: pd.DataFrame | None = None):
         print(f"Running Experiment: {self.config.experiment_name}")
 
-        features, targets = self._load_and_preprocess_data()
-        test_dates = self._build_test_dates(features.index)
+        features, targets = self._load_and_preprocess_data(dataframe)
+        split = self._split_data(features, targets)
+        test_dates = split.test.dates
+
+        if len(test_dates) == 0:
+            raise ValueError("No test dates found after splitting the dataset.")
+
         model_factory = self._get_model_factory()
         engine = BacktestEngine(self.config)
 
@@ -101,8 +108,10 @@ class BacktestRunner(BaseRunner):
 
 
 class LiveRunner(BaseRunner):
-    def run_live(self, target_date: str) -> pd.Series:
-        features, targets = self._load_and_preprocess_data()
+    def run_live(
+        self, target_date: str, dataframe: pd.DataFrame | None = None
+    ) -> pd.Series:
+        features, targets = self._load_and_preprocess_data(dataframe)
         target_timestamp = pd.to_datetime(target_date)
         model_factory = self._get_model_factory()
         engine = BacktestEngine(self.config)

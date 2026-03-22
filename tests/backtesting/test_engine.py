@@ -18,10 +18,8 @@ class TestBacktestEngineSliceData:
         self.config = ExperimentConfig(
             experiment_name="slice_test",
             results_dir="/tmp/slice_test_results",
-            data_path="unused",
+            area="DE",
             target_column="price",
-            test_start_date="2019-02-01",
-            test_end_date="2019-02-03",
             calibration_windows=[7],
             refit_interval_days=1,
         )
@@ -108,8 +106,6 @@ class TestBacktestEngineRefit:
         config = make_test_config(
             tmp_path,
             windows=[14],
-            test_start="2019-02-15",
-            test_end="2019-02-18",
             refit_interval_days=7,
         )
         engine = BacktestEngine(config)

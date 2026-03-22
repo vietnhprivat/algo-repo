@@ -29,24 +29,25 @@ class StubModel(BaseModel):
 
 def make_test_config(
     tmp_path,
-    data_path: str | None = None,
     windows: list[int] | None = None,
-    test_start: str = "2019-02-01",
-    test_end: str = "2019-02-03",
+    train_ratio: float = 0.5,
+    validation_ratio: float = 0.0,
+    test_ratio: float = 0.5,
     refit_interval_days: int = 1,
 ) -> ExperimentConfig:
     """Build an ExperimentConfig pointing at a temporary results directory."""
     return ExperimentConfig(
         experiment_name="test_experiment",
         results_dir=str(tmp_path / "results"),
-        data_path=data_path or "unused",
+        area="DE",
         target_column="price",
-        test_start_date=test_start,
-        test_end_date=test_end,
+        train_ratio=train_ratio,
+        validation_ratio=validation_ratio,
+        test_ratio=test_ratio,
         calibration_windows=windows or [7],
         refit_interval_days=refit_interval_days,
         model_type="LEAR",
-        exogenous_features=[],
+        exogenous_curve_types=[],
         model_params={},
     )
 
