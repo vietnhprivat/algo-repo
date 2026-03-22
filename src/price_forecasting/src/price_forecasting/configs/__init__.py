@@ -1,1 +1,1 @@
-from price_forecasting.configs.experiment import ExperimentConfig
+from price_forecasting.configs.experiment import ExperimentConfig as ExperimentConfig
