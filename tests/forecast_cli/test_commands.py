@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
-import pytest
 from typer.testing import CliRunner
 
 from forecast_cli.main import app

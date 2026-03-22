@@ -1,7 +1,5 @@
 """Tests for ClickHouse data loader using a mock client."""
 
-import pytest
-import pandas as pd
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 

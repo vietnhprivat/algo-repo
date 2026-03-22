@@ -2,7 +2,6 @@
 
 import pytest
 from click.exceptions import Exit
-from typer.testing import CliRunner
 
 from price_forecasting import ExperimentConfig
 
