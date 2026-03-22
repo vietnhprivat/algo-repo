@@ -26,16 +26,13 @@ class BaseRunner:
 
         return factory
 
-    def _load_and_preprocess_data(
-        self, dataframe: pd.DataFrame | None = None
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def _load_and_preprocess_data(self, dataframe: pd.DataFrame | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
         preprocessor = DataPreprocessor(self.config)
         features, targets = preprocessor.build_dataset(dataframe)
         return features, targets
 
     def _split_data(
-        self, features: pd.DataFrame, targets: pd.DataFrame
-    ) -> SplitResult:
+        self, features: pd.DataFrame, targets: pd.DataFrame) -> SplitResult:
         if self.config.test_start_date and self.config.test_end_date:
             return split_by_dates(
                 features,
@@ -43,6 +40,7 @@ class BaseRunner:
                 self.config.test_start_date,
                 self.config.test_end_date,
             )
+        
         return split_dataset(
             features,
             targets,

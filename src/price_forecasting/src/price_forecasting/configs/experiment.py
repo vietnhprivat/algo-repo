@@ -36,3 +36,7 @@ class ExperimentConfig:
 
     """Specific args passed to the model class (e.g. {'alpha': 0.1} or {'layers': [256, 24]})"""
     model_params: Dict[str, Any] = field(default_factory=dict)
+
+    # Custom feature transformers. If None, DataPreprocessor builds model-type defaults.
+    # If set, must be a list of FeatureTransformer instances.
+    feature_transformers: Optional[list] = None

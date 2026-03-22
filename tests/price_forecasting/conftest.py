@@ -79,3 +79,21 @@ def make_synthetic_features_and_targets(
         columns=[f"h{i}" for i in range(n_periods)],
     )
     return features, targets
+
+
+def make_hourly_dataframe(
+    start_date: str = "2019-01-01",
+    end_date: str = "2019-03-31",
+    exogenous_columns: list[str] | None = None,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Generate synthetic hourly data with price and optional exogenous columns.
+
+    Returns a DatetimeIndex-based DataFrame suitable for DataPreprocessor.
+    """
+    rng = np.random.default_rng(seed)
+    index = pd.date_range(start=start_date, end=end_date, freq="h", inclusive="left")
+    data = {"price": rng.standard_normal(len(index)) * 20 + 50}
+    for col in exogenous_columns or []:
+        data[col] = rng.standard_normal(len(index)) * 1000 + 45000
+    return pd.DataFrame(data, index=index)
