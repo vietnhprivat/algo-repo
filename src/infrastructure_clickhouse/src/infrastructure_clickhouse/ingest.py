@@ -8,7 +8,7 @@ from domain.curves import EnergyPriceObservation, Forecast, Observations
 
 
 def insert_observations_batch(
-    client,
+    client: Client,
     observations: List[Observations],
 ) -> None:
     data_frames = pl.concat([obs.data_frame for obs in observations])
@@ -16,7 +16,7 @@ def insert_observations_batch(
 
 
 def insert_energy_prices_batch(
-    client,
+    client: Client,
     energy_prices: List[EnergyPriceObservation],
 ) -> None:
     data_frames = pl.concat([price.data_frame for price in energy_prices])
@@ -24,7 +24,7 @@ def insert_energy_prices_batch(
 
 
 def insert_forecasts_batch(
-    client,
+    client: Client,
     forecasts: List[Forecast],
 ) -> None:
     data_frames = pl.concat([f.data_frame for f in forecasts])
@@ -32,7 +32,7 @@ def insert_forecasts_batch(
 
 
 def insert_experiment_run(
-    client,
+    client: Client,
     run_id: str,
     created_utc: datetime,
     experiment_name: str,
@@ -65,7 +65,7 @@ def insert_experiment_run(
 
 
 def insert_experiment_predictions(
-    client,
+    client: Client,
     predictions: pl.DataFrame,
 ) -> None:
     """Insert experiment predictions into algo.experiment_predictions.
@@ -76,7 +76,7 @@ def insert_experiment_predictions(
 
 
 def insert_polars_dataframe(
-    client, dataframe: pl.DataFrame, table_name: str, batch_size: int = 10_000
+    client: Client, dataframe: pl.DataFrame, table_name: str, batch_size: int = 10_000
 ) -> None:
     """Insert a Polars DataFrame into ClickHouse in batches using insert_arrow.
 
