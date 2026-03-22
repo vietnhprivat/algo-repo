@@ -9,26 +9,28 @@ import os
 from dotenv import load_dotenv
 from prefect import Flow
 
-from schedules.ingestion import batch_ingest_energy_prices_flow
+from schedules.ingestion import entsoe_backfill_flow
 
 load_dotenv()
 
 class EntsoeIngestionFlowDeployment:
-    def __init__(self, name: str, work_pool_name: str, image: str, cron: str, flow: Flow):
+    def __init__(self, name: str, work_pool_name: str, image: str, cron: str, flow: Flow, parameters: dict | None = None):
         self.name = name
         self.work_pool_name = work_pool_name
         self.image = image
         self.cron = cron
         self.flow = flow
+        self.parameters = parameters or {}
 
     def deploy(self):
         self.flow.deploy(
             name=self.name,
             work_pool_name=self.work_pool_name,
             image=self.image,
-            build=False,  
-            push=False,  
+            build=False,
+            push=False,
             cron=self.cron,
+            parameters=self.parameters,
             job_variables={
                 "image_pull_policy": "Never",
                 "network_mode": "algo-repo_default",
@@ -44,15 +46,18 @@ class EntsoeIngestionFlowDeployment:
                 },
             },
             tags=["entsoe", "ingestion", "production"],
-            description="Fetches ENTSOE energy prices for DK1 every hour (last 24h)",
+            description="Fetches all ENTSOE data types for the configured area (last 24h and next 24h)",
         )
 
+AREAS = ["DK1", "DK2", "NL", "BE", "DE", "FR", "PL"]
+
 if __name__ == "__main__":
-    deployment = EntsoeIngestionFlowDeployment(
-        name="ingestion-hourly-now",
-        work_pool_name="docker-pool",
-        image="algo-repo:latest",
-        cron="0 * * * *",
-        flow=batch_ingest_energy_prices_flow
-    )
-    deployment.deploy()
+    for area in AREAS:
+        EntsoeIngestionFlowDeployment(
+            name=f"entsoe-backfill-{area.lower()}",
+            work_pool_name="docker-pool",
+            image="algo-repo:latest",
+            cron="0 * * * *",
+            flow=entsoe_backfill_flow,
+            parameters={"area": area},
+        ).deploy()

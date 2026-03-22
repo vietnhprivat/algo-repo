@@ -46,3 +46,8 @@ services:
 volumes:
   clickhouse_data:
   prefect_storage:
+  # TODO: add model-store volume for persisting trained model weights across containers.
+  # Mount as /models in any container that saves or loads models (e.g. prefect worker, forecast API).
+  # Save: joblib.dump(model, "/models/dk1_lear/model.joblib")
+  # Load: joblib.load("/models/dk1_lear/model.joblib")
+  # model-store:

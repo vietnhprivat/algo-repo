@@ -1,12 +1,13 @@
 """Tests for the data_cli backfill tool."""
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from typer import Exit
 from typer.testing import CliRunner
 
+from data_cli.entsoe.services import BackfillResult
 from data_cli.main import app
 from data_cli.utils import parse_flexible_datetime, resolve_area
 from domain.areas import DK1, DE
@@ -79,21 +80,9 @@ class TestResolveArea:
 
 
 class TestBackfillEntsoePriceDocument:
-    @patch("data_cli.entsoe.backfill.create_client")
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    @patch("data_cli.entsoe.backfill.insert_observations_batch")
-    def test_successful_backfill(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
-        mock_obs = MagicMock()
-        mock_obs.data_frame.height = 24
-
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_energy_prices.return_value = [mock_obs]
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
-
-        mock_ch = MagicMock()
-        mock_ch_factory.return_value = mock_ch
+    @patch("data_cli.entsoe.backfill.services.backfill_energy_prices")
+    def test_successful_backfill(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("energy_prices", "DK1", 1, 24)
 
         result = runner.invoke(
             app,
@@ -103,7 +92,7 @@ class TestBackfillEntsoePriceDocument:
         assert result.exit_code == 0
         assert "Backfilling ENTSOE price document for DK1" in result.output
         assert "Successfully inserted into algo.timeseries" in result.output
-        mock_insert.assert_called_once_with(mock_ch, [mock_obs])
+        mock_backfill.assert_called_once()
 
     def test_invalid_area(self):
         result = runner.invoke(
@@ -129,13 +118,9 @@ class TestBackfillEntsoePriceDocument:
         assert result.exit_code == 1
         assert "must be before end" in result.output
 
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    def test_no_data_returned(self, mock_entsoe_factory):
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_energy_prices.return_value = []
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
+    @patch("data_cli.entsoe.backfill.services.backfill_energy_prices")
+    def test_no_data_returned(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("energy_prices", "DK1", 0, 0)
 
         result = runner.invoke(
             app,
@@ -155,21 +140,9 @@ class TestBackfillEntsoePriceDocument:
 
 
 class TestBackfillEntsoeTotalLoad:
-    @patch("data_cli.entsoe.backfill.create_client")
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
-    def test_successful_backfill_default_processtype(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
-        mock_forecast = MagicMock()
-        mock_forecast.data_frame.height = 24
-
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_total_load_forecasts.return_value = [mock_forecast]
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
-
-        mock_ch = MagicMock()
-        mock_ch_factory.return_value = mock_ch
+    @patch("data_cli.entsoe.backfill.services.backfill_total_load")
+    def test_successful_backfill_default_processtype(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("total_load", "DK1", 1, 24)
 
         result = runner.invoke(
             app,
@@ -179,26 +152,13 @@ class TestBackfillEntsoeTotalLoad:
         assert result.exit_code == 0
         assert "Backfilling ENTSOE total load (Dayahead) for DK1" in result.output
         assert "Successfully inserted into algo.forecasts" in result.output
-        mock_entsoe.fetch_total_load_forecasts.assert_called_once()
-        call_kwargs = mock_entsoe.fetch_total_load_forecasts.call_args
-        assert call_kwargs.kwargs["process_type"] == "A01"
-        assert call_kwargs.kwargs["process_type_name"] == "Dayahead"
+        call_kwargs = mock_backfill.call_args[1]
+        assert call_kwargs["process_type"] == "A01"
+        assert call_kwargs["process_type_name"] == "Dayahead"
 
-    @patch("data_cli.entsoe.backfill.create_client")
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
-    def test_custom_processtype(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
-        mock_forecast = MagicMock()
-        mock_forecast.data_frame.height = 24
-
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_total_load_forecasts.return_value = [mock_forecast]
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
-
-        mock_ch = MagicMock()
-        mock_ch_factory.return_value = mock_ch
+    @patch("data_cli.entsoe.backfill.services.backfill_total_load")
+    def test_custom_processtype(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("total_load", "DK1", 1, 24)
 
         result = runner.invoke(
             app,
@@ -207,9 +167,9 @@ class TestBackfillEntsoeTotalLoad:
 
         assert result.exit_code == 0
         assert "Realised" in result.output
-        call_kwargs = mock_entsoe.fetch_total_load_forecasts.call_args
-        assert call_kwargs.kwargs["process_type"] == "A16"
-        assert call_kwargs.kwargs["process_type_name"] == "Realised"
+        call_kwargs = mock_backfill.call_args[1]
+        assert call_kwargs["process_type"] == "A16"
+        assert call_kwargs["process_type_name"] == "Realised"
 
     def test_invalid_processtype(self):
         result = runner.invoke(
@@ -235,13 +195,9 @@ class TestBackfillEntsoeTotalLoad:
         assert result.exit_code == 1
         assert "must be before end" in result.output
 
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    def test_no_data_returned(self, mock_entsoe_factory):
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_total_load_forecasts.return_value = []
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
+    @patch("data_cli.entsoe.backfill.services.backfill_total_load")
+    def test_no_data_returned(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("total_load", "DK1", 0, 0)
 
         result = runner.invoke(
             app,
@@ -253,21 +209,9 @@ class TestBackfillEntsoeTotalLoad:
 
 
 class TestBackfillEntsoeWindSolar:
-    @patch("data_cli.entsoe.backfill.create_client")
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
-    def test_successful_backfill(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
-        mock_forecast = MagicMock()
-        mock_forecast.data_frame.height = 24
-
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_wind_solar_forecasts.return_value = [mock_forecast]
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
-
-        mock_ch = MagicMock()
-        mock_ch_factory.return_value = mock_ch
+    @patch("data_cli.entsoe.backfill.services.backfill_wind_solar")
+    def test_successful_backfill(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("wind_solar", "DK1", 1, 24)
 
         result = runner.invoke(
             app,
@@ -278,21 +222,9 @@ class TestBackfillEntsoeWindSolar:
         assert "Backfilling ENTSOE wind/solar (Dayahead)" in result.output
         assert "Successfully inserted into algo.forecasts" in result.output
 
-    @patch("data_cli.entsoe.backfill.create_client")
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
-    def test_with_psr_type_filter(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
-        mock_forecast = MagicMock()
-        mock_forecast.data_frame.height = 24
-
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_wind_solar_forecasts.return_value = [mock_forecast]
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
-
-        mock_ch = MagicMock()
-        mock_ch_factory.return_value = mock_ch
+    @patch("data_cli.entsoe.backfill.services.backfill_wind_solar")
+    def test_with_psr_type_filter(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("wind_solar", "DK1", 1, 24)
 
         result = runner.invoke(
             app,
@@ -301,8 +233,8 @@ class TestBackfillEntsoeWindSolar:
 
         assert result.exit_code == 0
         assert "[Solar]" in result.output
-        call_kwargs = mock_entsoe.fetch_wind_solar_forecasts.call_args
-        assert call_kwargs.kwargs["psr_type"] == "B16"
+        call_kwargs = mock_backfill.call_args[1]
+        assert call_kwargs["psr_type"] == "B16"
 
     def test_invalid_processtype(self):
         result = runner.invoke(
@@ -336,13 +268,9 @@ class TestBackfillEntsoeWindSolar:
         assert result.exit_code == 1
         assert "must be before end" in result.output
 
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    def test_no_data_returned(self, mock_entsoe_factory):
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_wind_solar_forecasts.return_value = []
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
+    @patch("data_cli.entsoe.backfill.services.backfill_wind_solar")
+    def test_no_data_returned(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("wind_solar", "DK1", 0, 0)
 
         result = runner.invoke(
             app,
@@ -354,21 +282,9 @@ class TestBackfillEntsoeWindSolar:
 
 
 class TestBackfillEntsoeGenerationForecast:
-    @patch("data_cli.entsoe.backfill.create_client")
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
-    def test_successful_backfill(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
-        mock_forecast = MagicMock()
-        mock_forecast.data_frame.height = 24
-
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_generation_forecasts.return_value = [mock_forecast]
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
-
-        mock_ch = MagicMock()
-        mock_ch_factory.return_value = mock_ch
+    @patch("data_cli.entsoe.backfill.services.backfill_generation_forecast")
+    def test_successful_backfill(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("generation_forecast", "DE", 1, 24)
 
         result = runner.invoke(
             app,
@@ -378,23 +294,11 @@ class TestBackfillEntsoeGenerationForecast:
         assert result.exit_code == 0
         assert "Backfilling ENTSOE generation forecast (Dayahead) for DE" in result.output
         assert "Successfully inserted into algo.forecasts" in result.output
-        mock_entsoe.fetch_generation_forecasts.assert_called_once()
+        mock_backfill.assert_called_once()
 
-    @patch("data_cli.entsoe.backfill.create_client")
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    @patch("data_cli.entsoe.backfill.insert_forecasts_batch")
-    def test_custom_processtype(self, mock_insert, mock_entsoe_factory, mock_ch_factory):
-        mock_forecast = MagicMock()
-        mock_forecast.data_frame.height = 24
-
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_generation_forecasts.return_value = [mock_forecast]
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
-
-        mock_ch = MagicMock()
-        mock_ch_factory.return_value = mock_ch
+    @patch("data_cli.entsoe.backfill.services.backfill_generation_forecast")
+    def test_custom_processtype(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("generation_forecast", "DE", 1, 24)
 
         result = runner.invoke(
             app,
@@ -403,8 +307,8 @@ class TestBackfillEntsoeGenerationForecast:
 
         assert result.exit_code == 0
         assert "Realised" in result.output
-        call_kwargs = mock_entsoe.fetch_generation_forecasts.call_args
-        assert call_kwargs.kwargs["process_type"] == "A16"
+        call_kwargs = mock_backfill.call_args[1]
+        assert call_kwargs["process_type"] == "A16"
 
     def test_invalid_processtype(self):
         result = runner.invoke(
@@ -422,13 +326,9 @@ class TestBackfillEntsoeGenerationForecast:
         assert result.exit_code == 1
         assert "Unknown area tag" in result.output
 
-    @patch("data_cli.entsoe.backfill.create_entsoe_client")
-    def test_no_data_returned(self, mock_entsoe_factory):
-        mock_entsoe = MagicMock()
-        mock_entsoe.fetch_generation_forecasts.return_value = []
-        mock_entsoe.__enter__ = MagicMock(return_value=mock_entsoe)
-        mock_entsoe.__exit__ = MagicMock(return_value=False)
-        mock_entsoe_factory.return_value = mock_entsoe
+    @patch("data_cli.entsoe.backfill.services.backfill_generation_forecast")
+    def test_no_data_returned(self, mock_backfill):
+        mock_backfill.return_value = BackfillResult("generation_forecast", "DE", 0, 0)
 
         result = runner.invoke(
             app,
