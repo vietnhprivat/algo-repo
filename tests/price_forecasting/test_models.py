@@ -41,14 +41,15 @@ class TestBaseModelInterface:
 
     def test_stub_fit_and_predict(self):
         model = StubModel(prediction_value=99.0)
+        n_periods = 24
         features = np.random.randn(30, 10)
-        targets = np.random.randn(30, 24)
+        targets = np.random.randn(30, n_periods)
 
         model.fit(features, targets)
         assert model.fit_called
 
         pred = model.predict_day(np.random.randn(1, 10))
-        assert pred.shape == (24,)
+        assert pred.shape == (n_periods,)
         assert np.all(pred == 99.0)
 
 
@@ -61,19 +62,20 @@ class TestLearModelInterface:
         with pytest.raises(ValueError, match="must be fit"):
             model.predict_day(features)
 
-    def test_fit_creates_24_hourly_models(self):
+    def test_fit_creates_n_period_models(self):
         model = LearModel(alpha=1.0, maximum_iterations=10)
-        # Minimal data just to exercise fit path
+        n_periods = 24
         features = np.random.randn(50, 5)
-        targets = np.random.randn(50, 24)
+        targets = np.random.randn(50, n_periods)
         model.fit(features, targets)
-        assert len(model.hourly_models) == 24
+        assert len(model.hourly_models) == n_periods
 
-    def test_predict_returns_24_values(self):
+    def test_predict_returns_correct_shape(self):
         model = LearModel(alpha=1.0, maximum_iterations=10)
+        n_periods = 24
         features = np.random.randn(50, 5)
-        targets = np.random.randn(50, 24)
+        targets = np.random.randn(50, n_periods)
         model.fit(features, targets)
 
         pred = model.predict_day(np.random.randn(1, 5))
-        assert pred.shape == (24,)
+        assert pred.shape == (n_periods,)

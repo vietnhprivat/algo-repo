@@ -1,5 +1,9 @@
+from datetime import datetime
+
+from clickhouse_connect.driver.client import Client
 import polars as pl
 from typing import List
+
 from domain.curves import EnergyPriceObservation, Forecast, Observations
 
 
@@ -25,6 +29,50 @@ def insert_forecasts_batch(
 ) -> None:
     data_frames = pl.concat([f.data_frame for f in forecasts])
     insert_polars_dataframe(client, data_frames, "algo.forecasts")
+
+
+def insert_experiment_run(
+    client,
+    run_id: str,
+    created_utc: datetime,
+    experiment_name: str,
+    area: str,
+    model_type: str,
+    config_json: str,
+    metrics_json: str,
+) -> None:
+    df = pl.DataFrame(
+        {
+            "run_id": [run_id],
+            "created_utc": [created_utc],
+            "experiment_name": [experiment_name],
+            "area": [area],
+            "model_type": [model_type],
+            "config_json": [config_json],
+            "metrics_json": [metrics_json],
+        },
+        schema={
+            "run_id": pl.String,
+            "created_utc": pl.Datetime("us", "UTC"),
+            "experiment_name": pl.String,
+            "area": pl.String,
+            "model_type": pl.String,
+            "config_json": pl.String,
+            "metrics_json": pl.String,
+        },
+    )
+    insert_polars_dataframe(client, df, "algo.experiment_runs")
+
+
+def insert_experiment_predictions(
+    client,
+    predictions: pl.DataFrame,
+) -> None:
+    """Insert experiment predictions into algo.experiment_predictions.
+
+    Expected schema: run_id (String), timestamp_utc (Datetime), actual (Float32), predicted (Float32)
+    """
+    insert_polars_dataframe(client, predictions, "algo.experiment_predictions")
 
 
 def insert_polars_dataframe(

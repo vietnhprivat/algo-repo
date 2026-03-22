@@ -20,7 +20,7 @@ class DataPreprocessor:
         if dataframe is None:
             dataframe = load_dataset(self.experiment_config)
         hourly_dataframe = dataframe.copy()
-        daily_prices = self._pivot_hourly_to_daily(
+        daily_prices = self._pivot_to_daily(
             hourly_dataframe, self.experiment_config.target_column
         )
 
@@ -57,22 +57,30 @@ class DataPreprocessor:
         )
         return targets_pred_unscaled.flatten()
 
-    def _pivot_hourly_to_daily(
+    def _detect_n_periods(self, index: pd.DatetimeIndex) -> int:
+        """Detect number of periods per day from the data frequency."""
+        delta = index.to_series().diff().median()
+        if delta <= pd.Timedelta(minutes=15):
+            return 96
+        return 24
+
+    def _pivot_to_daily(
         self, dataframe_copy: pd.DataFrame, column: str
     ) -> pd.DataFrame:
         dataframe_copy: pd.DataFrame = dataframe_copy[[column]].copy()
 
         index: pd.DatetimeIndex = dataframe_copy.index
-        dates: np.ndarray = index.date
-        hours: pd.Index = index.hour
+        n_periods = self._detect_n_periods(index)
 
-        dataframe_copy["date"] = dates
-        dataframe_copy["hour"] = hours
+        dataframe_copy["date"] = index.date
+        dataframe_copy["period"] = (index.hour * 60 + index.minute) // (
+            1440 // n_periods
+        )
 
         pivoted: pd.DataFrame = dataframe_copy.pivot(
-            index="date", columns="hour", values=column
+            index="date", columns="period", values=column
         )
-        pivoted.columns = [f"{column}_hour{hour}" for hour in range(24)]
+        pivoted.columns = [f"{column}_p{p}" for p in range(n_periods)]
 
         return pivoted
 
@@ -91,7 +99,7 @@ class DataPreprocessor:
     def _build_exogenous_features(self, hourly_dataframe: pd.DataFrame) -> pd.DataFrame:
         """
         Creates the exogenous features (d0 forecast, d-1 lag, d-7 lag).
-        For each exogenous column: 3 blocks x 24 hours = 72 features per column.
+        For each exogenous column: 3 blocks x n_periods = features per column.
         """
         if not self.exogenous_columns:
             return pd.DataFrame()
@@ -100,7 +108,7 @@ class DataPreprocessor:
         for column in self.exogenous_columns:
             if column not in hourly_dataframe.columns:
                 continue
-            daily = self._pivot_hourly_to_daily(hourly_dataframe, column)
+            daily = self._pivot_to_daily(hourly_dataframe, column)
             all_blocks.append(daily.copy().add_prefix(f"{column}_d0_"))
             all_blocks.append(daily.shift(1).add_prefix(f"{column}_d1_"))
             all_blocks.append(daily.shift(7).add_prefix(f"{column}_d7_"))
@@ -120,7 +128,7 @@ class DataPreprocessor:
             dataframe = load_dataset(self.experiment_config)
 
         features = self.generate_full_feature_matrix(dataframe)
-        targets = self._pivot_hourly_to_daily(
+        targets = self._pivot_to_daily(
             dataframe, self.experiment_config.target_column
         )
 

@@ -71,7 +71,7 @@ class TestBacktestRunner:
         assert "rmse" in metrics
         assert "smape" in metrics
 
-    def test_metrics_per_hour_has_24_rows(self, tmp_path):
+    def test_metrics_per_hour_matches_n_periods(self, tmp_path):
         config = self._make_config(tmp_path)
         runner = BacktestRunner(config)
         self._patch_runner(runner)
@@ -79,7 +79,8 @@ class TestBacktestRunner:
 
         per_hour_path = tmp_path / "results" / "integration_test_metrics_per_hour.csv"
         df = pd.read_csv(per_hour_path)
-        assert len(df) == 24
+        _, targets = make_synthetic_features_and_targets()
+        assert len(df) == targets.shape[1]
 
     def test_no_test_dates_raises(self, tmp_path):
         # Use train_ratio=1.0 so test set is empty
@@ -104,7 +105,7 @@ class TestBacktestRunner:
 class TestLiveRunner:
     """Integration tests for LiveRunner."""
 
-    def test_run_live_returns_24_hour_series(self, tmp_path):
+    def test_run_live_returns_series_with_correct_periods(self, tmp_path):
         config = ExperimentConfig(
             experiment_name="live_test",
             results_dir=str(tmp_path),
@@ -119,7 +120,7 @@ class TestLiveRunner:
 
         result = runner.run_live("2019-02-01")
         assert isinstance(result, pd.Series)
-        assert len(result) == 24
+        assert len(result) == targets.shape[1]
 
     def test_run_live_raises_for_missing_date(self, tmp_path):
         config = ExperimentConfig(

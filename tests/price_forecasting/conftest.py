@@ -18,13 +18,15 @@ class StubModel(BaseModel):
         self.prediction_value = prediction_value
         self.fit_called = False
         self.fit_count = 0
+        self._n_periods = 24
 
     def fit(self, features: np.ndarray, targets: np.ndarray) -> None:
         self.fit_called = True
         self.fit_count += 1
+        self._n_periods = targets.shape[1]
 
     def predict_day(self, features: np.ndarray) -> np.ndarray:
-        return np.full(24, self.prediction_value)
+        return np.full(self._n_periods, self.prediction_value)
 
 
 def make_test_config(
@@ -56,9 +58,10 @@ def make_synthetic_features_and_targets(
     start_date: str = "2019-01-01",
     end_date: str = "2019-02-28",
     n_features: int = 10,
+    n_periods: int = 24,
     seed: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Generate synthetic daily features and targets (24 hours).
+    """Generate synthetic daily features and targets.
 
     Returns DatetimeIndex-based DataFrames suitable for BacktestEngine.
     """
@@ -71,8 +74,8 @@ def make_synthetic_features_and_targets(
         columns=[f"feat_{i}" for i in range(n_features)],
     )
     targets = pd.DataFrame(
-        rng.standard_normal((len(dates), 24)) * 20 + 50,
+        rng.standard_normal((len(dates), n_periods)) * 20 + 50,
         index=dates,
-        columns=[f"h{i}" for i in range(24)],
+        columns=[f"h{i}" for i in range(n_periods)],
     )
     return features, targets

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 @dataclass
@@ -11,7 +11,13 @@ class ExperimentConfig:
 
     target_column: str = "price"
 
-    # Data split ratios (must sum to 1.0)
+    # Option A: explicit test date range (recommended)
+    # Training data = everything before test_start_date
+    # Test data = [test_start_date, test_end_date]
+    test_start_date: Optional[str] = None
+    test_end_date: Optional[str] = None
+
+    # Option B: ratio-based split (fallback when test dates not set)
     train_ratio: float = 0.7
     validation_ratio: float = 0.15
     test_ratio: float = 0.15

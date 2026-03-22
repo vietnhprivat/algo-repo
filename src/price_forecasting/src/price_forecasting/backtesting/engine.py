@@ -156,7 +156,8 @@ class BacktestEngine:
 
             print(f"Forecasted {date.date()}")
 
-        columns = [f"h{i}" for i in range(24)]
+        n_periods = targets.shape[1]
+        columns = [f"h{i}" for i in range(n_periods)]
         forecast_df = pd.DataFrame(forecasts, index=test_dates, columns=columns)
         actuals_df = pd.DataFrame(actuals, index=test_dates, columns=columns)
         return forecast_df, actuals_df

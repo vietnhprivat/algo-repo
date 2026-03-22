@@ -61,15 +61,18 @@ class TestMetrics:
 
 class TestEvaluation:
 
+    N_PERIODS = 24
+
     def _make_sample_data(self):
-        """Create aligned forecasts/actuals DataFrames with 24 hour columns."""
+        """Create aligned forecasts/actuals DataFrames."""
         dates = pd.date_range("2019-02-01", periods=14, freq="D")
-        columns = [f"h{i}" for i in range(24)]
+        n = self.N_PERIODS
+        columns = [f"h{i}" for i in range(n)]
         rng = np.random.default_rng(42)
         actuals = pd.DataFrame(
-            rng.standard_normal((14, 24)) * 20 + 50, index=dates, columns=columns
+            rng.standard_normal((14, n)) * 20 + 50, index=dates, columns=columns
         )
-        forecasts = actuals + rng.standard_normal((14, 24)) * 5
+        forecasts = actuals + rng.standard_normal((14, n)) * 5
         return forecasts, actuals
 
     def test_build_weekly_naive(self):
@@ -101,7 +104,7 @@ class TestEvaluation:
         forecasts, actuals = self._make_sample_data()
         naive = build_weekly_naive(actuals)
         per_hour = compute_metrics_per_hour(forecasts, actuals, naive)
-        assert len(per_hour) == 24
+        assert len(per_hour) == self.N_PERIODS
         assert "hour" in per_hour.columns
         assert "mae" in per_hour.columns
 

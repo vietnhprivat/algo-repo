@@ -24,8 +24,9 @@ class LearModel(BaseModel):
         self.best_alphas: Dict[int, float] = {}
 
     def fit(self, features: np.ndarray, targets: np.ndarray) -> None:
-        for hour in range(24):
-            targets_hour = targets[:, hour]
+        n_periods = targets.shape[1]
+        for period in range(n_periods):
+            targets_period = targets[:, period]
 
             if self.alpha in (None, "auto"):
                 model = LassoCV(
@@ -33,21 +34,24 @@ class LearModel(BaseModel):
                     cv=TimeSeriesSplit(n_splits=self.cross_validation_folds),
                     max_iter=self.maximum_iterations,
                 )
-                model.fit(features, targets_hour)
-                self.best_alphas[hour] = float(model.alpha_)
-                self.hourly_models[hour] = model
+                model.fit(features, targets_period)
+                self.best_alphas[period] = float(model.alpha_)
+                self.hourly_models[period] = model
 
             else:
                 model = Lasso(alpha=self.alpha, max_iter=self.maximum_iterations)
-                model.fit(features, targets_hour)
-                self.hourly_models[hour] = model
+                model.fit(features, targets_period)
+                self.hourly_models[period] = model
+
+        self._n_periods = n_periods
 
     def predict_day(self, features: np.ndarray) -> np.ndarray:
-        if len(self.hourly_models) != 24:
+        if not self.hourly_models:
             raise ValueError("LEAR model must be fit before prediction.")
 
-        predictions = np.zeros(24)
-        for hour in range(24):
-            predictions[hour] = self.hourly_models[hour].predict(features).item()
+        n_periods = len(self.hourly_models)
+        predictions = np.zeros(n_periods)
+        for period in range(n_periods):
+            predictions[period] = self.hourly_models[period].predict(features).item()
 
         return predictions

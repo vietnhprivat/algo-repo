@@ -38,5 +38,6 @@ class LiveRunner:
             model_factory, features, targets, target_timestamp
         )
 
-        output_index = [f"hour{hour}" for hour in range(24)]
+        n_periods = len(prediction)
+        output_index = [f"p{p}" for p in range(n_periods)]
         return pd.Series(prediction, index=output_index, name=target_date)

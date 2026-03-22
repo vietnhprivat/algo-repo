@@ -6,7 +6,7 @@ import pandas as pd
 
 from price_forecasting.configs import ExperimentConfig
 from price_forecasting.data.preprocessor import DataPreprocessor
-from price_forecasting.backtesting.splitting import SplitResult, split_dataset
+from price_forecasting.backtesting.splitting import SplitResult, split_dataset, split_by_dates
 from price_forecasting.evaluation import (
     build_weekly_naive,
     compute_metrics_per_hour,
@@ -36,6 +36,13 @@ class BaseRunner:
     def _split_data(
         self, features: pd.DataFrame, targets: pd.DataFrame
     ) -> SplitResult:
+        if self.config.test_start_date and self.config.test_end_date:
+            return split_by_dates(
+                features,
+                targets,
+                self.config.test_start_date,
+                self.config.test_end_date,
+            )
         return split_dataset(
             features,
             targets,

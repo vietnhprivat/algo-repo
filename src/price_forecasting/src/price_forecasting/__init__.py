@@ -6,6 +6,7 @@ __all__ = [
     "DatasetSplit",
     "SplitResult",
     "split_dataset",
+    "split_by_dates",
     "LiveRunner",
     "build_weekly_naive",
     "calculate_mae",
@@ -33,6 +34,7 @@ from price_forecasting.backtesting import (
     DatasetSplit,
     SplitResult,
     split_dataset,
+    split_by_dates,
 )
 from price_forecasting.live_runner import LiveRunner
 

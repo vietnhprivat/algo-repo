@@ -26,6 +26,7 @@ def load_price_series(client: Client, area: str) -> pd.DataFrame:
 
     df = pd.DataFrame(result.result_rows, columns=["timestamp_utc", "price"])
     df["timestamp_utc"] = pd.to_datetime(df["timestamp_utc"], utc=True)
+    df = df.drop_duplicates(subset=["timestamp_utc"], keep="last")
     df = df.set_index("timestamp_utc").sort_index()
     return df
 
@@ -49,6 +50,7 @@ def load_exogenous_series(client: Client, area: str, curve_types: list[str]) -> 
 
         df = pd.DataFrame(result.result_rows, columns=["timestamp_utc", curve_type])
         df["timestamp_utc"] = pd.to_datetime(df["timestamp_utc"], utc=True)
+        df = df.drop_duplicates(subset=["timestamp_utc"], keep="last")
         df = df.set_index("timestamp_utc").sort_index()
         frames.append(df)
 

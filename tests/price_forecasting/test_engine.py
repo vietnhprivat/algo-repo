@@ -34,7 +34,7 @@ class TestBacktestEngineSliceData:
         )
         assert feat_train.shape[0] == window_size
         assert tgt_train.shape[0] == window_size
-        assert tgt_train.shape[1] == 24
+        assert tgt_train.shape[1] == self.targets.shape[1]
         assert feat_test.shape[0] == 1
 
     def test_slice_data_raises_for_missing_date(self):
@@ -65,8 +65,9 @@ class TestBacktestEngineRun:
 
         assert isinstance(forecasts, pd.DataFrame)
         assert isinstance(actuals, pd.DataFrame)
-        assert forecasts.shape == (2, 24)
-        assert actuals.shape == (2, 24)
+        n_periods = targets.shape[1]
+        assert forecasts.shape == (2, n_periods)
+        assert actuals.shape == (2, n_periods)
 
     def test_forecasts_use_stub_prediction(self, tmp_path):
         config = make_test_config(tmp_path, windows=[7])
@@ -81,7 +82,7 @@ class TestBacktestEngineRun:
 
         # StubModel returns 99.0 but goes through scaler -> inverse_transform
         # so actual values won't be exactly 99.0, but the pipeline completes
-        assert forecasts.shape == (1, 24)
+        assert forecasts.shape == (1, targets.shape[1])
         assert not forecasts.isna().any().any()
 
     def test_multiple_windows_produce_ensemble(self, tmp_path):
@@ -95,8 +96,9 @@ class TestBacktestEngineRun:
 
         forecasts, actuals = engine.run(factory, features, targets, test_dates)
 
-        assert forecasts.shape == (1, 24)
-        assert actuals.shape == (1, 24)
+        n_periods = targets.shape[1]
+        assert forecasts.shape == (1, n_periods)
+        assert actuals.shape == (1, n_periods)
 
 
 class TestBacktestEngineRefit:
