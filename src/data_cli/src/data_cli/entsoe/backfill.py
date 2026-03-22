@@ -5,11 +5,9 @@ from typing import Optional
 
 import typer
 
-from infrastructure_clickhouse.client_factory import create_client
-from infrastructure_clickhouse.ingest import insert_forecasts_batch, insert_observations_batch
-from infrastructure_entsoe.client_factory import create_entsoe_client
 from infrastructure_entsoe.entsoe_types import ProcessType
 
+from data_cli.entsoe import services
 from data_cli.utils import parse_flexible_datetime, resolve_area
 
 backfill_app = typer.Typer()
@@ -56,26 +54,13 @@ def backfill_entsoe_price_document(
     typer.echo(f"  From: {start_dt.isoformat()}")
     typer.echo(f"    To: {end_dt.isoformat()}")
 
-    with create_entsoe_client() as entsoe_client:
-        observations = entsoe_client.fetch_energy_prices(
-            area=resolved_area,
-            start_date=start_dt,
-            end_date=end_dt,
-        )
+    result = services.backfill_energy_prices(resolved_area, start_dt, end_dt)
 
-    if not observations:
+    if result.rows_fetched == 0:
         typer.echo("No data returned from ENTSOE for the given range.")
         raise typer.Exit(code=0)
 
-    total_rows = sum(obs.data_frame.height for obs in observations)
-    typer.echo(f"Fetched {len(observations)} observation set(s), {total_rows} total rows.")
-
-    ch_client = create_client()
-    try:
-        insert_observations_batch(ch_client, observations)
-    finally:
-        ch_client.close()
-
+    typer.echo(f"Fetched {result.sets_fetched} observation set(s), {result.rows_fetched} total rows.")
     typer.echo("Successfully inserted into algo.timeseries.")
 
 
@@ -109,28 +94,16 @@ def backfill_entsoe_total_load(
     typer.echo(f"  From: {start_dt.isoformat()}")
     typer.echo(f"    To: {end_dt.isoformat()}")
 
-    with create_entsoe_client() as entsoe_client:
-        forecasts = entsoe_client.fetch_total_load_forecasts(
-            area=resolved_area,
-            start_date=start_dt,
-            end_date=end_dt,
-            process_type=pt_code,
-            process_type_name=pt_enum.name,
-        )
+    result = services.backfill_total_load(
+        resolved_area, start_dt, end_dt,
+        process_type=pt_code, process_type_name=pt_enum.name,
+    )
 
-    if not forecasts:
+    if result.rows_fetched == 0:
         typer.echo("No data returned from ENTSOE for the given range.")
         raise typer.Exit(code=0)
 
-    total_rows = sum(f.data_frame.height for f in forecasts)
-    typer.echo(f"Fetched {len(forecasts)} forecast set(s), {total_rows} total rows.")
-
-    ch_client = create_client()
-    try:
-        insert_forecasts_batch(ch_client, forecasts)
-    finally:
-        ch_client.close()
-
+    typer.echo(f"Fetched {result.sets_fetched} forecast set(s), {result.rows_fetched} total rows.")
     typer.echo("Successfully inserted into algo.forecasts.")
 
 
@@ -164,28 +137,16 @@ def backfill_entsoe_generation_forecast(
     typer.echo(f"  From: {start_dt.isoformat()}")
     typer.echo(f"    To: {end_dt.isoformat()}")
 
-    with create_entsoe_client() as entsoe_client:
-        forecasts = entsoe_client.fetch_generation_forecasts(
-            area=resolved_area,
-            start_date=start_dt,
-            end_date=end_dt,
-            process_type=pt_code,
-            process_type_name=pt_enum.name,
-        )
+    result = services.backfill_generation_forecast(
+        resolved_area, start_dt, end_dt,
+        process_type=pt_code, process_type_name=pt_enum.name,
+    )
 
-    if not forecasts:
+    if result.rows_fetched == 0:
         typer.echo("No data returned from ENTSOE for the given range.")
         raise typer.Exit(code=0)
 
-    total_rows = sum(f.data_frame.height for f in forecasts)
-    typer.echo(f"Fetched {len(forecasts)} forecast set(s), {total_rows} total rows.")
-
-    ch_client = create_client()
-    try:
-        insert_forecasts_batch(ch_client, forecasts)
-    finally:
-        ch_client.close()
-
+    typer.echo(f"Fetched {result.sets_fetched} forecast set(s), {result.rows_fetched} total rows.")
     typer.echo("Successfully inserted into algo.forecasts.")
 
 
@@ -230,27 +191,15 @@ def backfill_entsoe_wind_solar(
     typer.echo(f"  From: {start_dt.isoformat()}")
     typer.echo(f"    To: {end_dt.isoformat()}")
 
-    with create_entsoe_client() as entsoe_client:
-        forecasts = entsoe_client.fetch_wind_solar_forecasts(
-            area=resolved_area,
-            start_date=start_dt,
-            end_date=end_dt,
-            process_type=pt_code,
-            process_type_name=pt_enum.name,
-            psr_type=psr_code,
-        )
+    result = services.backfill_wind_solar(
+        resolved_area, start_dt, end_dt,
+        process_type=pt_code, process_type_name=pt_enum.name,
+        psr_type=psr_code,
+    )
 
-    if not forecasts:
+    if result.rows_fetched == 0:
         typer.echo("No data returned from ENTSOE for the given range.")
         raise typer.Exit(code=0)
 
-    total_rows = sum(f.data_frame.height for f in forecasts)
-    typer.echo(f"Fetched {len(forecasts)} forecast set(s), {total_rows} total rows.")
-
-    ch_client = create_client()
-    try:
-        insert_forecasts_batch(ch_client, forecasts)
-    finally:
-        ch_client.close()
-
+    typer.echo(f"Fetched {result.sets_fetched} forecast set(s), {result.rows_fetched} total rows.")
     typer.echo("Successfully inserted into algo.forecasts.")

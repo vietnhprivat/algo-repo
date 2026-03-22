@@ -1,49 +1,69 @@
-"""ENTSOE to ClickHouse ingestion flow."""
+"""ENTSOE to ClickHouse ingestion flow.
+
+Uses the shared service layer from data_cli.entsoe.services so that
+both the CLI and Prefect flows share the same fetch + insert logic.
+"""
+
 from datetime import datetime, timedelta, timezone
 
 from prefect import flow, task
 
+from data_cli.entsoe.services import (
+    backfill_energy_prices,
+    backfill_generation_forecast,
+    backfill_total_load,
+    backfill_wind_solar,
+)
 from domain.areas import get_area_from_tag
-from infrastructure_clickhouse.client_factory import create_client
-from infrastructure_clickhouse.ingest import insert_observations_batch
-from infrastructure_entsoe.client_factory import create_entsoe_client
+
+LOOKBACK_HOURS = 48
+LOOKAHEAD_HOURS = 24
 
 
 @task(retries=2, retry_delay_seconds=60, log_prints=True)
-def batch_ingest_energy_prices_task(area_tag: str, start_time: datetime, end_time: datetime):
-    area = get_area_from_tag(area_tag)    
-    clickhouse_client = create_client()
-    
-    with create_entsoe_client() as entsoe_client:
-        all_energy_prices = entsoe_client.fetch_energy_prices(
-            area=area,
-            start_date=start_time,
-            end_date=end_time
-        )
-        
-        if not all_energy_prices:
-            return None
-        
-        insert_observations_batch(clickhouse_client, all_energy_prices)
+def ingest_energy_prices_task(area_tag: str, start: datetime, end: datetime):
+    area = get_area_from_tag(area_tag)
+    result = backfill_energy_prices(area, start, end)
+    print(f"Energy prices: {result.sets_fetched} set(s), {result.rows_fetched} rows")
+    return result
 
-@flow(name="entsoe-ingestion", log_prints=True)
-def batch_ingest_energy_prices_flow():
-    end_time = datetime.now(timezone.utc)
-    start_time = end_time - timedelta(hours=24)
-    areas = ["DK1"]
-    
-    results = []
-    for area in areas:
-        result = batch_ingest_energy_prices_task(area, start_time, end_time)
-        results.append(result)
 
+@task(retries=2, retry_delay_seconds=60, log_prints=True)
+def ingest_total_load_task(area_tag: str, start: datetime, end: datetime):
+    area = get_area_from_tag(area_tag)
+    result = backfill_total_load(area, start, end)
+    print(f"Total load: {result.sets_fetched} set(s), {result.rows_fetched} rows")
+    return result
+
+
+@task(retries=2, retry_delay_seconds=60, log_prints=True)
+def ingest_generation_forecast_task(area_tag: str, start: datetime, end: datetime):
+    area = get_area_from_tag(area_tag)
+    result = backfill_generation_forecast(area, start, end)
+    print(f"Generation forecast: {result.sets_fetched} set(s), {result.rows_fetched} rows")
+    return result
+
+
+@task(retries=2, retry_delay_seconds=60, log_prints=True)
+def ingest_wind_solar_task(area_tag: str, start: datetime, end: datetime):
+    area = get_area_from_tag(area_tag)
+    result = backfill_wind_solar(area, start, end)
+    print(f"Wind/solar: {result.sets_fetched} set(s), {result.rows_fetched} rows")
+    return result
+
+
+@flow(name="entsoe-backfill", log_prints=True)
+def entsoe_backfill_flow(area: str = "DK1"):
+    end = datetime.now(timezone.utc) + timedelta(hours=LOOKAHEAD_HOURS)
+    start = end - timedelta(hours=LOOKBACK_HOURS)
+
+    prices = ingest_energy_prices_task(area, start, end)
+    load = ingest_total_load_task(area, start, end)
+    generation = ingest_generation_forecast_task(area, start, end)
+    wind_solar = ingest_wind_solar_task(area, start, end)
 
     return {
-        "status": "completed",
-        "areas": results,
-        "time_window": {
-            "start": start_time.isoformat(),
-            "end": end_time.isoformat()
-        }
+        "area": area,
+        "time_window": {"start": start.isoformat(), "end": end.isoformat()},
+        "results": [prices, load, generation, wind_solar],
     }
-
