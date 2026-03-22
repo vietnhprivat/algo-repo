@@ -37,7 +37,7 @@ def _parse_energy_prices_xml_to_observation(xml_data: bytes) -> list[Observation
 
         contract_type = MarketAgreementType(get_required_text(timeseries, "ns:contract_MarketAgreement.type", ns)).name
         currency = get_required_text(timeseries, "ns:currency_Unit.name", ns)
-        curve_name = f"ENTSOE {in_area.tag} {contract_type} {currency}"
+        curve_name = f"ENTSOE {in_area.tag} EnergyPrice {contract_type} {currency}"
 
         for period in timeseries.findall("ns:Period", ns):
             resolution = get_required_text(period, "ns:resolution", ns)

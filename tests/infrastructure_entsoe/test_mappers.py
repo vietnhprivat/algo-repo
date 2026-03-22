@@ -64,8 +64,8 @@ class TestParseEnergyPricesXml:
     def test_curve_name_format(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)
         curve_name = result[0].curve_name
-        # Expected: ENTSOE DE Daily EUR
-        assert curve_name == "ENTSOE DE Daily EUR"
+        # Expected: ENTSOE DE EnergyPrice Daily EUR
+        assert curve_name == "ENTSOE DE EnergyPrice Daily EUR"
 
     def test_source_is_ENTSOE(self):
         result = _parse_energy_prices_xml_to_observation(SAMPLE_ENERGY_PRICES_XML)

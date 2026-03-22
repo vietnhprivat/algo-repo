@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "backtesting",
+    "price-forecasting",
     "httpx>=0.28.1",
     "infrastructure-entsoe",
     "ipykernel>=7.1.0",
@@ -28,6 +28,7 @@ dependencies = [
     "schedules",
     "prefect>=3.6.17",
     "data-cli",
+    "forecast-cli",
     "python-dateutil>=2.9.0",
 ]
 
@@ -36,18 +37,20 @@ members = [
     "src/infrastructure_entsoe",
     "src/infrastructure_clickhouse",
     "src/domain",
-    "src/backtesting",
+    "src/price_forecasting",
     "src/schedules",
     "src/data_cli",
+    "src/forecast_cli",
 ]
 
 [tool.uv.sources]
 domain = { workspace = true }
 infrastructure-entsoe = { workspace = true }
 infrastructure-clickhouse = { workspace = true }
-backtesting = { workspace = true }
+price-forecasting = { workspace = true }
 schedules = { workspace = true }
 data-cli = { workspace = true }
+forecast-cli = { workspace = true }
 
 [dependency-groups]
 dev = [

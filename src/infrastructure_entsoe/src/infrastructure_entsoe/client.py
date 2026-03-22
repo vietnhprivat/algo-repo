@@ -167,28 +167,35 @@ class EntsoeClient(EntsoeClientBase):
         self, area: Area, start_date: datetime, end_date: datetime
     ) -> list[Observations]:
         content_types_and_contents: list[tuple[str, bytes]] = []
-        current_offset = 0
-        for iteration in range(49):
-            if iteration == 48:
-                raise Exception(
-                    "Reached maximum number of iterations while fetching energy prices. This likely means that there is more data to fetch, but the API is not responding with the expected data. Please investigate the issue."
+        chunk_start = start_date
+        while chunk_start < end_date:
+            chunk_end = min(chunk_start + relativedelta(months=12), end_date)
+            current_offset = 0
+            for iteration in range(49):
+                if iteration == 48:
+                    raise Exception(
+                        "Reached maximum number of iterations while fetching energy prices. "
+                        "This likely means that there is more data to fetch, but the API is not "
+                        "responding with the expected data. Please investigate the issue."
+                    )
+                params = self._build_energy_prices_params(
+                    area, chunk_start, chunk_end, offset=current_offset
                 )
-            params = self._build_energy_prices_params(
-                area, start_date, end_date, offset=current_offset
-            )
-            response = self._rate_limit_get(self.base_url, params, timeout=30)
-            current_offset += 100
+                response = self._rate_limit_get(self.base_url, params, timeout=30)
+                current_offset += 100
 
-            if response.status_code != 200:
-                continue
+                if response.status_code != 200:
+                    continue
 
-            raw = response.content
-            text = raw.decode("utf-8", errors="ignore")
-            if "no matching data found for data item" in text.lower():
-                break
+                raw = response.content
+                text = raw.decode("utf-8", errors="ignore")
+                if "no matching data found for data item" in text.lower():
+                    break
 
-            content_type = response.headers.get("Content-Type", "").lower()
-            content_types_and_contents.append((content_type, raw))
+                content_type = response.headers.get("Content-Type", "").lower()
+                content_types_and_contents.append((content_type, raw))
+
+            chunk_start = chunk_end
 
         return self._handle_energy_prices_response(content_types_and_contents)
 
