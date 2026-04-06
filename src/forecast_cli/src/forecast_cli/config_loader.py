@@ -23,6 +23,14 @@ def load_config(name: str) -> ExperimentConfig:
     configs_dir = _find_configs_dir()
     config_path = configs_dir / f"{name}.py"
 
+    if not configs_dir.exists():
+        typer.echo(
+            f"Error: Configs directory not found: {configs_dir}\n"
+            f"If running in Docker, ensure configs/ is mounted as a volume "
+            f"(e.g., -v /path/to/configs:/app/configs)"
+        )
+        raise typer.Exit(code=1)
+
     if not config_path.exists():
         available = [f.stem for f in configs_dir.glob("*.py") if f.stem != "__init__"]
         typer.echo(

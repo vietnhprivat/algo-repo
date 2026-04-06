@@ -9,6 +9,23 @@ This plan addresses the gaps identified by systematically reviewing 9 MLOps best
 
 ---
 
+## Progress
+
+### Phase 0: Foundation — DONE (2026-04-06)
+
+- Created `src/schedules/src/schedules/forecast.py` — Prefect flow with 3 tasks (load config, predict with retries, track prediction). Defaults to tomorrow. Daily cron.
+- Created `src/schedules/src/schedules/deploy_forecast.py` — Deploys forecast flow with daily 06:00 UTC cron, DK1 only. Mounts `configs/` as Docker volume (no image rebuild on config change).
+- Modified `src/forecast_cli/src/forecast_cli/config_loader.py` — Added early check for missing `configs/` directory with Docker-specific error message.
+- All 238 tests pass.
+
+**Deploy with:**
+```bash
+docker build -t algo-repo:latest .
+PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_forecast.py
+```
+
+---
+
 ## 1. Per-Practice Detail (P1-P9)
 
 ---
