@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from prefect import Flow
 
 from schedules.forecast import daily_forecast_flow
+from schedules.reconciliation import reconcile_predictions_flow
 
 load_dotenv()
 
@@ -75,3 +76,14 @@ if __name__ == "__main__":
             flow=daily_forecast_flow,
             parameters={"config_name": config_name},
         ).deploy()
+
+    # Reconciliation runs once daily at 18:00 UTC — 4h after ENTSO-E day-ahead
+    # prices are published (~14:00 UTC), giving a comfortable buffer.
+    ForecastFlowDeployment(
+        name="reconcile-predictions",
+        work_pool_name="docker-pool",
+        image="algo-repo:latest",
+        cron="0 18 * * *",
+        flow=reconcile_predictions_flow,
+        parameters={},
+    ).deploy()

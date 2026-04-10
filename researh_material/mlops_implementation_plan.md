@@ -26,6 +26,49 @@ PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/sche
 
 ---
 
+### Phase 1: Metadata & Storage — DONE (2026-04-10)
+
+- Created `migrations/005_create_model_artifacts_table.sql` — `algo.model_artifacts` table storing base64-encoded joblib blobs (`artifact_id`, `run_id`, `area`, `model_type`, `config_name`, `artifact_blob`, `artifact_size_bytes`). `ReplacingMergeTree(created_utc)` ordered by `artifact_id`.
+- Created `migrations/006_alter_experiment_runs_add_columns.sql` — single ALTER adding `training_duration_seconds`, `data_start_utc`, `data_end_utc`, `model_artifact_id` to `algo.experiment_runs` with sensible defaults.
+- Modified `infrastructure_clickhouse/ingest.py` — extended `insert_experiment_run()` with keyword-only params for the 4 new columns (backward compatible). Added `insert_model_artifact()`.
+- Modified `infrastructure_clickhouse/queries.py` — added `load_latest_artifact(area, model_type, config_name)`.
+- Modified `price_forecasting/live_runner.py` — added `LiveResult` dataclass (`prediction`, `data_start_utc`, `data_end_utc`, `training_duration_seconds`, `trained_models`) and `run_live_with_metadata()`. Existing `run_live()` delegates for backward compatibility.
+- Modified `price_forecasting/__init__.py` — re-exported `LiveResult`.
+- Modified `forecast_cli/tracking.py` — added `_serialize_model()` (joblib + base64), extended `track_prediction()` to serialize the trained ensemble, insert the artifact row, and link `model_artifact_id` to the run.
+- Modified `schedules/forecast.py` — `predict_task` returns `LiveResult`; `track_prediction_task` forwards metadata kwargs.
+- All 238 tests pass.
+
+---
+
+### Phase 2: Reconciliation — DONE (2026-04-10)
+
+- Modified `infrastructure_clickhouse/queries.py` — added three query functions:
+  - `get_unreconciled_runs(client)` — all 11 columns of runs where `metrics_json = '{}'` (backtests are untouched).
+  - `get_predictions_for_runs(client, run_ids)` — batch prediction fetch, `IN {Array(String)}` parameterized.
+  - `get_actual_prices_for_period(client, area, start_utc, end_utc)` — matches `ENTSOE {area} EnergyPrice %` in `algo.timeseries`.
+- Created `src/schedules/src/schedules/reconciliation.py` — Prefect flow `reconcile_predictions_flow`:
+  - `find_unreconciled_runs_task` pulls candidate runs.
+  - `reconcile_area_task(area, runs)` batches queries **by area** (one predictions query + one actuals query, no N+1), matches each prediction timestamp to an actual, skips any run with a missing hour (retried tomorrow), computes MAE/RMSE/sMAPE from flat `np.ndarray`s, re-inserts the predictions (with actuals) and the `experiment_runs` row (with updated `metrics_json` and newer `created_utc` so `ReplacingMergeTree(created_utc)` keeps it as the winning row). All other columns preserved.
+- Modified `src/schedules/src/schedules/deploy_forecast.py` — added `reconcile-predictions` deployment at cron `0 18 * * *` (4h after ENTSO-E day-ahead publication ~14:00 UTC). Reuses existing `ForecastFlowDeployment` class.
+- Migrations 005 + 006 applied against ClickHouse. Both deployments (`daily-forecast-dk1_lear`, `reconcile-predictions`) registered in Prefect.
+- All 238 tests pass.
+
+**Design decisions:**
+1. Two-step query batching by area avoids N+1.
+2. All-or-nothing reconciliation — partial metrics would be misleading vs backtest metrics.
+3. Metrics computed from flat arrays (`calculate_mae/rmse/smape`), not the wide-format `compute_metrics_summary()` which is multi-day backtest-oriented.
+4. Update via re-insert with newer `created_utc` — no `UPDATE`, no `OPTIMIZE FINAL`. `FINAL` keyword handles reads.
+5. Deployed in the existing `deploy_forecast.py` rather than a separate file — `ForecastFlowDeployment` is already generic.
+
+**This closes P6 (Continuous Training & Evaluation)** and feeds the data Phase 3 (Grafana Model Performance dashboard) will need.
+
+**Trigger manually:**
+```bash
+prefect deployment run 'reconcile-predictions/reconcile-predictions'
+```
+
+---
+
 ## 1. Per-Practice Detail (P1-P9)
 
 ---

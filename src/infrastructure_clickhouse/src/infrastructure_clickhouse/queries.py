@@ -1,6 +1,85 @@
+from datetime import datetime
+
 from clickhouse_connect.driver.client import Client
 
 from infrastructure_clickhouse.client_factory import create_client
+
+
+def get_unreconciled_runs(client: Client) -> list[dict]:
+    """Find live prediction runs that haven't been reconciled yet (metrics_json='{}').
+
+    Returns all 11 columns so the caller can re-insert the row with updated metrics.
+    """
+    result = client.query(
+        "SELECT run_id, created_utc, experiment_name, area, model_type, "
+        "       config_json, metrics_json, training_duration_seconds, "
+        "       data_start_utc, data_end_utc, model_artifact_id "
+        "FROM algo.experiment_runs FINAL "
+        "WHERE metrics_json = '{}' "
+        "ORDER BY created_utc"
+    )
+    columns = [
+        "run_id",
+        "created_utc",
+        "experiment_name",
+        "area",
+        "model_type",
+        "config_json",
+        "metrics_json",
+        "training_duration_seconds",
+        "data_start_utc",
+        "data_end_utc",
+        "model_artifact_id",
+    ]
+    return [dict(zip(columns, row)) for row in result.result_rows]
+
+
+def get_predictions_for_runs(client: Client, run_ids: list[str]) -> list[dict]:
+    """Fetch all predictions for the given run_ids."""
+    if not run_ids:
+        return []
+    result = client.query(
+        "SELECT run_id, timestamp_utc, actual, predicted "
+        "FROM algo.experiment_predictions FINAL "
+        "WHERE run_id IN {run_ids:Array(String)} "
+        "ORDER BY run_id, timestamp_utc",
+        parameters={"run_ids": run_ids},
+    )
+    return [
+        {
+            "run_id": row[0],
+            "timestamp_utc": row[1],
+            "actual": row[2],
+            "predicted": row[3],
+        }
+        for row in result.result_rows
+    ]
+
+
+def get_actual_prices_for_period(
+    client: Client, area: str, start_utc: datetime, end_utc: datetime
+) -> list[dict]:
+    """Fetch actual prices from algo.timeseries for a given area and time range.
+
+    Matches ENTSOE energy price curves for the area (e.g. ``ENTSOE DK1 EnergyPrice ...``).
+    """
+    pattern = f"ENTSOE {area} EnergyPrice %"
+    result = client.query(
+        "SELECT timestamp_utc, value AS price "
+        "FROM algo.timeseries FINAL "
+        "WHERE area = {area:String} "
+        "  AND curve_name LIKE {pattern:String} "
+        "  AND timestamp_utc >= {start_utc:DateTime64} "
+        "  AND timestamp_utc < {end_utc:DateTime64} "
+        "ORDER BY timestamp_utc",
+        parameters={
+            "area": area,
+            "pattern": pattern,
+            "start_utc": start_utc,
+            "end_utc": end_utc,
+        },
+    )
+    return [{"timestamp_utc": row[0], "price": row[1]} for row in result.result_rows]
 
 
 def load_latest_artifact(
