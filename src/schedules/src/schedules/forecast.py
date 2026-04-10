@@ -13,6 +13,7 @@ from forecast_cli.config_loader import load_config
 from forecast_cli.tracking import track_prediction
 from price_forecasting import LiveRunner
 from price_forecasting.configs import ExperimentConfig
+from price_forecasting.live_runner import LiveResult
 
 
 @task(log_prints=True)
@@ -23,16 +24,33 @@ def load_config_task(config_name: str) -> ExperimentConfig:
 
 
 @task(retries=2, retry_delay_seconds=60, log_prints=True)
-def predict_task(config: ExperimentConfig, target_date: str):
+def predict_task(config: ExperimentConfig, target_date: str) -> LiveResult:
     runner = LiveRunner(config)
-    prediction = runner.run_live(target_date)
-    print(f"Prediction for {target_date}: {len(prediction)} periods")
-    return prediction
+    result = runner.run_live_with_metadata(target_date)
+    print(
+        f"Prediction for {target_date}: {len(result.prediction)} periods, "
+        f"training took {result.training_duration_seconds:.2f}s"
+    )
+    return result
 
 
 @task(log_prints=True)
-def track_prediction_task(config: ExperimentConfig, target_date: str, prediction) -> str:
-    run_id = track_prediction(config, target_date, prediction)
+def track_prediction_task(
+    config: ExperimentConfig,
+    target_date: str,
+    result: LiveResult,
+    config_name: str,
+) -> str:
+    run_id = track_prediction(
+        config,
+        target_date,
+        result.prediction,
+        training_duration_seconds=result.training_duration_seconds,
+        data_start_utc=result.data_start_utc,
+        data_end_utc=result.data_end_utc,
+        trained_models=result.trained_models,
+        config_name=config_name,
+    )
     print(f"Tracked prediction {run_id} in ClickHouse")
     return run_id
 
@@ -45,13 +63,14 @@ def daily_forecast_flow(config_name: str = "dk1_lear", target_date: str | None =
     print(f"Running forecast: config={config_name}, target_date={target_date}")
 
     config = load_config_task(config_name)
-    prediction = predict_task(config, target_date)
-    run_id = track_prediction_task(config, target_date, prediction)
+    result = predict_task(config, target_date)
+    run_id = track_prediction_task(config, target_date, result, config_name)
 
     return {
         "config_name": config_name,
         "area": config.area,
         "target_date": target_date,
         "run_id": run_id,
-        "n_periods": len(prediction),
+        "n_periods": len(result.prediction),
+        "training_duration_seconds": result.training_duration_seconds,
     }
