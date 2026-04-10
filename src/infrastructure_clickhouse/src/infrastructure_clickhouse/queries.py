@@ -1,4 +1,36 @@
+from clickhouse_connect.driver.client import Client
+
 from infrastructure_clickhouse.client_factory import create_client
+
+
+def load_latest_artifact(
+    client: Client, area: str, model_type: str, config_name: str
+) -> dict | None:
+    """Load the most recent model artifact for a given area, model type, and config.
+
+    Returns a dict with artifact metadata and blob, or None if not found.
+    """
+    result = client.query(
+        "SELECT artifact_id, created_utc, run_id, artifact_blob, artifact_size_bytes "
+        "FROM algo.model_artifacts "
+        "WHERE area = {area:String} "
+        "  AND model_type = {model_type:String} "
+        "  AND config_name = {config_name:String} "
+        "ORDER BY created_utc DESC "
+        "LIMIT 1",
+        parameters={"area": area, "model_type": model_type, "config_name": config_name},
+    )
+    rows = result.result_rows
+    if not rows:
+        return None
+    row = rows[0]
+    return {
+        "artifact_id": row[0],
+        "created_utc": row[1],
+        "run_id": row[2],
+        "artifact_blob": row[3],
+        "artifact_size_bytes": row[4],
+    }
 
 
 def create_observations_table():

@@ -18,6 +18,22 @@
 
 ---
 
+## The 9 MLOps Best Practices — Full Reference Table
+
+| # | Concept | Summary | Paper Tools | SOTA Tools | Your Tools |
+|---|---------|---------|-------------|------------|------------|
+| P1 | Automating CI/CD | Automates build, test, and deploy of ML models, reducing manual errors and enabling faster retraining cycles | Docker, Kubernetes, TFX, Kubeflow, SageMaker | GitHub Actions, GitLab CI/CD, Jenkins, Tekton | GitHub Actions (tests only), Prefect (data ingestion only) |
+| P2 | Orchestrating Workflows | Coordinates the full ML pipeline (ingest → train → deploy → monitor) through integrated CI/CD and CT pipelines | Docker, Kubernetes, Kubeflow | Apache Airflow, Prefect, Dagster, Kubeflow Pipelines | Prefect, Typer CLI |
+| P3 | Ensuring Reproducibility | Guarantees identical results when re-running experiments via containerization, version control, and automated parameter tracking | Docker, GitHub Actions, CML | DVC, MLflow, Weights & Biases, Hydra | ExperimentConfig, date-based splits, ClickHouse |
+| P4 | Versioning | Tracks all changes to code, data, and models throughout the lifecycle, enabling rollback and full audit trails | DVC, MLflow | Git + LFS, DVC, MLflow Registry, HuggingFace Hub | Git (code + configs only) |
+| P5 | Collaboration & Communication | Bridges data scientists, ML engineers, and DevOps through shared tooling and no-code interfaces that reduce domain silos | GitHub Actions | W&B Dashboards, MLflow UI, GitHub/GitLab | None |
+| P6 | Continuous Training & Evaluation | Automatically retrains models on new data, always paired with an evaluation run and a monitoring-driven feedback loop | Docker, Kubernetes, CI/CD pipelines | Kubeflow, SageMaker Pipelines, Metaflow, Determined AI | BacktestEngine (refit_interval_days) |
+| P7 | Track & Log ML Metadata | Logs all run parameters, metrics, duration, and model lineage to ensure full traceability and reproducibility | GitHub Actions, DVC, MLflow | W&B, MLflow, Neptune.ai, Aim | ClickHouse (algo.experiment_runs, algo.experiment_predictions) |
+| P8 | Continuous Monitoring | Tracks model and data quality in production, detecting drift and degradation before they impact business outcomes | None | Evidently AI, Arize AI, WhyLabs, Datadog | None |
+| P9 | Implementing Feedback Loops | Connects production monitoring signals back to the training scheduler to trigger automated retraining when quality drops | None | Kubeflow Pipelines, Airflow, Mage, Tecton | None |
+
+---
+
 ## The 9 MLOps Best Practices vs Your Codebase
 
 ### Scorecard

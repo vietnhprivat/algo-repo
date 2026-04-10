@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from clickhouse_connect.driver.client import Client
 import polars as pl
@@ -40,7 +40,14 @@ def insert_experiment_run(
     model_type: str,
     config_json: str,
     metrics_json: str,
+    *,
+    training_duration_seconds: float | None = None,
+    data_start_utc: datetime | None = None,
+    data_end_utc: datetime | None = None,
+    model_artifact_id: str | None = None,
 ) -> None:
+    _epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
     df = pl.DataFrame(
         {
             "run_id": [run_id],
@@ -50,6 +57,10 @@ def insert_experiment_run(
             "model_type": [model_type],
             "config_json": [config_json],
             "metrics_json": [metrics_json],
+            "training_duration_seconds": [training_duration_seconds if training_duration_seconds is not None else 0.0],
+            "data_start_utc": [data_start_utc if data_start_utc is not None else _epoch],
+            "data_end_utc": [data_end_utc if data_end_utc is not None else _epoch],
+            "model_artifact_id": [model_artifact_id if model_artifact_id is not None else ""],
         },
         schema={
             "run_id": pl.String,
@@ -59,9 +70,49 @@ def insert_experiment_run(
             "model_type": pl.String,
             "config_json": pl.String,
             "metrics_json": pl.String,
+            "training_duration_seconds": pl.Float32,
+            "data_start_utc": pl.Datetime("us", "UTC"),
+            "data_end_utc": pl.Datetime("us", "UTC"),
+            "model_artifact_id": pl.String,
         },
     )
     insert_polars_dataframe(client, df, "algo.experiment_runs")
+
+
+def insert_model_artifact(
+    client: Client,
+    artifact_id: str,
+    created_utc: datetime,
+    run_id: str,
+    area: str,
+    model_type: str,
+    config_name: str,
+    artifact_blob: str,
+    artifact_size_bytes: int,
+) -> None:
+    df = pl.DataFrame(
+        {
+            "artifact_id": [artifact_id],
+            "created_utc": [created_utc],
+            "run_id": [run_id],
+            "area": [area],
+            "model_type": [model_type],
+            "config_name": [config_name],
+            "artifact_blob": [artifact_blob],
+            "artifact_size_bytes": [artifact_size_bytes],
+        },
+        schema={
+            "artifact_id": pl.String,
+            "created_utc": pl.Datetime("us", "UTC"),
+            "run_id": pl.String,
+            "area": pl.String,
+            "model_type": pl.String,
+            "config_name": pl.String,
+            "artifact_blob": pl.String,
+            "artifact_size_bytes": pl.UInt32,
+        },
+    )
+    insert_polars_dataframe(client, df, "algo.model_artifacts")
 
 
 def insert_experiment_predictions(
