@@ -1,7 +1,7 @@
 """Tests for the reconciliation Prefect flow and tasks."""
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 from schedules.reconciliation import (
     _ensure_utc,
