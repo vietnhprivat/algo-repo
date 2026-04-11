@@ -12,10 +12,13 @@ from infrastructure_entsoe.mappers import (
     _parse_wind_solar_forecast_xml_to_forecast,
 )
 from domain.curves import Forecast, Observations
+from infrastructure_clickhouse.logging_setup import build_log_extra, get_logger
 from ratelimit import limits, sleep_and_retry
 
 import zipfile
 from io import BytesIO
+
+LOGGER = get_logger(__name__, service="entsoe-client")
 
 
 class EntsoeClientBase:
@@ -166,6 +169,14 @@ class EntsoeClient(EntsoeClientBase):
     def fetch_energy_prices(
         self, area: Area, start_date: datetime, end_date: datetime
     ) -> list[Observations]:
+        LOGGER.info(
+            "Fetching ENTSOE energy prices",
+            extra=build_log_extra(
+                area=area.tag,
+                chunk_start=start_date.isoformat(),
+                chunk_end=end_date.isoformat(),
+            ),
+        )
         content_types_and_contents: list[tuple[str, bytes]] = []
         chunk_start = start_date
         while chunk_start < end_date:
@@ -173,6 +184,15 @@ class EntsoeClient(EntsoeClientBase):
             current_offset = 0
             for iteration in range(49):
                 if iteration == 48:
+                    LOGGER.error(
+                        "ENTSOE energy price pagination exhausted",
+                        extra=build_log_extra(
+                            area=area.tag,
+                            chunk_start=chunk_start.isoformat(),
+                            chunk_end=chunk_end.isoformat(),
+                            offset=current_offset,
+                        ),
+                    )
                     raise Exception(
                         "Reached maximum number of iterations while fetching energy prices. "
                         "This likely means that there is more data to fetch, but the API is not "
@@ -185,11 +205,30 @@ class EntsoeClient(EntsoeClientBase):
                 current_offset += 100
 
                 if response.status_code != 200:
+                    LOGGER.warning(
+                        "ENTSOE energy price request returned non-200",
+                        extra=build_log_extra(
+                            area=area.tag,
+                            status_code=response.status_code,
+                            chunk_start=chunk_start.isoformat(),
+                            chunk_end=chunk_end.isoformat(),
+                            offset=params["offset"],
+                        ),
+                    )
                     continue
 
                 raw = response.content
                 text = raw.decode("utf-8", errors="ignore")
                 if "no matching data found for data item" in text.lower():
+                    LOGGER.info(
+                        "ENTSOE energy price request returned no matching data",
+                        extra=build_log_extra(
+                            area=area.tag,
+                            chunk_start=chunk_start.isoformat(),
+                            chunk_end=chunk_end.isoformat(),
+                            offset=params["offset"],
+                        ),
+                    )
                     break
 
                 content_type = response.headers.get("Content-Type", "").lower()
@@ -197,7 +236,12 @@ class EntsoeClient(EntsoeClientBase):
 
             chunk_start = chunk_end
 
-        return self._handle_energy_prices_response(content_types_and_contents)
+        observations = self._handle_energy_prices_response(content_types_and_contents)
+        LOGGER.info(
+            "Completed ENTSOE energy price fetch",
+            extra=build_log_extra(area=area.tag, response_sets=len(observations)),
+        )
+        return observations
 
     def fetch_total_load_forecasts(
         self,
@@ -207,10 +251,19 @@ class EntsoeClient(EntsoeClientBase):
         process_type: str = "A01",
         process_type_name: str = "Dayahead",
     ) -> list[Forecast]:
+        LOGGER.info(
+            "Fetching ENTSOE total load forecasts",
+            extra=build_log_extra(
+                area=area.tag,
+                chunk_start=start_date.isoformat(),
+                chunk_end=end_date.isoformat(),
+            ),
+        )
         raw_xml_list: list[bytes] = []
         chunk_start = start_date
         while chunk_start < end_date:
             chunk_end = min(chunk_start + relativedelta(months=10), end_date)
+            request_start = chunk_start
             params = self._build_total_load_forecast_params(
                 area, chunk_start, chunk_end, process_type=process_type
             )
@@ -218,16 +271,37 @@ class EntsoeClient(EntsoeClientBase):
             chunk_start = chunk_end
 
             if response.status_code != 200:
+                LOGGER.warning(
+                    "ENTSOE total load request returned non-200",
+                    extra=build_log_extra(
+                        area=area.tag,
+                        status_code=response.status_code,
+                        chunk_start=request_start.isoformat(),
+                        chunk_end=chunk_end.isoformat(),
+                    ),
+                )
                 continue
 
             raw = response.content
             text = raw.decode("utf-8", errors="ignore")
             if "no matching data found for data item" in text.lower():
+                LOGGER.info(
+                    "ENTSOE total load request returned no matching data",
+                    extra=build_log_extra(
+                        area=area.tag,
+                        chunk_end=chunk_end.isoformat(),
+                    ),
+                )
                 continue
 
             raw_xml_list.append(raw)
 
-        return self._handle_total_load_forecast_response(raw_xml_list, process_type_name)
+        forecasts = self._handle_total_load_forecast_response(raw_xml_list, process_type_name)
+        LOGGER.info(
+            "Completed ENTSOE total load fetch",
+            extra=build_log_extra(area=area.tag, response_sets=len(forecasts)),
+        )
+        return forecasts
 
     def fetch_generation_forecasts(
         self,
@@ -237,10 +311,19 @@ class EntsoeClient(EntsoeClientBase):
         process_type: str = "A01",
         process_type_name: str = "Dayahead",
     ) -> list[Forecast]:
+        LOGGER.info(
+            "Fetching ENTSOE generation forecasts",
+            extra=build_log_extra(
+                area=area.tag,
+                chunk_start=start_date.isoformat(),
+                chunk_end=end_date.isoformat(),
+            ),
+        )
         raw_xml_list: list[bytes] = []
         chunk_start = start_date
         while chunk_start < end_date:
             chunk_end = min(chunk_start + relativedelta(months=10), end_date)
+            request_start = chunk_start
             params = self._build_generation_forecast_params(
                 area, chunk_start, chunk_end, process_type=process_type
             )
@@ -248,16 +331,37 @@ class EntsoeClient(EntsoeClientBase):
             chunk_start = chunk_end
 
             if response.status_code != 200:
+                LOGGER.warning(
+                    "ENTSOE generation request returned non-200",
+                    extra=build_log_extra(
+                        area=area.tag,
+                        status_code=response.status_code,
+                        chunk_start=request_start.isoformat(),
+                        chunk_end=chunk_end.isoformat(),
+                    ),
+                )
                 continue
 
             raw = response.content
             text = raw.decode("utf-8", errors="ignore")
             if "no matching data found for data item" in text.lower():
+                LOGGER.info(
+                    "ENTSOE generation request returned no matching data",
+                    extra=build_log_extra(
+                        area=area.tag,
+                        chunk_end=chunk_end.isoformat(),
+                    ),
+                )
                 continue
 
             raw_xml_list.append(raw)
 
-        return self._handle_generation_forecast_response(raw_xml_list, process_type_name)
+        forecasts = self._handle_generation_forecast_response(raw_xml_list, process_type_name)
+        LOGGER.info(
+            "Completed ENTSOE generation forecast fetch",
+            extra=build_log_extra(area=area.tag, response_sets=len(forecasts)),
+        )
+        return forecasts
 
     def fetch_wind_solar_forecasts(
         self,
@@ -268,10 +372,19 @@ class EntsoeClient(EntsoeClientBase):
         process_type_name: str = "Dayahead",
         psr_type: str | None = None,
     ) -> list[Forecast]:
+        LOGGER.info(
+            "Fetching ENTSOE wind and solar forecasts",
+            extra=build_log_extra(
+                area=area.tag,
+                chunk_start=start_date.isoformat(),
+                chunk_end=end_date.isoformat(),
+            ),
+        )
         raw_xml_list: list[bytes] = []
         chunk_start = start_date
         while chunk_start < end_date:
             chunk_end = min(chunk_start + relativedelta(months=10), end_date)
+            request_start = chunk_start
             params = self._build_wind_solar_forecast_params(
                 area, chunk_start, chunk_end, process_type=process_type, psr_type=psr_type
             )
@@ -279,16 +392,37 @@ class EntsoeClient(EntsoeClientBase):
             chunk_start = chunk_end
 
             if response.status_code != 200:
+                LOGGER.warning(
+                    "ENTSOE wind/solar request returned non-200",
+                    extra=build_log_extra(
+                        area=area.tag,
+                        status_code=response.status_code,
+                        chunk_start=request_start.isoformat(),
+                        chunk_end=chunk_end.isoformat(),
+                    ),
+                )
                 continue
 
             raw = response.content
             text = raw.decode("utf-8", errors="ignore")
             if "no matching data found for data item" in text.lower():
+                LOGGER.info(
+                    "ENTSOE wind/solar request returned no matching data",
+                    extra=build_log_extra(
+                        area=area.tag,
+                        chunk_end=chunk_end.isoformat(),
+                    ),
+                )
                 continue
 
             raw_xml_list.append(raw)
 
-        return self._handle_wind_solar_forecast_response(raw_xml_list, process_type_name)
+        forecasts = self._handle_wind_solar_forecast_response(raw_xml_list, process_type_name)
+        LOGGER.info(
+            "Completed ENTSOE wind/solar forecast fetch",
+            extra=build_log_extra(area=area.tag, response_sets=len(forecasts)),
+        )
+        return forecasts
 
     @sleep_and_retry
     @limits(calls=400, period=60)

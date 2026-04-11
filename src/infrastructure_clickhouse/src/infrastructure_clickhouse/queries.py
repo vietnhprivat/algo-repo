@@ -38,12 +38,14 @@ def get_predictions_for_runs(client: Client, run_ids: list[str]) -> list[dict]:
     """Fetch all predictions for the given run_ids."""
     if not run_ids:
         return []
+    placeholders = ", ".join(f"{{run_id_{i}:String}}" for i in range(len(run_ids)))
+    params = {f"run_id_{i}": rid for i, rid in enumerate(run_ids)}
     result = client.query(
-        "SELECT run_id, timestamp_utc, actual, predicted "
-        "FROM algo.experiment_predictions FINAL "
-        "WHERE run_id IN {run_ids:Array(String)} "
-        "ORDER BY run_id, timestamp_utc",
-        parameters={"run_ids": run_ids},
+        f"SELECT run_id, timestamp_utc, actual, predicted "
+        f"FROM algo.experiment_predictions FINAL "
+        f"WHERE run_id IN ({placeholders}) "
+        f"ORDER BY run_id, timestamp_utc",
+        parameters=params,
     )
     return [
         {

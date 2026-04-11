@@ -1,6 +1,7 @@
 """ClickHouse experiment tracking — write runs and predictions."""
 
 import base64
+import io
 import json
 import uuid
 from dataclasses import asdict
@@ -25,7 +26,9 @@ def _generate_run_id() -> str:
 
 def _serialize_model(model) -> tuple[str, int]:
     """Serialize a model to base64 string, returning (blob, size_bytes)."""
-    raw_bytes = joblib.dumps(model)
+    buf = io.BytesIO()
+    joblib.dump(model, buf)
+    raw_bytes = buf.getvalue()
     size_bytes = len(raw_bytes)
     blob = base64.b64encode(raw_bytes).decode("ascii")
     return blob, size_bytes

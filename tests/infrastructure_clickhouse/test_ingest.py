@@ -1,5 +1,6 @@
 """Integration tests for ClickHouse ingest using a fake client."""
 
+import logging
 import pytest
 import pyarrow as pa
 
@@ -16,6 +17,11 @@ from tests.infrastructure_clickhouse.conftest import (
     make_sample_forecast,
     make_sample_observations,
 )
+
+
+class FailingClickHouseClient(FakeClickHouseClient):
+    def insert_arrow(self, table_name: str, arrow_table) -> None:
+        raise RuntimeError("insert failed")
 
 
 class TestInsertEnergyPricesBatch:
@@ -137,3 +143,17 @@ class TestInsertPolarsDataframe:
         assert isinstance(arrow_table, pa.Table)
         expected_columns = list(obs.data_frame.columns)
         assert arrow_table.column_names == expected_columns
+
+    def test_insert_failure_is_logged(self, caplog):
+        client = FailingClickHouseClient()
+        obs = make_sample_energy_price_observation(5)
+
+        with caplog.at_level(logging.ERROR), pytest.raises(RuntimeError, match="insert failed"):
+            insert_polars_dataframe(client, obs.data_frame, "test_table", batch_size=2)
+
+        assert any(
+            record.message == "ClickHouse insert failed"
+            and getattr(record, "table_name", None) == "test_table"
+            and getattr(record, "batch_size", None) == 2
+            for record in caplog.records
+        )

@@ -57,6 +57,7 @@ class ForecastFlowDeployment:
                     "CLICKHOUSE_USER": os.getenv("CLICKHOUSE_USER", "default"),
                     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", "password"),
                     "CLICKHOUSE_DATABASE": "algo",
+                    "LOKI_URL": os.getenv("LOKI_URL", "http://loki:3100/loki/api/v1/push"),
                 },
             },
             tags=["forecast", "production"],

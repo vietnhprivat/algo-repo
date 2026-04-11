@@ -5,6 +5,9 @@ import polars as pl
 from typing import List
 
 from domain.curves import EnergyPriceObservation, Forecast, Observations
+from infrastructure_clickhouse.logging_setup import build_log_extra, get_logger
+
+LOGGER = get_logger(__name__, service="clickhouse-ingest")
 
 
 def insert_observations_batch(
@@ -137,6 +140,27 @@ def insert_polars_dataframe(
         table_name: Target ClickHouse table name.
         batch_size: Number of rows per batch.
     """
+    batch_count = (dataframe.height + batch_size - 1) // batch_size if dataframe.height else 0
+    LOGGER.info(
+        "Starting ClickHouse insert",
+        extra=build_log_extra(
+            table_name=table_name,
+            batch_size=batch_size,
+            row_count=dataframe.height,
+            batch_count=batch_count,
+        ),
+    )
     for offset in range(0, dataframe.height, batch_size):
         batch = dataframe.slice(offset, batch_size)
-        client.insert_arrow(table_name, batch.to_arrow())
+        try:
+            client.insert_arrow(table_name, batch.to_arrow())
+        except Exception:
+            LOGGER.exception(
+                "ClickHouse insert failed",
+                extra=build_log_extra(
+                    table_name=table_name,
+                    batch_size=batch_size,
+                    offset=offset,
+                ),
+            )
+            raise
