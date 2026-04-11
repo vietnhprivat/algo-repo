@@ -38,14 +38,57 @@ services:
       - server
     environment:
       PREFECT_API_URL: http://server:4200/api
+      LOKI_URL: http://loki:3100/loki/api/v1/push
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     # Worker auto-creates the pool if it doesn't exist
     command: prefect worker start --pool docker-pool --type docker
 
+  # Loki log aggregation — receives structured Python logs directly
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: grafana-loki
+    restart: always
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+
+  # Grafana dashboards — auto-provisioned from the repo
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: grafana
+    restart: always
+    depends_on:
+      - clickhouse
+      - loki
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_DATABASE: algo
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-password}
+      LOKI_URL: http://loki:3100
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 volumes:
   clickhouse_data:
   prefect_storage:
+  grafana_data:
+  loki_data:
   # TODO: add model-store volume for persisting trained model weights across containers.
   # Mount as /models in any container that saves or loads models (e.g. prefect worker, forecast API).
   # Save: joblib.dump(model, "/models/dk1_lear/model.joblib")

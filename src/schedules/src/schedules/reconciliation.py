@@ -20,6 +20,7 @@ from infrastructure_clickhouse.ingest import (
     insert_experiment_predictions,
     insert_experiment_run,
 )
+from infrastructure_clickhouse.logging_setup import build_log_extra, get_logger
 from infrastructure_clickhouse.queries import (
     get_actual_prices_for_period,
     get_predictions_for_runs,
@@ -30,6 +31,8 @@ from price_forecasting.evaluation import (
     calculate_rmse,
     calculate_smape,
 )
+
+LOGGER = get_logger(__name__, service="prefect-reconciliation")
 
 
 def _ensure_utc(dt: datetime) -> datetime:
@@ -47,6 +50,7 @@ def find_unreconciled_runs_task() -> list[dict]:
         runs = get_unreconciled_runs(client)
     finally:
         client.close()
+    LOGGER.info("Loaded unreconciled runs", extra=build_log_extra(run_count=len(runs)))
     print(f"Found {len(runs)} unreconciled run(s)")
     return runs
 
@@ -61,9 +65,17 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
     """
     client = create_client()
     try:
+        LOGGER.info(
+            "Starting area reconciliation batch",
+            extra=build_log_extra(area=area),
+        )
         run_ids = [r["run_id"] for r in runs]
         predictions = get_predictions_for_runs(client, run_ids)
         if not predictions:
+            LOGGER.warning(
+                "No predictions found for reconciliation runs",
+                extra=build_log_extra(area=area),
+            )
             print(f"[{area}] No predictions found for runs")
             return {"area": area, "reconciled": 0, "skipped": 0}
 
@@ -77,21 +89,30 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
         actuals_lookup: dict[datetime, float] = {
             _ensure_utc(a["timestamp_utc"]): float(a["price"]) for a in actuals
         }
+        LOGGER.info(
+            "Loaded actual prices for reconciliation",
+            extra=build_log_extra(area=area),
+        )
         print(f"[{area}] Loaded {len(actuals_lookup)} actual price points")
 
-        # Group predictions by run_id
+        # Group predictions by run_id — cast to str because clickhouse-connect
+        # may return LowCardinality(String) as a Python object, not a plain str.
         preds_by_run: dict[str, list[dict]] = defaultdict(list)
         for p in predictions:
-            preds_by_run[p["run_id"]].append(p)
+            preds_by_run[str(p["run_id"])].append(p)
 
         reconciled = 0
         skipped = 0
         now = datetime.now(timezone.utc)
 
         for run in runs:
-            run_id = run["run_id"]
+            run_id = str(run["run_id"])
             run_preds = preds_by_run.get(run_id, [])
             if not run_preds:
+                LOGGER.warning(
+                    "Reconciliation run has no prediction rows",
+                    extra=build_log_extra(area=area, run_id=run_id),
+                )
                 print(f"[{area}] Run {run_id}: no predictions, skipping")
                 skipped += 1
                 continue
@@ -107,14 +128,18 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
                     continue
                 rows.append(
                     {
-                        "run_id": run_id,
+                        "run_id": str(run_id),
                         "timestamp_utc": ts,
-                        "actual": actual,
+                        "actual": float(actual),
                         "predicted": float(p["predicted"]),
                     }
                 )
 
             if missing > 0:
+                LOGGER.warning(
+                    "Reconciliation skipped because actuals are incomplete",
+                    extra=build_log_extra(area=area, run_id=run_id),
+                )
                 print(
                     f"[{area}] Run {run_id}: missing {missing}/{len(run_preds)} "
                     "actuals, skipping (will retry tomorrow)"
@@ -161,6 +186,10 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
                 model_artifact_id=run["model_artifact_id"],
             )
 
+            LOGGER.info(
+                "Reconciled live prediction run",
+                extra=build_log_extra(area=area, run_id=run_id),
+            )
             print(
                 f"[{area}] Run {run_id}: reconciled {len(rows)} periods, "
                 f"mae={metrics['mae']:.2f}, rmse={metrics['rmse']:.2f}, "
@@ -177,6 +206,7 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
 def reconcile_predictions_flow() -> dict:
     runs = find_unreconciled_runs_task()
     if not runs:
+        LOGGER.info("No unreconciled runs found")
         print("No unreconciled runs — nothing to do")
         return {"total_runs": 0, "areas": {}}
 
@@ -184,6 +214,7 @@ def reconcile_predictions_flow() -> dict:
     for run in runs:
         runs_by_area[run["area"]].append(run)
 
+    LOGGER.info("Starting reconciliation flow", extra=build_log_extra(run_count=len(runs)))
     print(f"Reconciling {len(runs)} run(s) across {len(runs_by_area)} area(s)")
 
     area_results = {}
@@ -192,6 +223,13 @@ def reconcile_predictions_flow() -> dict:
 
     total_reconciled = sum(r["reconciled"] for r in area_results.values())
     total_skipped = sum(r["skipped"] for r in area_results.values())
+    LOGGER.info(
+        "Completed reconciliation flow",
+        extra=build_log_extra(
+            total_reconciled=total_reconciled,
+            total_skipped=total_skipped,
+        ),
+    )
     print(
         f"Reconciliation complete: {total_reconciled} reconciled, "
         f"{total_skipped} skipped"
@@ -203,3 +241,7 @@ def reconcile_predictions_flow() -> dict:
         "total_skipped": total_skipped,
         "areas": area_results,
     }
+
+
+if __name__ == "__main__":
+    reconcile_predictions_flow()

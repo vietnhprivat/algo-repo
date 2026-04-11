@@ -30,6 +30,7 @@ dependencies = [
     "data-cli",
     "forecast-cli",
     "python-dateutil>=2.9.0",
+    "python-logging-loki>=0.3.1",
 ]
 
 [tool.uv.workspace]

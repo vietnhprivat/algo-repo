@@ -465,6 +465,27 @@ Phase 5 can run in parallel with Phases 3-4.
 
 ---
 
+## Future TODOs
+
+### 15-Minute Evaluation Granularity
+
+**Context:** Most European power markets (including DK1 via ENTSO-E) allow bidding on 15-minute intervals, not just hourly. Currently, the model predicts at hourly resolution and actuals are reconciled at hourly resolution. This means reported metrics (MAE/RMSE/sMAPE) do not reflect the true financial exposure of a 15-minute bidding strategy.
+
+**What this means:**
+- The **model stays hourly** — no change to `LiveRunner`, `ExperimentConfig`, or the prediction pipeline.
+- The **reconciliation and evaluation should be against 15-minute actuals** — fetch 15-min `ENTSOE {area} EnergyPrice 15min %` curves from `algo.timeseries`, compare each predicted hourly value against the four 15-min actuals within that hour (or use the mean, depending on how the bid is structured), and compute metrics over all 96 periods/day rather than 24.
+- This gives metrics that accurately represent real-world P&L: a flat hourly bid is exposed to all four 15-min settlement prices within each hour.
+
+**What needs to change when implementing:**
+- `reconciliation.py` — `get_actual_prices_for_period()` must fetch 15-min curve; expand each hourly prediction to 4 rows (one per 15-min slot) before computing metrics.
+- `algo.experiment_predictions` schema — already supports sub-hourly `timestamp_utc`; no migration needed.
+- `queries.py` — `get_actual_prices_for_period()` needs a `resolution` parameter or separate function for 15-min curves.
+- Grafana — update the predicted-vs-actual overlay panel to show 15-min granularity.
+
+**Why deferred:** Requires 15-min price data to be consistently ingested first. Validate ingestion coverage before changing evaluation logic.
+
+---
+
 ## 4. Software Overview
 
 ### Currently Used

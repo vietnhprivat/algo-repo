@@ -43,6 +43,7 @@ class EntsoeIngestionFlowDeployment:
                     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", "password"),
                     "CLICKHOUSE_DATABASE": "algo",
                     "ENTSOE_API_KEY": os.getenv("ENTSOE_API_KEY", ""),
+                    "LOKI_URL": os.getenv("LOKI_URL", "http://loki:3100/loki/api/v1/push"),
                 },
             },
             tags=["entsoe", "ingestion", "production"],

@@ -1,9 +1,10 @@
 """Integration tests for ENTSOE client using a fake client (no real API calls)."""
 
+import logging
 import pytest
 from datetime import datetime, timezone
 
-from infrastructure_entsoe.client import EntsoeClientBase
+from infrastructure_entsoe.client import EntsoeClient, EntsoeClientBase
 from domain.curves import Forecast, Observations
 from domain.areas import DE
 
@@ -213,3 +214,34 @@ class TestEntsoeClientFactoryValidation:
 
         client = create_entsoe_client()
         assert client.api_key == "test-key-123"
+
+
+class FakeResponse:
+    def __init__(self, status_code: int, content: bytes = b"", headers: dict | None = None):
+        self.status_code = status_code
+        self.content = content
+        self.headers = headers or {}
+
+
+class TestEntsoeClientLogging:
+    def test_non_200_total_load_response_is_logged(self, monkeypatch, caplog):
+        client = EntsoeClient(api_key="fake-api-key-12345")
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+
+        monkeypatch.setattr(
+            client,
+            "_rate_limit_get",
+            lambda *args, **kwargs: FakeResponse(status_code=503),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = client.fetch_total_load_forecasts(DE, start, end)
+
+        assert result == []
+        assert any(
+            record.message == "ENTSOE total load request returned non-200"
+            and getattr(record, "status_code", None) == 503
+            and getattr(record, "area", None) == "DE"
+            for record in caplog.records
+        )
