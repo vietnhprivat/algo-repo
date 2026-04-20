@@ -14,12 +14,11 @@ Electricity price forecasting platform for European day-ahead markets. Ingests E
 │  │ClickHouse│  │ Prefect Server │  │  Prefect Worker  │              │
 │  │ (DB)     │  │ (API + UI)     │  │  (Docker type)   │              │
 │  └──────────┘  └────────────────┘  └────────┬─────────┘              │
-│                                              │ spawns                │
-│                                     ┌────────▼──────────┐            │
-│                                     │  algo-repo:latest │            │
-│                                     │  (ephemeral flow  │            │
-│                                     │   container)      │            │
-│                                     └───────────────────┘            │
+│                                             │ spawns                 │
+│                                    ┌────────▼──────────┐             │
+│                                    │  algo-repo:latest │             │
+│                                    │  (container)      │             │
+│                                    └───────────────────┘             │
 │                                                                      │
 │  ┌──────────┐  ┌────────────────┐                                    │
 │  │  Loki    │  │    Grafana     │                                    │
@@ -29,7 +28,6 @@ Electricity price forecasting platform for European day-ahead markets. Ingests E
 ```
 
 Always-running: ClickHouse, Prefect Server, Prefect Worker, Loki, Grafana.  
-Ephemeral: one container per flow run, auto-removed on exit.
 
 ---
 
@@ -37,7 +35,7 @@ Ephemeral: one container per flow run, auto-removed on exit.
 
 | Software | Role |
 |----------|------|
-| Python 3.14 + uv | Runtime and package management |
+| Python 3.13 + uv | Runtime and package management |
 | ClickHouse | Time-series storage, experiment tracking, model artifact blobs |
 | Prefect 3.x | Workflow orchestration and scheduling |
 | scikit-learn | LEAR model (per-period Lasso regression ensemble) |
