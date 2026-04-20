@@ -1,55 +1,59 @@
-# On-Demand Ingestion Setup
+# Deployment Guide
 
-This setup uses Prefect to orchestrate flows that run as ephemeral Docker containers.
+This project orchestrates ingestion, forecasting, reconciliation, and drift detection via Prefect. All services run as containers on one host; Grafana + Loki provide observability; CI/CD deploys to the host over a Tailscale tunnel.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  docker compose (always running)                            │
-│                                                             │
-│  ┌──────────┐  ┌────────────────┐  ┌──────────────────┐    │
-│  │ClickHouse│  │ Prefect Server │  │  Prefect Worker   │    │
-│  │ (DB)     │  │ (API + UI)     │  │  (Docker type)    │    │
-│  └──────────┘  └────────────────┘  └────────┬─────────┘    │
-│                                              │ spawns       │
-│                                    ┌─────────▼──────────┐   │
-│                                    │  algo-repo:latest   │   │
-│                                    │  (ephemeral flow    │   │
-│                                    │   container)        │   │
-│                                    └─────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│  docker compose (always running)                                     │
+│                                                                      │
+│  ┌──────────┐  ┌────────────────┐  ┌──────────────────┐              │
+│  │ClickHouse│  │ Prefect Server │  │  Prefect Worker  │              │
+│  │ (DB)     │  │ (API + UI)     │  │  (Docker type)   │              │
+│  └──────────┘  └────────────────┘  └────────┬─────────┘              │
+│                                              │ spawns                │
+│                                     ┌────────▼──────────┐            │
+│                                     │  algo-repo:latest │            │
+│                                     │  (ephemeral flow  │            │
+│                                     │   container)      │            │
+│                                     └───────────────────┘            │
+│                                                                      │
+│  ┌──────────┐  ┌────────────────┐                                    │
+│  │  Loki    │  │    Grafana     │                                    │
+│  │  (logs)  │  │ (dashboards)   │                                    │
+│  └──────────┘  └────────────────┘                                    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Persistent containers:** ClickHouse, Prefect Server, Prefect Worker
-- **Ephemeral containers:** Spawned by the worker for each flow run, auto-removed after completion
+**Always-running services:** ClickHouse, Prefect Server, Prefect Worker, Loki, Grafana.
+**Ephemeral containers:** spawned by the worker per flow run.
 
-**How it works:**
-1. The worker polls the Prefect Server for scheduled flow runs
-2. When a run is due, the worker spawns an `algo-repo:latest` container
-3. The container executes the flow, reports results to the server, and exits
-4. The worker auto-removes the container and goes back to polling
+**Deployments registered in Prefect:**
+- `entsoe-ingestion/ingestion-hourly-<AREA>` — one per area, hourly.
+- `daily-forecast/daily-forecast-<CONFIG>` — daily at 06:00 UTC.
+- `reconcile-predictions/reconcile-predictions` — daily at 18:00 UTC (4h after ENTSO-E day-ahead publication).
+- `drift-detection/drift-detection-<area>` — daily at 19:00 UTC.
 
 ---
 
-## Setup Instructions
+## Setup
 
 ### Prerequisites
 
-Create a `.env` file in the project root:
+Create `.env` in the repo root:
 ```bash
 ENTSOE_API_KEY="your-api-key-here"
 CLICKHOUSE_USER="default"
 CLICKHOUSE_PASSWORD="password"
+GRAFANA_ADMIN_USER="admin"
+GRAFANA_ADMIN_PASSWORD="admin"
 ```
 
-### 1. Build all images
+### 1. Build the app image
 
 ```bash
-# Build the app image (used by spawned flow containers)
 docker build -t algo-repo:latest .
-
-# Build infrastructure (worker image with prefect-docker)
 docker compose build
 ```
 
@@ -59,80 +63,134 @@ docker compose build
 docker compose up -d
 ```
 
-This starts:
-- **ClickHouse** — database
-- **Prefect Server** — orchestration API + UI at http://localhost:4200
-- **Prefect Worker** — Docker worker that auto-creates the `docker-pool` work pool
-
-Wait ~15 seconds for the server to be ready.
-
-### 3. Deploy the ingestion flow
-
+Wait ~15s for the Prefect server, then confirm the worker came up:
 ```bash
-PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/scripts/deploy_ingestion.py
+docker compose logs worker --tail 20   # look for "Worker 'docker-pool' started!"
 ```
 
-This registers the `entsoe-ingestion/ingestion-hourly` deployment with:
-- Cron schedule: every hour at `:00`
-- Image: `algo-repo:latest`
-- Network: `algo-repo_default` (same as compose services)
-- Environment variables for ClickHouse + ENTSOE passed to the spawned container
+### 3. Run migrations
+
+```bash
+uv run python -m infrastructure_clickhouse.migrations.run_migrations
+```
+
+Current migrations: `001`…`007` (drift reports).
+
+### 4. Register Prefect deployments
+
+```bash
+export PREFECT_API_URL="http://localhost:4200/api"
+uv run python src/schedules/src/schedules/deploy_ingestion.py
+uv run python src/schedules/src/schedules/deploy_forecast.py
+```
+
+`deploy_ingestion.py` registers one deployment per area in `AREAS`.
+`deploy_forecast.py` registers the daily forecast per config in `FORECAST_CONFIGS`, a single reconciliation deployment, and one drift-detection deployment per area in `DRIFT_AREAS`.
+
+Both scripts are idempotent — rerun them any time to pick up config changes.
 
 ---
 
-## Verify It's Working
+## Verify
 
-### Check services
+### Prefect UI
+http://localhost:4200/deployments
+
+### Grafana
+http://localhost:3000 (credentials from `.env`). Three auto-provisioned dashboards: **Data Quality**, **Model Performance**, **Operational**.
+
+### Manual flow trigger
 ```bash
-docker compose ps
-docker compose logs worker --tail 20
-```
-
-### View Prefect UI
-Open http://localhost:4200/deployments
-
-### Trigger a manual run (for testing)
-```bash
-PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "entsoe-ingestion/ingestion-hourly"
-```
-
-### Watch the worker spawn and run a container
-```bash
-docker compose logs -f worker
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "daily-forecast/daily-forecast-dk1_lear"
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "reconcile-predictions/reconcile-predictions"
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "drift-detection/drift-detection-dk1"
 ```
 
 ---
 
-## Rebuilding After Code Changes
+## Observability
+
+- **Metrics** live in ClickHouse (`algo.experiment_runs`, `algo.experiment_predictions`, `algo.drift_reports`, `algo.model_artifacts`).
+- **Logs** are pushed to Loki directly from Python via `python-logging-loki`. Query them from the Operational dashboard or by adding a Loki explore panel.
+- **Drift reports** land in `algo.drift_reports`. The drift flow logs a WARNING to Loki when drift is detected; Grafana alerts can be wired on that.
+
+---
+
+## Rebuild after code changes (local)
 
 ```bash
-# 1. Rebuild the app image
 docker build -t algo-repo:latest .
+```
 
-# That's it — the next scheduled (or manual) run will use the new image.
-# No need to restart the worker.
+The next scheduled or manual run picks up the new image. The worker does not need to restart.
+
+---
+
+## CI/CD
+
+`main` merges trigger [.github/workflows/cd_deploy.yml](.github/workflows/cd_deploy.yml). The job runs on a GitHub-hosted runner, joins the tailnet, SSHes into the deploy host via Tailscale SSH, rebuilds the image, reruns the `deploy_*.py` scripts, and triggers a `daily-forecast` flow run to verify the pipeline end-to-end before reporting success.
+
+### One-time host setup
+
+1. **Enable Tailscale SSH** on the deploy host:
+   ```bash
+   sudo tailscale up --ssh
+   ```
+
+2. **Create a Tailscale OAuth client** at https://login.tailscale.com/admin/settings/oauth with the `devices` scope and permission to mint keys for `tag:ci`.
+
+3. **Declare the `tag:ci` tag** in the tailnet ACL (`tagOwners`) and allow it to SSH as the deploy user:
+   ```jsonc
+   {
+     "tagOwners": {
+       "tag:ci": ["autogroup:admin"]
+     },
+     "ssh": [
+       {
+         "action": "accept",
+         "src":    ["tag:ci"],
+         "dst":    ["<deploy-host-tag-or-user>"],
+         "users":  ["<deploy-user>"]
+       }
+     ]
+   }
+   ```
+
+4. **GitHub repository secrets:**
+   - `TS_OAUTH_CLIENT_ID`
+   - `TS_OAUTH_SECRET`
+   - `DEPLOY_HOST` — MagicDNS name of the host (e.g. `<hostname>.<tailnet>.ts.net`)
+   - `DEPLOY_USER` — SSH username on the host
+   - `DEPLOY_REPO_PATH` — absolute path to the repo checkout on the host
+
+### Manual redeploy (CD bypass)
+
+When the tunnel is down or the host was offline at merge time, run the same two commands locally on the host:
+```bash
+PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_ingestion.py
+PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_forecast.py
 ```
 
 ---
 
 ## Troubleshooting
 
-**Worker not picking up jobs:**
+**Worker not picking up jobs**
 ```bash
-docker compose logs worker
-# Look for "Worker 'docker-pool' started!" message
+docker compose logs worker --tail 50
 ```
 
-**Spawned container can't connect to ClickHouse:**
+**Spawned container can't reach ClickHouse**
 ```bash
-# Verify the network exists
 docker network ls | grep algo-repo_default
-
-# Check env vars in the deployment
-PREFECT_API_URL="http://localhost:4200/api" prefect deployment inspect "entsoe-ingestion/ingestion-hourly"
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment inspect "daily-forecast/daily-forecast-dk1_lear"
 ```
 
-**Manual test — run the flow image directly:**
+**Flow failing silently** — check Loki via the Operational dashboard; every `schedules/*` module logs with `LOKI_URL` enabled.
+
+**CD job hangs on "Join tailnet"** — OAuth client likely missing `tag:ci` in tagOwners, or the secret pair is for the wrong tailnet.
+
+**Manual run via plain Docker:**
 ```bash
 docker run --rm \
   --network algo-repo_default \
@@ -142,5 +200,5 @@ docker run --rm \
   -e CLICKHOUSE_PASSWORD=password \
   -e ENTSOE_API_KEY="your-key" \
   algo-repo:latest \
-  python -c "from schedules.ingestion import entsoe_ingestion_flow; entsoe_ingestion_flow()"
+  python -c "from schedules.forecast import daily_forecast_flow; daily_forecast_flow(config_name='dk1_lear')"
 ```

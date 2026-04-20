@@ -51,6 +51,24 @@ tests/                       # Mirrors src/ structure
 - **Task granularity**: one task per data type (`ingest_energy_prices_task`, etc.), tasks run sequentially to respect ENTSOE rate limits. Task-level retries (`retries=2`) mean one failure doesn't abort the others.
 - **Lookback window**: `LOOKBACK_HOURS = 48` in `ingestion.py`. Re-ingesting overlapping data is always safe — ClickHouse `ReplacingMergeTree` deduplicates.
 - **Deploying**: `PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_ingestion.py`
+- **Forecast deployments** live in `deploy_forecast.py`: `daily-forecast-<config>` (06:00 UTC), `reconcile-predictions` (18:00 UTC), `drift-detection-<area>` (19:00 UTC). All reuse the generic `ForecastFlowDeployment` class — add a new config by appending to `FORECAST_CONFIGS` and rerunning the script.
+- **Config mounting**: `deploy_forecast.py` mounts `configs/` as a Docker volume at `/app/configs` so a config change does not require rebuilding the image. `config_loader.py` resolves paths accordingly.
+
+### Model Lifecycle & Tracking
+- **Model artifacts** are stored in `algo.model_artifacts` as base64-encoded joblib blobs (see migration `005`). Do not add a filesystem model store. Load the latest artifact via `load_latest_artifact(area, model_type, config_name)` in `infrastructure_clickhouse.queries`.
+- **Live prediction metadata**: `LiveRunner.run_live_with_metadata()` returns a `LiveResult` dataclass with `prediction`, `data_start_utc`, `data_end_utc`, `training_duration_seconds`, and `trained_models`. `forecast_cli.tracking.track_prediction()` serializes the trained ensemble, inserts the artifact row, and links `model_artifact_id` on the experiment run.
+- **Experiment run columns** (migration `006`): `training_duration_seconds`, `data_start_utc`, `data_end_utc`, `model_artifact_id`. Populate them via the keyword-only params of `insert_experiment_run()`.
+- **Reconciliation** (`schedules/reconciliation.py`): fetches all unreconciled runs, batches queries **per area** (one predictions query + one actuals query — never N+1), skips any run with a missing hour (retried the next day), and updates via **re-insert with newer `created_utc`** so `ReplacingMergeTree` keeps the new row. Never use `UPDATE` or `OPTIMIZE FINAL` — reads use the `FINAL` keyword.
+- **Metrics on live predictions**: computed from flat `np.ndarray`s via `calculate_mae/rmse/smape`, not the wide-format `compute_metrics_summary()` (which is backtest-oriented).
+
+### Observability
+- **Structured logging via Loki**: use the handler configured in `infrastructure_clickhouse.logging_setup`. Never `print()` in `schedules/*` or `infrastructure_*` — use the module logger with `build_log_extra(**context)` so fields reach Loki as labels.
+- **Grafana dashboards** auto-provision from `grafana/provisioning/` and `grafana/dashboards/`. Three dashboards: Data Quality, Model Performance, Operational (Loki log stream). Adding a panel = editing the JSON file in `grafana/dashboards/` (do not edit through the UI — changes will be overwritten on restart).
+- **Drift detection** (`schedules/drift.py`): Evidently runs **in-process** inside the Prefect flow, no Evidently service. Reference window = 90 days, current window = 7 days. Results land in `algo.drift_reports` (migration `007`); a drift event emits a WARNING to Loki.
+
+### CI/CD
+- **PR workflows**: `pr_test.yml` runs pytest, `pr_ruff-lint.yaml` runs ruff. The LEAR smoke test (`tests/price_forecasting/test_smoke.py`) is picked up automatically.
+- **CD workflow**: `cd_deploy.yml` fires on merge to `main`, joins the tailnet via the Tailscale GitHub Action, SSHes into the deploy host, rebuilds `algo-repo:latest`, reruns both `deploy_*.py` scripts, then triggers `daily-forecast/daily-forecast-dk1_lear` and polls until it completes. One-time setup is in `DEPLOYMENT.md`.
 
 ### CLI (forecast_cli)
 - Typer app with two commands: `backtest <config_name>` and `predict <config_name> -d <date>`
@@ -123,8 +141,14 @@ python -m infrastructure_clickhouse.migrations.run_migrations
 # Deploy Prefect ingestion schedule
 PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_ingestion.py
 
+# Deploy forecast / reconciliation / drift deployments
+PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_forecast.py
+
 # Trigger a flow run manually (no Prefect server needed)
 python -c "from schedules.ingestion import entsoe_backfill_flow; entsoe_backfill_flow(area='DK1')"
+python -c "from schedules.forecast import daily_forecast_flow; daily_forecast_flow(config_name='dk1_lear')"
+python -c "from schedules.reconciliation import reconcile_predictions_flow; reconcile_predictions_flow()"
+python -c "from schedules.drift import drift_detection_flow; drift_detection_flow(area='DK1')"
 
 # Force ClickHouse deduplication (run in ClickHouse client)
 # OPTIMIZE TABLE algo.timeseries FINAL;

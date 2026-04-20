@@ -69,6 +69,26 @@ prefect deployment run 'reconcile-predictions/reconcile-predictions'
 
 ---
 
+### Phase 5: CI/CD & Polish — DONE (2026-04-20)
+
+- Created `tests/price_forecasting/test_smoke.py` — two smoke tests (hourly 24-period and quarter-hourly 96-period) that fit a real `LearModel` on synthetic data from the existing `make_synthetic_features_and_targets()` helper and assert shape + finiteness. Runs in <0.1s, no network.
+- Created `.github/workflows/cd_deploy.yml` — fires on push to `main`. Uses `tailscale/github-action@v2` with OAuth (`tag:ci`) to join the tailnet from an `ubuntu-latest` runner, then uses Tailscale SSH (no keypair) to run `git reset --hard origin/main`, `docker build`, and both `deploy_*.py` scripts on the host. A second step triggers `daily-forecast/daily-forecast-dk1_lear` via `prefect deployment run`, polls `prefect flow-run inspect` every 15s, and fails the job if the run does not reach `COMPLETED` within 10 minutes.
+- Modified `DEPLOYMENT.md` — full rewrite covering Phases 0–5: updated architecture diagram (Loki + Grafana), migration list (001–007), `deploy_forecast.py` registration, observability section, and Tailscale OAuth + ACL one-time setup including the five required GH secrets (`TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REPO_PATH`).
+- Modified `CLAUDE.md` — added Phase 0–4 conventions: forecast/reconciliation/drift deployments, model artifact storage (`algo.model_artifacts`, `load_latest_artifact`), `LiveResult` metadata, reconciliation via re-insert with newer `created_utc`, Loki logging via `logging_setup` (no `print()`), Evidently in-process drift flow, CI/CD workflow summary. Added manual-trigger commands for the three new flows.
+- Modified `docker-compose.yml` — deleted the 5-line `model-store` volume TODO (superseded by ClickHouse blob storage in Phase 1).
+- All 240 tests pass (238 existing + 2 new smoke tests).
+
+**Design decisions:**
+1. Tailscale SSH over keypair-SSH — cleaner ACL model, short-lived per-run auth, no long-lived secrets.
+2. Ephemeral tailnet nodes via OAuth — auto-deregister, no device-count drift on the free plan.
+3. GitHub-hosted runner over self-hosted — avoids PR-triggered code execution on the deploy host.
+4. Integration smoke runs `daily-forecast/daily-forecast-dk1_lear` with a fixed historical date, not a dedicated test flow — same path as production, no parallel validation surface to maintain.
+5. `concurrency: cd-deploy, cancel-in-progress: false` — queue rapid merges instead of killing in-flight deploys.
+
+**One-time host setup required before first CD run:** `tailscale up --ssh`, OAuth client in tailnet admin with `tag:ci` tagOwner, ACL `ssh` rule allowing `tag:ci` to SSH as the deploy user, and the five GitHub repository secrets. Steps documented in `DEPLOYMENT.md` § CI/CD.
+
+---
+
 ## 1. Per-Practice Detail (P1-P9)
 
 ---
