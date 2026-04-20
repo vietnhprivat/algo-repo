@@ -10,7 +10,6 @@ ClickHouse persistence layer: schema migrations, batch ingest, query functions, 
 |-------|---------------------|-----------|---------|
 | `algo.timeseries` | `ReplacingMergeTree(ingested_utc)` | `toStartOfQuarter(timestamp_utc)` | Raw ENTSOE time-series observations |
 | `algo.forecasts` | `ReplacingMergeTree(ingested_utc)` | `toStartOfQuarter(timestamp_utc)` | Day-ahead forecasts (load, generation, wind/solar) |
-| `algo.energy_prices` | `ReplacingMergeTree` | `toStartOfQuarter(start_utc)` | ENTSOE energy price auction records |
 | `algo.experiment_runs` | `ReplacingMergeTree(created_utc)` | — | One row per forecast/backtest run with metrics |
 | `algo.experiment_predictions` | `ReplacingMergeTree` | `toStartOfQuarter(timestamp_utc)` | Per-period predictions and actuals |
 | `algo.model_artifacts` | `ReplacingMergeTree(created_utc)` | — | Base64-encoded joblib model blobs |

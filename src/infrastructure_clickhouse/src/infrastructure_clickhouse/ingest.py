@@ -4,7 +4,7 @@ from clickhouse_connect.driver.client import Client
 import polars as pl
 from typing import List
 
-from domain.curves import EnergyPriceObservation, Forecast, Observations
+from domain.curves import Forecast, Observations
 from infrastructure_clickhouse.logging_setup import build_log_extra, get_logger
 
 LOGGER = get_logger(__name__, service="clickhouse-ingest")
@@ -16,14 +16,6 @@ def insert_observations_batch(
 ) -> None:
     data_frames = pl.concat([obs.data_frame for obs in observations])
     insert_polars_dataframe(client, data_frames, "algo.timeseries")
-
-
-def insert_energy_prices_batch(
-    client: Client,
-    energy_prices: List[EnergyPriceObservation],
-) -> None:
-    data_frames = pl.concat([price.data_frame for price in energy_prices])
-    insert_polars_dataframe(client, data_frames, "algo.energy_prices")
 
 
 def insert_forecasts_batch(

@@ -54,20 +54,18 @@ Curve names use **spaces** as separators throughout the codebase — never dots.
 
 ## Domain Models (`curves.py`)
 
-Three schema-enforced data containers. All use `enforce_schema()` on construction.
+Two schema-enforced data containers. Both use `enforce_schema()` on construction.
 
 | Class | Key fields | Stored in |
 |-------|-----------|-----------|
 | `Observations` | `source`, `curve_name`, `area`, `timezone`, `timestamp_utc`, `value` (Float32), `ingested_utc` | `algo.timeseries` |
 | `Forecast` | `source`, `curve_name`, `area`, `area_timezone`, `model`, `issued_utc`, `issued_timezone`, `timestamp_utc`, `value` (Float32), `ingested_utc` | `algo.forecasts` |
-| `EnergyPriceObservation` | `source`, `area`, `area_timezone`, `start_utc`, `end_utc`, `auction_type`, `business_type`, `contract_type`, `price` (Float64), `currency`, `ingestion_timestamp` | `algo.energy_prices` |
 
 **Construction:**
 
 ```python
 obs = Observations(curve_name="ENTSOE DK1 TotalLoad Dayahead", data_frame=df)
 fcast = Forecast(curve_name="ENTSOE DK1 TotalLoad Dayahead", data_frame=df)
-epo = EnergyPriceObservation(data_frame=df)   # no curve_name arg
 ```
 
 **Empty placeholder:**
@@ -75,15 +73,6 @@ epo = EnergyPriceObservation(data_frame=df)   # no curve_name arg
 ```python
 obs = Observations.empty("ENTSOE DK1 TotalLoad Dayahead")
 ```
-
-**Delta merge (get only changed rows):**
-
-```python
-delta = Observations.get_updated_observations(existing, new)
-delta = Forecast.get_updated_forecast(existing, new)
-```
-
-Returns only rows where `value` changed or is new — used to avoid re-inserting unchanged data.
 
 ### `enforce_schema(df, schema) → pl.DataFrame`
 
