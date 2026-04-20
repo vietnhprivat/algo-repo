@@ -11,6 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from prefect import Flow
 
+from schedules.drift import drift_detection_flow
 from schedules.forecast import daily_forecast_flow
 from schedules.reconciliation import reconcile_predictions_flow
 
@@ -66,6 +67,7 @@ class ForecastFlowDeployment:
 
 
 FORECAST_CONFIGS = ["dk1_lear"]
+DRIFT_AREAS = ["DK1"]
 
 if __name__ == "__main__":
     for config_name in FORECAST_CONFIGS:
@@ -88,3 +90,15 @@ if __name__ == "__main__":
         flow=reconcile_predictions_flow,
         parameters={},
     ).deploy()
+
+    # Drift detection runs at 19:00 UTC, one hour after reconciliation so the
+    # latest day's actuals are in place before we compute distributions.
+    for area in DRIFT_AREAS:
+        ForecastFlowDeployment(
+            name=f"drift-detection-{area.lower()}",
+            work_pool_name="docker-pool",
+            image="algo-repo:latest",
+            cron="0 19 * * *",
+            flow=drift_detection_flow,
+            parameters={"area": area},
+        ).deploy()

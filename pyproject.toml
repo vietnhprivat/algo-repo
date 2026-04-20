@@ -3,7 +3,7 @@ name = "algo-repo"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
     "price-forecasting",
     "httpx>=0.28.1",
@@ -31,6 +31,7 @@ dependencies = [
     "forecast-cli",
     "python-dateutil>=2.9.0",
     "python-logging-loki>=0.3.1",
+    "evidently>=0.7",
 ]
 
 [tool.uv.workspace]
