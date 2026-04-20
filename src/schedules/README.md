@@ -1,146 +1,163 @@
 # schedules
 
-Prefect workflows for scheduled data ingestion and forecasting.
-
----
-
-## Architecture
-
-```
-schedules/
-├── src/schedules/
-│   ├── ingestion.py        # ENTSOE backfill flow (4 data types, parameterized by area)
-│   ├── deploy_ingestion.py # Deployment script — one deployment per area
-│   └── forecast.py         # Forecast flow (placeholder)
-└── scripts/
-    └── setup_work_pool.py  # One-time: create the Docker work pool
-```
-
-### Key design principle
-
-The flow itself contains **no fetch/insert logic**. It delegates to the shared service layer in `data_cli.entsoe.services`. This means both the CLI and Prefect flows use exactly the same code path:
-
-```
-data_cli.entsoe.services   ← shared: fetch + insert logic
-       ↑                ↑
-data_cli/backfill.py    schedules/ingestion.py
-(Typer UX)              (Prefect task/flow wrappers)
-```
+Prefect workflows for ingestion, forecasting, reconciliation, and drift detection. Four pipelines run on staggered daily/hourly crons; all business logic is delegated to service layers — tasks are thin orchestration wrappers.
 
 ---
 
 ## Flows
 
-### `entsoe_backfill_flow(area: str = "DK1")`
+| Flow | Function | Cron (UTC) | Purpose |
+|------|----------|-----------|---------|
+| `entsoe-backfill` | `entsoe_backfill_flow(area)` | `0 * * * *` | Ingest all 4 ENTSOE data types for one area (last 48h + next 24h) |
+| `daily-forecast` | `daily_forecast_flow(config_name, target_date)` | `0 6 * * *` | Train LEAR ensemble and store tomorrow's price prediction |
+| `reconcile-predictions` | `reconcile_predictions_flow()` | `0 18 * * *` | Backfill actual prices into predictions; compute live MAE/RMSE/sMAPE |
+| `drift-detection` | `drift_detection_flow(area)` | `0 19 * * *` | Evidently KS-test: 7-day current vs 90-day reference window |
 
-Ingests all four ENTSOE data types for a given area over the last **48 hours**:
-
-| Task | Data type | ClickHouse table |
-|---|---|---|
-| `ingest_energy_prices_task` | Day-ahead prices (A44) | `algo.timeseries` |
-| `ingest_total_load_task` | Total load forecast (A65) | `algo.forecasts` |
-| `ingest_generation_forecast_task` | Generation forecast (A71) | `algo.forecasts` |
-| `ingest_wind_solar_task` | Wind/solar forecast (A69) | `algo.forecasts` |
-
-Each task has `retries=2, retry_delay_seconds=60`. Tasks run sequentially to respect the ENTSOE rate limit (400 calls/60s shared across all calls). If one task fails after retries, the others still run.
-
-The `LOOKBACK_HOURS = 48` constant in `ingestion.py` controls the window. Overlapping runs are safe — ClickHouse uses `ReplacingMergeTree` and deduplicates.
+**Schedule rationale:** ENTSOE publishes day-ahead actuals ~14:00 UTC. Reconciliation at 18:00 gives a 4-hour margin. Drift at 19:00 runs after reconciliation completes.
 
 ---
 
-## Setup (one-time)
+## Tasks
 
-```bash
-# 1. Create the Docker work pool in Prefect
-PREFECT_API_URL="http://localhost:4200/api" uv run python scripts/setup_work_pool.py
-```
+### `entsoe_backfill_flow`
+
+| Task | Retries | Delegates to |
+|------|---------|-------------|
+| `ingest_energy_prices_task` | 2 × 60s | `data_cli.entsoe.services.backfill_energy_prices` |
+| `ingest_total_load_task` | 2 × 60s | `data_cli.entsoe.services.backfill_total_load` |
+| `ingest_generation_forecast_task` | 2 × 60s | `data_cli.entsoe.services.backfill_generation_forecast` |
+| `ingest_wind_solar_task` | 2 × 60s | `data_cli.entsoe.services.backfill_wind_solar` |
+
+Tasks run sequentially (ENTSOE rate limit: 400 calls/60s shared). One failed task does not abort the others.
+
+### `daily_forecast_flow`
+
+| Task | Retries | Delegates to |
+|------|---------|-------------|
+| `load_config_task` | none (fail fast) | `forecast_cli.config_loader.load_config` |
+| `predict_task` | 2 × 60s | `price_forecasting.LiveRunner.run_live_with_metadata` |
+| `track_prediction_task` | none (fail visible) | `forecast_cli.tracking.track_prediction` |
+
+`target_date` defaults to tomorrow (`now + 1 day`) if not provided.
+
+### `reconcile_predictions_flow`
+
+| Task | Retries | What it does |
+|------|---------|-------------|
+| `find_unreconciled_runs_task` | none | Fetches runs where `metrics_json = '{}'` |
+| `reconcile_area_task(area, runs)` | 2 × 60s | One predictions query + one actuals query per area (no N+1); re-inserts with actuals and computed metrics |
+
+Runs are all-or-nothing: if any timestamp lacks an actual, the whole run is skipped (retried next day). Update via re-insert with newer `created_utc` — `ReplacingMergeTree` keeps the winning row. Never `UPDATE` or `OPTIMIZE FINAL` on writes.
+
+### `drift_detection_flow`
+
+| Task | Retries | What it does |
+|------|---------|-------------|
+| `detect_drift_for_area_task(area)` | 2 × 60s | Fetches current + reference windows; runs Evidently `DataDriftPreset`; inserts report to `algo.drift_reports`; logs WARNING if drift detected |
+
+Minimum 30 samples per window required. Skips and returns `status: "skipped_insufficient_samples"` otherwise.
 
 ---
 
-## Deploying a schedule
+## Service-Layer Delegation
 
-Each deployment is one area + one cron schedule. Deploy from the repo root (scripts auto-load `.env`):
-
-```bash
-PREFECT_API_URL="http://localhost:4200/api" uv run python src/schedules/src/schedules/deploy_ingestion.py
+```
+data_cli.entsoe.services   ←─── ingestion.py   (fetch + insert ENTSOE data)
+price_forecasting          ←─── forecast.py    (LiveRunner, ExperimentConfig)
+forecast_cli               ←─── forecast.py    (load_config, track_prediction)
+infrastructure_clickhouse  ←─── reconciliation.py, drift.py  (queries + ingest)
+price_forecasting.evaluation ←─ reconciliation.py  (calculate_mae/rmse/smape)
+evidently                  ←─── drift.py       (DataDriftPreset)
 ```
 
-This deploys `entsoe-backfill-dk1` running hourly for DK1.
+Flows and tasks contain no fetch/insert/ML logic — they orchestrate and handle retries.
 
-### Adding a new area
+---
 
-In [deploy_ingestion.py](src/schedules/deploy_ingestion.py), add a second deployment at the bottom:
+## Deployment Scripts
+
+### `deploy_ingestion.py`
+
+Registers one deployment per area in `AREAS`:
 
 ```python
-if __name__ == "__main__":
-    # Existing DK1 deployment
-    EntsoeIngestionFlowDeployment(
-        name="entsoe-backfill-dk1",
-        ...
-        parameters={"area": "DK1"},
-    ).deploy()
-
-    # New DE deployment
-    EntsoeIngestionFlowDeployment(
-        name="entsoe-backfill-de",
-        work_pool_name="docker-pool",
-        image="algo-repo:latest",
-        cron="0 * * * *",
-        flow=entsoe_backfill_flow,
-        parameters={"area": "DE"},
-    ).deploy()
+AREAS = ["DK1", "DK2", "NL", "BE", "DE", "FR", "PL"]
 ```
 
-Run the script again to register the new deployment. No flow code changes needed.
+Each deployment: `entsoe-ingestion/ingestion-hourly-{area}`, cron `0 * * * *`.
 
-Valid area tags come from `domain.areas` (e.g. `DK1`, `DK2`, `DE`, `NO`, `SE`).
+**Add a new area:** append its tag to `AREAS` and rerun the script. No flow code changes needed.
 
-### Changing the cron schedule
+### `deploy_forecast.py`
 
-Change the `cron` string in the `EntsoeIngestionFlowDeployment` constructor and re-run `deploy_ingestion.py`. Standard cron syntax — `"0 * * * *"` is hourly, `"0 6 * * *"` is daily at 06:00 UTC.
-
-### Changing the lookback window
-
-Edit `LOOKBACK_HOURS` in [ingestion.py](src/schedules/ingestion.py):
+Registers deployments for three flows:
 
 ```python
-LOOKBACK_HOURS = 48  # change this
+FORECAST_CONFIGS = ["dk1_lear"]   # one daily-forecast deployment per config
+DRIFT_AREAS = ["DK1"]              # one drift-detection deployment per area
 ```
 
-Increasing this means each run fetches more history. Overlapping data is safe to re-ingest.
+| Deployment name | Flow | Cron |
+|----------------|------|------|
+| `daily-forecast/daily-forecast-{config}` | `daily_forecast_flow` | `0 6 * * *` |
+| `reconcile-predictions/reconcile-predictions` | `reconcile_predictions_flow` | `0 18 * * *` |
+| `drift-detection/drift-detection-{area}` | `drift_detection_flow` | `0 19 * * *` |
+
+**Add a new forecast config:** append to `FORECAST_CONFIGS` and rerun. The `configs/` directory is volume-mounted at `/app/configs` — no Docker image rebuild needed for config changes.
+
+**Add a new drift area:** append to `DRIFT_AREAS` and rerun.
+
+**Deploy:**
+
+```bash
+export PREFECT_API_URL="http://localhost:4200/api"
+uv run python src/schedules/src/schedules/deploy_ingestion.py
+uv run python src/schedules/src/schedules/deploy_forecast.py
+```
+
+Both scripts are idempotent.
 
 ---
 
-## Adding a new data type
+## Environment Variables
 
-1. Add a service function to `data_cli/entsoe/services.py` following the existing pattern.
+| Variable | Default | Used by |
+|----------|---------|---------|
+| `ENTSOE_API_KEY` | — (required) | ingestion |
+| `CLICKHOUSE_HOST` | `clickhouse` | all flows |
+| `CLICKHOUSE_PORT` | `8123` | all flows |
+| `CLICKHOUSE_USER` | `default` | all flows |
+| `CLICKHOUSE_PASSWORD` | `password` | all flows |
+| `CLICKHOUSE_DATABASE` | `algo` | all flows |
+| `LOKI_URL` | `http://loki:3100/loki/api/v1/push` | all flows |
+| `PREFECT_API_URL` | `http://server:4200/api` | all flows (in container) |
+
+Credentials are read from `.env` at deploy time and baked into Docker job variables. `LOKI_URL` is optional — logging falls back to console if absent.
+
+---
+
+## Manual Triggers
+
+```bash
+# Run without Prefect server (local)
+python -c "from schedules.ingestion import entsoe_backfill_flow; entsoe_backfill_flow(area='DK1')"
+python -c "from schedules.forecast import daily_forecast_flow; daily_forecast_flow(config_name='dk1_lear')"
+python -c "from schedules.reconciliation import reconcile_predictions_flow; reconcile_predictions_flow()"
+python -c "from schedules.drift import drift_detection_flow; drift_detection_flow(area='DK1')"
+
+# Trigger via Prefect CLI (server must be running)
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "entsoe-ingestion/ingestion-hourly-DK1"
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "daily-forecast/daily-forecast-dk1_lear"
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "reconcile-predictions/reconcile-predictions"
+PREFECT_API_URL="http://localhost:4200/api" prefect deployment run "drift-detection/drift-detection-DK1"
+```
+
+---
+
+## Adding a New Data Type (ingestion)
+
+1. Add a service function to `data_cli/entsoe/services.py`.
 2. Add a `@task` wrapper in `ingestion.py`.
 3. Call the new task inside `entsoe_backfill_flow`.
 
-No deployment changes needed — the existing deployments will pick up the new task on the next run after code is rebuilt into the Docker image.
-
----
-
-## Running a flow manually
-
-```bash
-# Trigger a one-off run locally (no Prefect server needed)
-python -c "from schedules.ingestion import entsoe_backfill_flow; entsoe_backfill_flow(area='DK1')"
-
-# Trigger from Prefect UI / CLI after deploying
-prefect deployment run 'entsoe-backfill/entsoe-backfill-dk1'
-```
-
----
-
-## Environment variables
-
-All credentials are baked into the deployment via `deploy_ingestion.py` (read from `.env` on the host at deploy time):
-
-| Variable | Description |
-|---|---|
-| `ENTSOE_API_KEY` | ENTSOE Transparency Platform API key |
-| `CLICKHOUSE_HOST` | ClickHouse hostname (default: `clickhouse`) |
-| `CLICKHOUSE_PORT` | ClickHouse HTTP port (default: `8123`) |
-| `CLICKHOUSE_USER` | ClickHouse user |
-| `CLICKHOUSE_PASSWORD` | ClickHouse password |
+No deployment changes needed — existing deployments pick up the new task on the next image rebuild.
