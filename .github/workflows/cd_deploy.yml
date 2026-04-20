@@ -1,0 +1,74 @@
+name: CD Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Join tailnet
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          version: latest
+          use-cache: "true"
+
+      - name: Rebuild image and redeploy flows on host
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REPO_PATH: ${{ secrets.DEPLOY_REPO_PATH }}
+        run: |
+          tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" <<EOF
+            set -euo pipefail
+            cd "$REPO_PATH"
+            git fetch origin main
+            git reset --hard origin/main
+            docker build -t algo-repo:latest .
+            export PREFECT_API_URL="http://localhost:4200/api"
+            uv run python src/schedules/src/schedules/deploy_ingestion.py
+            uv run python src/schedules/src/schedules/deploy_forecast.py
+          EOF
+
+      - name: Trigger integration smoke run
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" <<'EOF'
+            set -euo pipefail
+            export PREFECT_API_URL="http://localhost:4200/api"
+            flow_run_id=$(uv run prefect deployment run \
+              "daily-forecast/daily-forecast-dk1_lear" \
+              --param target_date=2026-03-22 \
+              -o json | python -c "import json,sys; print(json.load(sys.stdin)['id'])")
+            echo "Triggered flow run $flow_run_id"
+
+            deadline=$((SECONDS + 600))
+            while [ $SECONDS -lt $deadline ]; do
+              state=$(uv run prefect flow-run inspect "$flow_run_id" -o json \
+                | python -c "import json,sys; print(json.load(sys.stdin)['state']['type'])")
+              echo "  state=$state"
+              case "$state" in
+                COMPLETED) exit 0 ;;
+                FAILED|CRASHED|CANCELLED) exit 1 ;;
+              esac
+              sleep 15
+            done
+            echo "Timed out waiting for flow run to finish."
+            exit 1
+          EOF
