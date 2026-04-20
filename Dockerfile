@@ -1,6 +1,6 @@
 # Dockerfile for algo-repo
 # This image is used by Prefect Docker worker to run flows as ephemeral containers.
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 

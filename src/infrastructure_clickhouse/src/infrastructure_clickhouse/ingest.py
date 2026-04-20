@@ -129,6 +129,61 @@ def insert_experiment_predictions(
     insert_polars_dataframe(client, predictions, "algo.experiment_predictions")
 
 
+def insert_drift_report(
+    client: Client,
+    *,
+    report_id: str,
+    created_utc: datetime,
+    area: str,
+    curve_name: str,
+    reference_start_utc: datetime,
+    reference_end_utc: datetime,
+    current_start_utc: datetime,
+    current_end_utc: datetime,
+    stat_test: str,
+    drift_score: float,
+    drift_threshold: float,
+    drift_detected: bool,
+    reference_n: int,
+    current_n: int,
+) -> None:
+    df = pl.DataFrame(
+        {
+            "report_id": [report_id],
+            "created_utc": [created_utc],
+            "area": [area],
+            "curve_name": [curve_name],
+            "reference_start_utc": [reference_start_utc],
+            "reference_end_utc": [reference_end_utc],
+            "current_start_utc": [current_start_utc],
+            "current_end_utc": [current_end_utc],
+            "stat_test": [stat_test],
+            "drift_score": [drift_score],
+            "drift_threshold": [drift_threshold],
+            "drift_detected": [1 if drift_detected else 0],
+            "reference_n": [reference_n],
+            "current_n": [current_n],
+        },
+        schema={
+            "report_id": pl.String,
+            "created_utc": pl.Datetime("us", "UTC"),
+            "area": pl.String,
+            "curve_name": pl.String,
+            "reference_start_utc": pl.Datetime("us", "UTC"),
+            "reference_end_utc": pl.Datetime("us", "UTC"),
+            "current_start_utc": pl.Datetime("us", "UTC"),
+            "current_end_utc": pl.Datetime("us", "UTC"),
+            "stat_test": pl.String,
+            "drift_score": pl.Float64,
+            "drift_threshold": pl.Float64,
+            "drift_detected": pl.UInt8,
+            "reference_n": pl.UInt32,
+            "current_n": pl.UInt32,
+        },
+    )
+    insert_polars_dataframe(client, df, "algo.drift_reports")
+
+
 def insert_polars_dataframe(
     client: Client, dataframe: pl.DataFrame, table_name: str, batch_size: int = 10_000
 ) -> None:
