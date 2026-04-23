@@ -29,7 +29,7 @@ tests/                       # Mirrors src/ structure
 
 ### Domain Models
 - Use Polars DataFrames with strictly enforced schemas (`enforce_schema()` in `curves.py`)
-- `Observations` for time-series data, `Forecast` for forecast data, `EnergyPriceObservation` for energy prices
+- `Observations` for time-series data, `Forecast` for forecast data
 - Curve names use **spaces** as separators: `ENTSOE DK1 TotalLoad Dayahead` (not dots)
 - Area definitions live in `areas.py` as frozen dataclasses with lookup dicts
 
