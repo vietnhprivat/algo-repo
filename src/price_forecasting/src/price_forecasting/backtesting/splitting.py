@@ -82,3 +82,42 @@ def split_by_dates(
         validation=empty,
         test=DatasetSplit(features[test_mask], targets[test_mask]),
     )
+
+
+@dataclass
+class TrainValTestSplit:
+    train_features: pd.DataFrame
+    train_targets: pd.DataFrame
+    val_features: pd.DataFrame
+    val_targets: pd.DataFrame
+    test_features: pd.DataFrame
+    test_targets: pd.DataFrame
+
+
+def split_by_dates_with_validation(
+    features: pd.DataFrame,
+    targets: pd.DataFrame,
+    val_start: str,
+    val_end: str,
+    test_start: str,
+    test_end: str,
+) -> TrainValTestSplit:
+    """Train ends before val_start; val is [val_start, val_end];
+    test is [test_start, test_end]. Train, val, and test must be disjoint."""
+    val_s, val_e = pd.Timestamp(val_start), pd.Timestamp(val_end)
+    test_s, test_e = pd.Timestamp(test_start), pd.Timestamp(test_end)
+    if not val_e < test_s:
+        raise ValueError("val_end must precede test_start (disjoint windows)")
+
+    train_mask = features.index < val_s
+    val_mask = (features.index >= val_s) & (features.index <= val_e)
+    test_mask = (features.index >= test_s) & (features.index <= test_e)
+
+    return TrainValTestSplit(
+        train_features=features.loc[train_mask],
+        train_targets=targets.loc[train_mask],
+        val_features=features.loc[val_mask],
+        val_targets=targets.loc[val_mask],
+        test_features=features.loc[test_mask],
+        test_targets=targets.loc[test_mask],
+    )

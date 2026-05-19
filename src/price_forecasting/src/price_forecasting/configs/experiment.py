@@ -17,6 +17,12 @@ class ExperimentConfig:
     test_start_date: Optional[str] = None
     test_end_date: Optional[str] = None
 
+    # Validation window (recommended: disjoint, ends before test_start_date).
+    # Lago et al. 2021 §4.3.2 use 42 weeks; checklist #9 requires this be
+    # different from the test set when hyperparameters are selected ex-ante.
+    val_start_date: Optional[str] = None
+    val_end_date: Optional[str] = None
+
     # Option B: ratio-based split (fallback when test dates not set)
     train_ratio: float = 0.7
     validation_ratio: float = 0.15
