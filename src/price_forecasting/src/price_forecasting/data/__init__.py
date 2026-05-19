@@ -1,3 +1,4 @@
+from price_forecasting.data.asinh_scaler import AsinhScaler as AsinhScaler
 from price_forecasting.data.preprocessor import (
     DataPreprocessor as DataPreprocessor,
     detect_n_periods as detect_n_periods,
