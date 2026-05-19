@@ -66,8 +66,8 @@ class ForecastFlowDeployment:
         )
 
 
-FORECAST_CONFIGS = ["dk1_lear"]
-DRIFT_AREAS = ["DK1"]
+FORECAST_CONFIGS = ["dk1_lear", "de_lear"]
+DRIFT_AREAS = ["DK1", "DE"]
 
 if __name__ == "__main__":
     for config_name in FORECAST_CONFIGS:
