@@ -4,6 +4,8 @@ import pytest
 from price_forecasting.evaluation.statistical_tests import (
     diebold_mariano,
     DMResult,
+    giacomini_white_multivariate,
+    GWResult,
 )
 
 
@@ -43,3 +45,45 @@ class TestDieboldMariano:
     def test_unknown_alternative_raises(self):
         with pytest.raises(ValueError, match="Unknown alternative"):
             diebold_mariano(np.zeros(10), np.zeros(10), loss="l1", alternative="weirder")
+
+
+class TestGiacominiWhite:
+    def test_low_p_when_b_better(self):
+        rng = np.random.default_rng(0)
+        n_days, n_periods = 300, 24
+        errors_a = rng.normal(0.0, 5.0, size=(n_days, n_periods))
+        errors_b = rng.normal(0.0, 1.0, size=(n_days, n_periods))
+        result = giacomini_white_multivariate(
+            errors_a, errors_b, norm=1, alternative="b_better"
+        )
+        assert isinstance(result, GWResult)
+        assert result.p_value < 0.01
+
+    def test_high_p_when_equivalent(self):
+        rng = np.random.default_rng(0)
+        n_days, n_periods = 365, 24
+        errors_a = rng.normal(0.0, 2.0, size=(n_days, n_periods))
+        errors_b = rng.normal(0.0, 2.0, size=(n_days, n_periods))
+        result = giacomini_white_multivariate(
+            errors_a, errors_b, norm=1, alternative="b_better"
+        )
+        assert result.p_value > 0.1
+
+    def test_norm_2_supported(self):
+        rng = np.random.default_rng(0)
+        errors_a = rng.normal(0.0, 3.0, size=(200, 24))
+        errors_b = rng.normal(0.0, 1.0, size=(200, 24))
+        result = giacomini_white_multivariate(
+            errors_a, errors_b, norm=2, alternative="b_better"
+        )
+        assert result.p_value < 0.01
+
+    def test_rejects_non_2d_input(self):
+        with pytest.raises(ValueError, match="must be 2-D"):
+            giacomini_white_multivariate(np.zeros(24), np.zeros(24))
+
+    def test_rejects_unknown_norm(self):
+        with pytest.raises(ValueError, match="norm must be 1 or 2"):
+            giacomini_white_multivariate(
+                np.zeros((10, 24)), np.zeros((10, 24)), norm=3
+            )
