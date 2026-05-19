@@ -198,6 +198,12 @@ def detect_drift_for_area_task(area: str) -> dict:
     if drift_detected:
         LOGGER.warning(f"Drift detected: {score_vs_threshold}", extra=log_extra)
         print(f"[{area}] DRIFT DETECTED: {score_vs_threshold}")
+        from schedules.alerting import notify
+        notify(
+            subject=f"Drift detected on {area}",
+            message=f"{score_vs_threshold}; report_id={report_id}",
+            severity="warning",
+        )
         _maybe_trigger_retrain(
             area=area, drift_detected=True, drift_report_id=report_id,
         )
