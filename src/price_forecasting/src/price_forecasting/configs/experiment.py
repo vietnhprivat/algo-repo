@@ -50,3 +50,7 @@ class ExperimentConfig:
     # Target scaler — "standard" (default, backwards compatible) or "asinh"
     # (Lago et al. 2021 §4.2, recommended for LEAR).
     target_scaler: str = "standard"
+
+    # Number of DNN replicates to average at serving time (Lago §4.4).
+    # Only used for model_type == "dnn".
+    n_dnn_ensemble: int = 1
