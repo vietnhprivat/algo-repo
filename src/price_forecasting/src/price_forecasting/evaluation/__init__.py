@@ -12,6 +12,7 @@ from price_forecasting.evaluation.statistical_tests import (
     giacomini_white_multivariate as giacomini_white_multivariate,
 )
 from price_forecasting.evaluation.summary import (
+    build_dm_matrix as build_dm_matrix,
     build_weekly_naive as build_weekly_naive,
     compute_metrics_per_hour as compute_metrics_per_hour,
     compute_metrics_summary as compute_metrics_summary,
