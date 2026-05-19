@@ -54,3 +54,8 @@ class ExperimentConfig:
     # Number of DNN replicates to average at serving time (Lago §4.4).
     # Only used for model_type == "dnn".
     n_dnn_ensemble: int = 1
+
+    # When True, drift detection on this area triggers an immediate retrain
+    # Prefect flow run. Default False (alert-only). Closes the P9 feedback
+    # loop (Zarour 2025).
+    retrain_on_drift: bool = False
