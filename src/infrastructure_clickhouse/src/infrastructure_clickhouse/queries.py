@@ -122,7 +122,7 @@ def get_recent_accuracy(
         f"""
         SELECT quantile(0.5)(toFloat64OrNull(JSONExtractString(metrics_json, 'mae'))) AS m
         FROM algo.experiment_runs FINAL
-        WHERE area = %(area)s AND experiment_name = %(cfg)s
+        WHERE area = {{area:String}} AND experiment_name = {{cfg:String}}
           AND created_utc >= now() - INTERVAL {int(days)} DAY
           AND metrics_json != ''
         """,

@@ -13,13 +13,12 @@ groups:
             datasourceUid: clickhouse
             model:
               rawSql: |
-                SELECT max(timestamp_utc) AS latest
+                SELECT if(max(timestamp_utc) < now() - INTERVAL 12 HOUR, 1, 0) AS stale
                 FROM algo.timeseries FINAL
                 WHERE curve_name LIKE 'ENTSOE % EnergyPrice%'
-              format: time_series
         for: 30m
         annotations:
-          summary: A curve has not received fresh data in >12 hours
+          summary: A curve has not received fresh data in >12 hours (stale=1)
         labels:
           severity: warning
 
@@ -31,7 +30,8 @@ groups:
             datasourceUid: clickhouse
             model:
               rawSql: |
-                SELECT count() FROM algo.drift_reports FINAL
+                SELECT count() AS drift_count
+                FROM algo.drift_reports FINAL
                 WHERE drift_detected = true
                   AND created_utc >= today()
         for: 5m
@@ -48,11 +48,12 @@ groups:
             datasourceUid: clickhouse
             model:
               rawSql: |
-                SELECT count() FROM algo.experiment_runs FINAL
+                SELECT if(count() = 0, 1, 0) AS no_recent_reconciliation
+                FROM algo.experiment_runs FINAL
                 WHERE created_utc >= now() - INTERVAL 36 HOUR
                   AND metrics_json != ''
         for: 1h
         annotations:
-          summary: No reconciled run in the last 36 hours
+          summary: No reconciled run in the last 36 hours (no_recent_reconciliation=1)
         labels:
           severity: error
