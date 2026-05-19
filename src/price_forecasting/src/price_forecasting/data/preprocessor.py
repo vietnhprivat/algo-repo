@@ -41,13 +41,22 @@ class DataPreprocessor:
     def __init__(self, experiment_config: ExperimentConfig):
         self.experiment_config = experiment_config
         self.feature_scaler = StandardScaler()
-        self.target_scaler = StandardScaler()
+        self.target_scaler = self._build_target_scaler(experiment_config.target_scaler)
 
         if experiment_config.feature_transformers is not None:
             self.transformers = experiment_config.feature_transformers
         else:
             from price_forecasting.data.transformers import default_transformers_for_model
             self.transformers = default_transformers_for_model(experiment_config.exogenous_curve_types)
+
+    @staticmethod
+    def _build_target_scaler(name: str):
+        if name == "asinh":
+            from price_forecasting.data.asinh_scaler import AsinhScaler
+            return AsinhScaler()
+        if name == "standard":
+            return StandardScaler()
+        raise ValueError(f"Unknown target_scaler: {name!r}")
 
     def generate_full_feature_matrix(
         self, dataframe: pd.DataFrame | None = None

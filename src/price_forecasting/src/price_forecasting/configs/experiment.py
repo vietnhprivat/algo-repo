@@ -40,3 +40,7 @@ class ExperimentConfig:
     # Custom feature transformers. If None, DataPreprocessor builds model-type defaults.
     # If set, must be a list of FeatureTransformer instances.
     feature_transformers: Optional[list] = None
+
+    # Target scaler — "standard" (default, backwards compatible) or "asinh"
+    # (Lago et al. 2021 §4.2, recommended for LEAR).
+    target_scaler: str = "standard"
