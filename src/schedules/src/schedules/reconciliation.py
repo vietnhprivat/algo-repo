@@ -31,6 +31,7 @@ from price_forecasting.evaluation import (
     calculate_rmse,
     calculate_smape,
 )
+from schedules.alerting import notify
 
 LOGGER = get_logger(__name__, service="prefect-reconciliation")
 
@@ -200,6 +201,29 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
         client.close()
 
     return {"area": area, "reconciled": reconciled, "skipped": skipped}
+
+
+def _maybe_alert_accuracy_degradation(
+    *,
+    area: str,
+    config_name: str,
+    today_mae: float,
+    baseline_median_mae: float | None,
+    threshold_multiplier: float = 1.5,
+) -> None:
+    """Slack-alert when today's MAE is >threshold_multiplier × baseline median."""
+    if baseline_median_mae is None or baseline_median_mae <= 0:
+        return
+    if today_mae <= threshold_multiplier * baseline_median_mae:
+        return
+    notify(
+        subject=f"Accuracy degradation on {area} ({config_name})",
+        message=(
+            f"Today's MAE {today_mae:.2f} > {threshold_multiplier}× 30-day median "
+            f"{baseline_median_mae:.2f}. Investigate."
+        ),
+        severity="warning",
+    )
 
 
 @flow(name="reconcile-predictions", log_prints=True)
