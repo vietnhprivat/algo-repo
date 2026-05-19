@@ -66,6 +66,17 @@ tests/                       # Mirrors src/ structure
 - **Grafana dashboards** auto-provision from `grafana/provisioning/` and `grafana/dashboards/`. Three dashboards: Data Quality, Model Performance, Operational (Loki log stream). Adding a panel = editing the JSON file in `grafana/dashboards/` (do not edit through the UI — changes will be overwritten on restart).
 - **Drift detection** (`schedules/drift.py`): Evidently runs **in-process** inside the Prefect flow, no Evidently service. Reference window = 90 days, current window = 7 days. Results land in `algo.drift_reports` (migration `007`); a drift event emits a WARNING to Loki.
 
+### Alerting
+- **Slack notifications** via `SLACK_WEBHOOK_URL`. Helper `schedules.alerting.notify(subject, message, severity)` no-ops if the var is unset, so local dev never fails.
+- **Drift** posts a warning + triggers retrain when `retrain_on_drift=True` on the config (migration 009 records each event in `algo.retrain_events`).
+- **Accuracy degradation**: `reconciliation._maybe_alert_accuracy_degradation` alerts when today's MAE > 1.5× the 30-day median.
+- **Grafana alert rules** file-based in `grafana/provisioning/alerting/rules.yaml`: data-staleness, drift-detected-today, reconciliation-missed. Never edit via the UI.
+
+### Hyperparameter tuning
+- `uv run python -m forecast_cli.main tune <config>` runs Optuna TPE with the search space from `price_forecasting.tuning.dnn_search` (Lago §4.3.3: 10 binary feature/selector + 8 architecture HPs). Trials persist to `algo.hyperparam_trials` (migration `008`). Config must declare `val_start_date` and `val_end_date`.
+- After tuning, paste the best params into the config's `model_params` dict and commit. The objective filters Optuna keys the model class doesn't accept (`use_price_d_*`, `use_exog_*`, `preprocessing`, `init_method`); only architecture HPs reach the model.
+- DNN serving averages `n_dnn_ensemble` replicates with distinct random seeds (Lago §4.4).
+
 ### CI/CD
 - **PR workflows**: `pr_test.yml` runs pytest, `pr_ruff-lint.yaml` runs ruff. The LEAR smoke test (`tests/price_forecasting/test_smoke.py`) is picked up automatically.
 - **CD workflow**: `cd_deploy.yml` fires on merge to `main`, joins the tailnet via the Tailscale GitHub Action, SSHes into the deploy host, rebuilds `algo-repo:latest`, reruns both `deploy_*.py` scripts, then triggers `daily-forecast/daily-forecast-dk1_lear` and polls until it completes. One-time setup is in `DEPLOYMENT.md`.
