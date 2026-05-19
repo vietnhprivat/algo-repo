@@ -1,0 +1,58 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: forecast-platform
+    folder: Alerts
+    interval: 5m
+    rules:
+      - uid: data-staleness
+        title: Curve freshness > 12h
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              rawSql: |
+                SELECT max(timestamp_utc) AS latest
+                FROM algo.timeseries FINAL
+                WHERE curve_name LIKE 'ENTSOE % EnergyPrice%'
+              format: time_series
+        for: 30m
+        annotations:
+          summary: A curve has not received fresh data in >12 hours
+        labels:
+          severity: warning
+
+      - uid: drift-detected-today
+        title: Drift detected today
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              rawSql: |
+                SELECT count() FROM algo.drift_reports FINAL
+                WHERE drift_detected = true
+                  AND created_utc >= today()
+        for: 5m
+        annotations:
+          summary: At least one drift_report has drift_detected=true today
+        labels:
+          severity: warning
+
+      - uid: reconciliation-missed
+        title: No reconciliation in 36h
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              rawSql: |
+                SELECT count() FROM algo.experiment_runs FINAL
+                WHERE created_utc >= now() - INTERVAL 36 HOUR
+                  AND metrics_json != ''
+        for: 1h
+        annotations:
+          summary: No reconciled run in the last 36 hours
+        labels:
+          severity: error
