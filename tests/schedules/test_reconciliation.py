@@ -218,6 +218,8 @@ class TestReconcileAreaTask:
         assert "rmse" in metrics
         assert "smape" in metrics
 
+    @patch("schedules.reconciliation._maybe_alert_accuracy_degradation")
+    @patch("schedules.reconciliation.get_recent_accuracy")
     @patch("schedules.reconciliation.insert_experiment_run")
     @patch("schedules.reconciliation.insert_experiment_predictions")
     @patch("schedules.reconciliation.get_actual_prices_for_period")
@@ -230,6 +232,8 @@ class TestReconcileAreaTask:
         mock_get_actuals,
         mock_insert_preds,
         mock_insert_run,
+        mock_get_baseline,
+        mock_alert,
     ):
         """Re-insert must carry the SHA from the prediction-time row, not '' or the
         current deploy's SHA. Otherwise the column becomes useless after the first
