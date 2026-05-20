@@ -2,6 +2,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
 
 from price_forecasting.configs import ExperimentConfig
@@ -31,6 +32,13 @@ class LiveRunner:
 
         return factory
 
+    def _get_model_factory_with_seed(self, seed: int):
+        def factory():
+            params = dict(self.config.model_params)
+            params["random_seed"] = seed
+            return get_model(self.config.model_type, **params)
+        return factory
+
     def _load_and_preprocess_data(
         self, dataframe: pd.DataFrame | None = None
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -50,9 +58,25 @@ class LiveRunner:
             raise ValueError("Target date not found in available data.")
 
         t0 = time.perf_counter()
-        prediction = engine._ensemble_forecast(
-            model_factory, features, targets, target_timestamp
-        )
+        if self.config.model_type == "dnn" and self.config.n_dnn_ensemble > 1:
+            preds = []
+            trained_models: dict = {}
+            for seed in range(self.config.n_dnn_ensemble):
+                seed_factory = self._get_model_factory_with_seed(seed)
+                seed_engine = BacktestEngine(self.config)
+                preds.append(seed_engine._ensemble_forecast(
+                    seed_factory, features, targets, target_timestamp
+                ))
+                for ws, state in seed_engine._window_state.items():
+                    trained_models[(seed, ws)] = state.model
+            prediction = np.mean(preds, axis=0)
+        else:
+            prediction = engine._ensemble_forecast(
+                model_factory, features, targets, target_timestamp
+            )
+            trained_models = {
+                ws: state.model for ws, state in engine._window_state.items()
+            }
         training_duration = time.perf_counter() - t0
 
         n_periods = len(prediction)
@@ -61,10 +85,6 @@ class LiveRunner:
 
         data_start_utc = features.index.min().to_pydatetime().replace(tzinfo=timezone.utc)
         data_end_utc = features.index.max().to_pydatetime().replace(tzinfo=timezone.utc)
-
-        trained_models = {
-            ws: state.model for ws, state in engine._window_state.items()
-        }
 
         return LiveResult(
             prediction=prediction_series,

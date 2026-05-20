@@ -7,11 +7,58 @@ pure Python, returns a result dataclass.
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import List
 
 from domain.areas import Area
 from infrastructure_clickhouse.client_factory import create_client
 from infrastructure_clickhouse.ingest import insert_forecasts_batch, insert_observations_batch
 from infrastructure_entsoe.client_factory import create_entsoe_client
+
+
+@dataclass
+class QualityIssue:
+    kind: str
+    detail: str
+
+
+_PRICE_MIN, _PRICE_MAX = -500.0, 4000.0
+_LOAD_MIN, _LOAD_MAX = 0.0, 1_000_000.0  # MW
+
+
+def assert_curve_quality(rows: list, curve_name: str) -> List[QualityIssue]:
+    """Return a list of QualityIssue; empty list means clean.
+
+    Expects rows as list of dicts with keys 'timestamp_utc' and 'value'.
+    Note: the backfill_* functions in this module work with domain model objects
+    (Observation / Forecast with Polars DataFrames), not plain dicts. Wire this
+    helper into new ingest paths that expose a flat dict representation of rows.
+    """
+    issues: List[QualityIssue] = []
+    if not rows:
+        issues.append(QualityIssue("empty", f"{curve_name}: zero rows"))
+        return issues
+
+    timestamps = [r["timestamp_utc"] for r in rows]
+    if any(b <= a for a, b in zip(timestamps, timestamps[1:])):
+        issues.append(QualityIssue(
+            "non_monotonic", f"{curve_name}: timestamps not strictly increasing"
+        ))
+
+    if "EnergyPrice" in curve_name:
+        lo, hi = _PRICE_MIN, _PRICE_MAX
+    elif "Load" in curve_name or "Generation" in curve_name:
+        lo, hi = _LOAD_MIN, _LOAD_MAX
+    else:
+        lo, hi = float("-inf"), float("inf")
+    for r in rows:
+        v = r["value"]
+        if v < lo or v > hi:
+            issues.append(QualityIssue(
+                "out_of_range", f"{curve_name}: value {v} outside [{lo}, {hi}]"
+            ))
+            break
+
+    return issues
 
 
 @dataclass

@@ -3,6 +3,7 @@
 import typer
 
 from data_cli.utils import parse_flexible_datetime
+from forecast_cli.commands.tune import tune_command
 from forecast_cli.config_loader import load_config
 from forecast_cli.tracking import track_backtest_run, track_prediction
 from price_forecasting import (
@@ -95,6 +96,9 @@ def predict(
     if track:
         run_id = track_prediction(config, target_date_str, prediction)
         typer.echo(f"\nTracked prediction {run_id} in ClickHouse.")
+
+
+app.command("tune")(tune_command)
 
 
 if __name__ == "__main__":

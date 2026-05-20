@@ -7,6 +7,8 @@ _ACTIVATIONS: dict[str, type[nn.Module]] = {
     "relu": nn.ReLU,
     "tanh": nn.Tanh,
     "sigmoid": nn.Sigmoid,
+    "elu": nn.ELU,
+    "softplus": nn.Softplus,
 }
 
 
@@ -37,7 +39,12 @@ class DNNModel(LightningModel):
         self.net: nn.Module | None = None
 
     def _build_network(self, n_features: int, n_periods: int) -> None:
-        act_cls = _ACTIVATIONS.get(self.activation, nn.ReLU)
+        if self.activation not in _ACTIVATIONS:
+            raise ValueError(
+                f"Unknown activation {self.activation!r}; "
+                f"supported: {sorted(_ACTIVATIONS)}"
+            )
+        act_cls = _ACTIVATIONS[self.activation]
         layers: list[nn.Module] = []
         in_dim = n_features
         for h in self.hidden_units:

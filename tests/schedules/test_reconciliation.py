@@ -215,6 +215,74 @@ class TestReconcileAreaTask:
         assert "rmse" in metrics
         assert "smape" in metrics
 
+    @patch("schedules.reconciliation._maybe_alert_accuracy_degradation")
+    @patch("schedules.reconciliation.get_recent_accuracy")
+    @patch("schedules.reconciliation.insert_experiment_run")
+    @patch("schedules.reconciliation.insert_experiment_predictions")
+    @patch("schedules.reconciliation.get_actual_prices_for_period")
+    @patch("schedules.reconciliation.get_predictions_for_runs")
+    @patch("schedules.reconciliation.create_client")
+    def test_calls_accuracy_alert_with_baseline(
+        self,
+        mock_create_client,
+        mock_get_preds,
+        mock_get_actuals,
+        mock_insert_preds,
+        mock_insert_run,
+        mock_get_baseline,
+        mock_alert,
+    ):
+        mock_create_client.return_value = MagicMock()
+        mock_get_preds.return_value = [_make_prediction("run-1", TS1, predicted=55.0)]
+        mock_get_actuals.return_value = [{"timestamp_utc": TS1, "price": 50.0}]
+        mock_get_baseline.return_value = 3.0
+
+        reconcile_area_task.fn("DK1", [_make_run("run-1", "DK1")])
+
+        mock_get_baseline.assert_called_once()
+        mock_alert.assert_called_once()
+        _, kwargs = mock_alert.call_args
+        assert kwargs["area"] == "DK1"
+        assert kwargs["config_name"] == "dk1_lear"
+        assert kwargs["baseline_median_mae"] == 3.0
+        assert kwargs["today_mae"] == 5.0  # |55 - 50|
+
+    @patch("schedules.reconciliation._maybe_alert_accuracy_degradation")
+    @patch("schedules.reconciliation.get_recent_accuracy")
+    @patch("schedules.reconciliation.insert_experiment_run")
+    @patch("schedules.reconciliation.insert_experiment_predictions")
+    @patch("schedules.reconciliation.get_actual_prices_for_period")
+    @patch("schedules.reconciliation.get_predictions_for_runs")
+    @patch("schedules.reconciliation.create_client")
+    def test_baseline_cached_per_config(
+        self,
+        mock_create_client,
+        mock_get_preds,
+        mock_get_actuals,
+        mock_insert_preds,
+        mock_insert_run,
+        mock_get_baseline,
+        mock_alert,
+    ):
+        mock_create_client.return_value = MagicMock()
+        mock_get_preds.return_value = [
+            _make_prediction("run-1", TS1, predicted=55.0),
+            _make_prediction("run-2", TS2, predicted=60.0),
+        ]
+        mock_get_actuals.return_value = [
+            {"timestamp_utc": TS1, "price": 50.0},
+            {"timestamp_utc": TS2, "price": 58.0},
+        ]
+        mock_get_baseline.return_value = 3.0
+
+        # Two runs, same experiment_name -> baseline fetched once
+        reconcile_area_task.fn(
+            "DK1", [_make_run("run-1", "DK1"), _make_run("run-2", "DK1")]
+        )
+
+        assert mock_get_baseline.call_count == 1
+        assert mock_alert.call_count == 2
+
 
 class TestReconcilePredictionsFlow:
     @patch("schedules.reconciliation.reconcile_area_task")

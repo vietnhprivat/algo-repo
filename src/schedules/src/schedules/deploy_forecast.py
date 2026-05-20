@@ -59,6 +59,7 @@ class ForecastFlowDeployment:
                     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", "password"),
                     "CLICKHOUSE_DATABASE": "algo",
                     "LOKI_URL": os.getenv("LOKI_URL", "http://loki:3100/loki/api/v1/push"),
+                    "SLACK_WEBHOOK_URL": os.getenv("SLACK_WEBHOOK_URL", ""),
                 },
             },
             tags=["forecast", "production"],
@@ -66,8 +67,12 @@ class ForecastFlowDeployment:
         )
 
 
-FORECAST_CONFIGS = ["dk1_lear"]
-DRIFT_AREAS = ["DK1"]
+# LEAR configs only — DNN configs (configs/dk1_dnn.py, configs/de_dnn.py) ship
+# with placeholder hyperparameters and are excluded from scheduling until
+# `forecast-cli tune` has produced validated best_params. Append a DNN config
+# here once its `model_params` block has been replaced with tuned values.
+FORECAST_CONFIGS = ["dk1_lear", "de_lear"]
+DRIFT_AREAS = ["DK1", "DE"]
 
 if __name__ == "__main__":
     for config_name in FORECAST_CONFIGS:

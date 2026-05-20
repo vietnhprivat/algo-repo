@@ -17,6 +17,12 @@ class ExperimentConfig:
     test_start_date: Optional[str] = None
     test_end_date: Optional[str] = None
 
+    # Validation window (recommended: disjoint, ends before test_start_date).
+    # Lago et al. 2021 §4.3.2 use 42 weeks; checklist #9 requires this be
+    # different from the test set when hyperparameters are selected ex-ante.
+    val_start_date: Optional[str] = None
+    val_end_date: Optional[str] = None
+
     # Option B: ratio-based split (fallback when test dates not set)
     train_ratio: float = 0.7
     validation_ratio: float = 0.15
@@ -40,3 +46,16 @@ class ExperimentConfig:
     # Custom feature transformers. If None, DataPreprocessor builds model-type defaults.
     # If set, must be a list of FeatureTransformer instances.
     feature_transformers: Optional[list] = None
+
+    # Target scaler — "standard" (default, backwards compatible) or "asinh"
+    # (Lago et al. 2021 §4.2, recommended for LEAR).
+    target_scaler: str = "standard"
+
+    # Number of DNN replicates to average at serving time (Lago §4.4).
+    # Only used for model_type == "dnn".
+    n_dnn_ensemble: int = 1
+
+    # When True, drift detection on this area triggers an immediate retrain
+    # Prefect flow run. Default False (alert-only). Closes the P9 feedback
+    # loop (Zarour 2025).
+    retrain_on_drift: bool = False

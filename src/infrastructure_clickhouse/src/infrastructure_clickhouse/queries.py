@@ -114,6 +114,25 @@ def load_latest_artifact(
     }
 
 
+def get_recent_accuracy(
+    client: Client, area: str, config_name: str, days: int = 30
+) -> float | None:
+    """Return the median MAE for completed runs in the last `days` days."""
+    rows = client.query(
+        f"""
+        SELECT quantile(0.5)(toFloat64OrNull(JSONExtractString(metrics_json, 'mae'))) AS m
+        FROM algo.experiment_runs FINAL
+        WHERE area = {{area:String}} AND experiment_name = {{cfg:String}}
+          AND created_utc >= now() - INTERVAL {int(days)} DAY
+          AND metrics_json != ''
+        """,
+        parameters={"area": area, "cfg": config_name},
+    ).result_rows
+    if not rows or rows[0][0] is None:
+        return None
+    return float(rows[0][0])
+
+
 def create_observations_table():
     command = """
         CREATE TABLE IF NOT EXISTS algo.timeseries

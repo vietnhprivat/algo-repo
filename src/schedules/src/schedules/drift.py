@@ -12,9 +12,11 @@ place. See researh_material/mlops_implementation_plan.md Phase 4.
 
 from __future__ import annotations
 
+import importlib.util
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pandas as pd
 from evidently import DataDefinition, Dataset, Report
@@ -25,6 +27,7 @@ from infrastructure_clickhouse.client_factory import create_client
 from infrastructure_clickhouse.ingest import insert_drift_report
 from infrastructure_clickhouse.logging_setup import build_log_extra, get_logger
 from infrastructure_clickhouse.queries import get_actual_prices_for_period
+from schedules.retrain import triggered_retrain_flow
 
 LOGGER = get_logger(__name__, service="prefect-drift")
 
@@ -195,6 +198,15 @@ def detect_drift_for_area_task(area: str) -> dict:
     if drift_detected:
         LOGGER.warning(f"Drift detected: {score_vs_threshold}", extra=log_extra)
         print(f"[{area}] DRIFT DETECTED: {score_vs_threshold}")
+        from schedules.alerting import notify
+        notify(
+            subject=f"Drift detected on {area}",
+            message=f"{score_vs_threshold}; report_id={report_id}",
+            severity="warning",
+        )
+        _maybe_trigger_retrain(
+            area=area, drift_detected=True, drift_report_id=report_id,
+        )
     else:
         LOGGER.info(f"No drift: {score_vs_threshold}", extra=log_extra)
         print(f"[{area}] No drift: {score_vs_threshold}")
@@ -214,6 +226,48 @@ def detect_drift_for_area_task(area: str) -> dict:
 @flow(name="drift-detection", log_prints=True)
 def drift_detection_flow(area: str = "DK1") -> dict:
     return detect_drift_for_area_task(area)
+
+
+def _configs_for_area(area: str):
+    """Return configs whose area matches and retrain_on_drift is True."""
+    matches = []
+    configs_dir = Path("/app/configs")
+    if not configs_dir.exists():
+        configs_dir = Path.cwd() / "configs"
+    for py in configs_dir.glob("*.py"):
+        spec = importlib.util.spec_from_file_location(py.stem, py)
+        if not spec or not spec.loader:
+            continue
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            continue
+        config = getattr(module, "config", None)
+        if config is None:
+            continue
+        if getattr(config, "area", None) == area and getattr(config, "retrain_on_drift", False):
+            matches.append(config)
+    return matches
+
+
+def _maybe_trigger_retrain(*, area: str, drift_detected: bool, drift_report_id: str | None) -> None:
+    if not drift_detected:
+        return
+    for config in _configs_for_area(area):
+        if not getattr(config, "retrain_on_drift", False):
+            continue
+        LOGGER.info(
+            "Triggering retrain for config due to drift",
+            extra=build_log_extra(
+                area=area, config_name=config.experiment_name,
+                drift_report_id=drift_report_id,
+            ),
+        )
+        triggered_retrain_flow(
+            config_name=config.experiment_name, triggered_by="drift",
+            drift_report_id=drift_report_id, area=area,
+        )
 
 
 if __name__ == "__main__":

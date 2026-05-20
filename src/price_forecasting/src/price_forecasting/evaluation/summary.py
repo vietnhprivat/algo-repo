@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,7 @@ from price_forecasting.evaluation.metrics import (
     calculate_rmse,
     calculate_smape,
 )
+from price_forecasting.evaluation.statistical_tests import giacomini_white_multivariate
 
 
 def build_weekly_naive(actuals: pd.DataFrame) -> pd.DataFrame:
@@ -96,3 +97,37 @@ def compute_metrics_per_hour(
         metrics_rows.append(row)
 
     return pd.DataFrame(metrics_rows)
+
+
+def build_dm_matrix(
+    errors_by_model: Mapping[str, np.ndarray],
+    norm: int = 1,
+) -> pd.DataFrame:
+    """Pairwise GW-multivariate p-values, with H1 = "column model is better".
+
+    matrix.loc[row, col] is the p-value of the one-sided test that the column
+    model's forecasts are significantly more accurate than the row model's
+    (Lago Fig. 5 convention).
+    """
+    names = list(errors_by_model.keys())
+    shapes = {name: errors_by_model[name].shape for name in names}
+    unique_shapes = set(shapes.values())
+    if len(unique_shapes) > 1:
+        raise ValueError(
+            f"All error arrays must have identical shape; got {shapes}"
+        )
+    matrix = pd.DataFrame(
+        np.full((len(names), len(names)), np.nan), index=names, columns=names
+    )
+    for row in names:
+        for col in names:
+            if row == col:
+                continue
+            result = giacomini_white_multivariate(
+                errors_by_model[row],
+                errors_by_model[col],
+                norm=norm,
+                alternative="b_better",
+            )
+            matrix.loc[row, col] = result.p_value
+    return matrix

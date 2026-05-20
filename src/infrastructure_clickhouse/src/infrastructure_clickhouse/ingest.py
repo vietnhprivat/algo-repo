@@ -176,6 +176,55 @@ def insert_drift_report(
     insert_polars_dataframe(client, df, "algo.drift_reports")
 
 
+def insert_hyperparam_trial(
+    client: Client,
+    *,
+    study_name: str,
+    trial_number: int,
+    created_utc: datetime,
+    area: str,
+    model_type: str,
+    config_name: str,
+    state: str,
+    value: float | None,
+    params_json: str,
+    val_start_utc: datetime | None,
+    val_end_utc: datetime | None,
+    duration_seconds: float | None,
+) -> None:
+    df = pl.DataFrame(
+        {
+            "study_name": [study_name],
+            "trial_number": [trial_number],
+            "created_utc": [created_utc],
+            "area": [area],
+            "model_type": [model_type],
+            "config_name": [config_name],
+            "state": [state],
+            "value": [value],
+            "params_json": [params_json],
+            "val_start_utc": [val_start_utc],
+            "val_end_utc": [val_end_utc],
+            "duration_seconds": [duration_seconds],
+        },
+        schema={
+            "study_name": pl.String,
+            "trial_number": pl.UInt32,
+            "created_utc": pl.Datetime("ms", "UTC"),
+            "area": pl.String,
+            "model_type": pl.String,
+            "config_name": pl.String,
+            "state": pl.String,
+            "value": pl.Float64,
+            "params_json": pl.String,
+            "val_start_utc": pl.Datetime("ms", "UTC"),
+            "val_end_utc": pl.Datetime("ms", "UTC"),
+            "duration_seconds": pl.Float64,
+        },
+    )
+    insert_polars_dataframe(client, df, "algo.hyperparam_trials")
+
+
 def insert_polars_dataframe(
     client: Client, dataframe: pl.DataFrame, table_name: str, batch_size: int = 10_000
 ) -> None:
