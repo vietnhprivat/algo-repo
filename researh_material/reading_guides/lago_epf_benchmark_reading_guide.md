@@ -4,6 +4,8 @@
 **Toolbox:** https://github.com/jeslago/epftoolbox
 **This is the foundational paper your codebase is built on.**
 
+**Last refreshed:** 2026-05-21 — scorecard updated to reflect commits through PR #70 (pre-freeze cleanup).
+
 ---
 
 ## How to Read This Paper (Recommended Order)
@@ -30,19 +32,21 @@ This is the paper's Section 7 checklist — the gold standard for rigorous EPF r
 |---|------------|-------------|---------|
 | 1 | Test dataset >= 1 year | **PASS** | `ExperimentConfig.test_start_date/test_end_date` supports arbitrary ranges; your configs use multi-month periods |
 | 2 | Test against state-of-the-art open-access models | **PARTIAL** | You have LEAR (the paper's recommended benchmark). DNN is a stub. No comparison against epftoolbox models directly |
-| 3 | Computational cost evaluated | **FAIL** | No timing tracked. `BacktestEngine` doesn't log computation time per day/window |
+| 3 | Computational cost evaluated | **PASS** | `training_duration_seconds` column in `algo.experiment_runs` (migration 006); per-run timing captured by `LiveRunner.run_live_with_metadata()` and persisted via `insert_experiment_run` |
 | 4 | Datasets are open-access | **PASS** | ENTSOE data is freely available; your pipeline fetches from the public API |
-| 5 | Multiple markets tested | **FAIL** | Only DK1 configured. Infrastructure supports other areas but no configs exist for DE, FR, etc. |
+| 5 | Multiple markets tested | **PASS** | `configs/dk1_lear.py` + `configs/de_lear.py` both deployed via `deploy_forecast.py::FORECAST_CONFIGS`. DK1 (Nord Pool) and DE (EPEX) covered. Other zones (FR, BE, NL, PL) ingested but not modeled — future work. |
 | 6 | rMAE is used as metric | **PASS** | `calculate_rmae()` in `metrics.py`, `build_weekly_naive()` in `summary.py`, included in `compute_metrics_summary()` |
-| 7 | Statistical testing for significance | **FAIL** | No Diebold-Mariano or Giacomini-White test implemented |
+| 7 | Statistical testing for significance | **PASS** | `price_forecasting/evaluation/statistical_tests.py` implements `diebold_mariano` and `giacomini_white_multivariate`. `evaluation/summary.py::compute_dm_pvalue_matrix` produces the GW p-value matrix for >2 model comparisons. See `researh_material/reading_guides/statistical_tests_for_epf_reading_guide.md`. |
 | 8 | Models recalibrated daily | **PASS** | `BacktestEngine` supports `refit_interval_days=1` for daily recalibration |
-| 9 | Hyperparameters estimated ex-ante (validation set) | **PARTIAL** | `LassoCV` with `TimeSeriesSplit` does ex-ante CV. But no separate validation set split; `SplitResult.validation` is empty when using `split_by_dates()` |
+| 9 | Hyperparameters estimated ex-ante (validation set) | **PASS** | Both production configs declare `val_start_date`/`val_end_date`. `backtesting/splitting.py::split_train_val_test_by_dates` produces a three-way split. `LassoCV(cv=TimeSeriesSplit)` selects `alpha` ex-ante. Optuna trials persisted to `algo.hyperparam_trials` (DNN path). |
 | 10 | Dataset split dates explicitly stated | **PASS** | `test_start_date`/`test_end_date` in `ExperimentConfig`; training = everything before test_start |
 | 11 | All model inputs explicitly defined | **PASS** | `ExperimentConfig.exogenous_curve_types` + `FeatureTransformer` pipeline documents all inputs |
 | 12 | No data contamination | **PASS** | `split_by_dates()` ensures chronological split; `BacktestEngine._slice_data()` uses only past data for training |
 | 13 | State-of-the-art free toolboxes | **PASS** | scikit-learn for LEAR, Polars/Pandas for data, ClickHouse for storage |
 
-### Score: 8 PASS, 2 PARTIAL, 3 FAIL out of 13
+### Score: 12 PASS, 1 PARTIAL, 0 FAIL out of 13
+
+The remaining PARTIAL is #2 (state-of-the-art comparison): the DNN model exists in the registry but is not currently deployed against LEAR in a published benchmark — gated on the `forecast-cli tune` path being run and the resulting `model_params` committed. Documented as out-of-scope for this thesis.
 
 ---
 
@@ -70,7 +74,7 @@ Your `default_transformers_for_model()` returns `[PriceLagTransformer, Exogenous
 | One Lasso per hour (24 models) | Univariate: separate model for each `h` | `LearModel.hourly_models: Dict[int, Lasso]` — one per period | **MATCH** |
 | LASSO regularization | L1 penalty with tunable `lambda` | `sklearn.linear_model.Lasso` or `LassoCV` | **MATCH** |
 | Lambda selection | LARS + AIC (hybrid approach, Section 4.2.2) | `LassoCV` with `TimeSeriesSplit` (cross-validation approach) | **DIFFERENT** — paper uses LARS+AIC, you use CV. Both valid; CV is more standard |
-| Variance stabilizing transform (asinh) | `asinh(price)` preprocessing (Section 4.2, Eq. 2) | `StandardScaler` in `DataPreprocessor` | **DIFFERENT** — paper uses asinh, you use z-score standardization |
+| Variance stabilizing transform (asinh) | `asinh(price)` preprocessing (Section 4.2, Eq. 2) | `target_scaler="asinh"` in `configs/{dk1,de}_lear.py`; implementation in `price_forecasting/data/asinh_scaler.py` (median/MAD-scaled inverse-hyperbolic-sine, Uniejewski–Weron–Ziel 2018) | **MATCH** |
 
 ### Calibration Windows & Ensemble
 
@@ -89,8 +93,8 @@ Your `default_transformers_for_model()` returns `[PriceLagTransformer, Exogenous
 | sMAPE | `(1/24Nd) * sum(2|p - p_hat|/(|p| + |p_hat|))` | `calculate_smape()` — formula uses `/ 2` in denominator, paper uses `2*` in numerator | **CHECK** — verify formula equivalence |
 | MAPE | `(1/24Nd) * sum(|p - p_hat|/|p|)` | `calculate_mape()` | **MATCH** (but paper warns MAPE is unreliable) |
 | rMAE | `MAE / MAE_naive` with naive = 7-day shift | `calculate_rmae()` + `build_weekly_naive()` | **MATCH** |
-| DM test | Diebold-Mariano with loss differentials | Not implemented | **MISSING** |
-| GW test | Giacomini-White conditional predictive ability | Not implemented | **MISSING** |
+| DM test | Diebold-Mariano with loss differentials | `evaluation/statistical_tests.py::diebold_mariano` (l1 or l2 loss, two-sided / one-sided alternatives) | **MATCH** |
+| GW test | Giacomini-White conditional predictive ability | `evaluation/statistical_tests.py::giacomini_white_multivariate` + `summary.py::compute_dm_pvalue_matrix` for >2 models | **MATCH** |
 
 ---
 
@@ -149,30 +153,28 @@ This is more complex than a simple `nn.Linear` stack — it requires Bayesian hy
 
 ## What's Missing: Gap Analysis
 
-### Critical Gaps (blocking rigorous evaluation)
+### Remaining Gaps (after pre-freeze cleanup)
 
 | Gap | Paper Section | Impact | Effort |
 |-----|-------------|--------|--------|
-| **No DM/GW statistical tests** | 5.5 | Can't claim significance of LEAR vs Transformer results | Low — ~50 lines of code |
-| **No DNN implementation** | 4.3 | Can't benchmark against the paper's DL baseline | High — needs PyTorch + Bayesian HP tuning |
-| **No computation time tracking** | 5.8 | Can't evaluate if new models are worth the compute cost | Low — add timing to `BacktestEngine.run()` |
-| **No asinh variance stabilizing transform** | 4.2 | Your z-score scaling may underperform on markets with spikes/negative prices | Medium — add as preprocessing option |
-
-### Moderate Gaps (improve rigor)
-
-| Gap | Paper Section | Impact | Effort |
-|-----|-------------|--------|--------|
-| **Single market only (DK1)** | 5.1, checklist #5 | Results can't be generalized | Low — add configs for DE, FR, BE |
+| **DNN not deployed against LEAR** | 4.3 | Can't publish a head-to-head benchmark; only PARTIAL on checklist #2 | High — needs `forecast-cli tune` run and committed `model_params` |
 | **No MAPE deprecation warning** | 6.4.2 | Users might rely on misleading metric | Low — add warning in output |
-| **No validation set for HP tuning** | 5.7 | `split_by_dates()` returns empty validation; LassoCV does internal CV which is fine, but DNN will need explicit validation | Medium — add validation split logic |
-| **No LARS+AIC for lambda selection** | 4.2.2 | Your `LassoCV` is valid but slower than the paper's LARS approach | Low — optional optimization |
+| **No LARS+AIC for lambda selection** | 4.2.2 | `LassoCV` is valid but slower than the paper's LARS approach | Low — optional optimization |
+
+### Closed Gaps (shipped pre-freeze)
+
+| Item | Paper Section | Where it lives now |
+|------|-------------|--------------------|
+| DM/GW statistical tests | 5.5 | `evaluation/statistical_tests.py` |
+| Computation time tracking | 5.8 | `training_duration_seconds` (migration 006) |
+| Asinh variance stabilizing transform | 4.2 | `price_forecasting/data/asinh_scaler.py` |
+| Multi-market coverage (DE in addition to DK1) | 5.1, checklist #5 | `configs/de_lear.py` deployed via `deploy_forecast.py` |
+| Ex-ante validation split | 5.7 | `backtesting/splitting.py::split_train_val_test_by_dates` + `val_start_date`/`val_end_date` in configs |
 
 ### Nice-to-Have
 
 | Gap | Paper Section | Impact | Effort |
 |-----|-------------|--------|--------|
-| Asinh transform as preprocessing option | 4.2 | Better handling of spikes and negative prices | Medium |
-| Giacomini-White test (in addition to DM) | 5.5.2 | More robust than DM for rolling windows | Medium |
 | Per-hour DM test (univariate variant) | 5.5.1 | Shows which hours have significant differences | Low |
 | Long-term seasonal decomposition | 4.2 | Paper mentions it helps but leaves for future work | Medium |
 
@@ -238,8 +240,8 @@ Defines the exact 247 features. **Your `default_transformers_for_model()` reprod
 Key details:
 - Equation 3 is the full model specification — 247 parameters per hour
 - LASSO sets many to zero (implicit feature selection)
-- **Asinh variance stabilizing transform** (Equation 2) — you use StandardScaler instead
-- **LARS + AIC** for lambda selection — you use `LassoCV` instead
+- **Asinh variance stabilizing transform** (Equation 2) — implemented in `asinh_scaler.py`; configs opt-in via `target_scaler="asinh"`
+- **LARS + AIC** for lambda selection — you use `LassoCV` instead (acceptable substitute)
 - Calibration windows: 56, 84, 1092, 1456 days — matches your default
 
 ### Section 4.3 — DNN Model (read for future implementation)
@@ -264,7 +266,7 @@ Key findings:
 - DNN ensemble significantly outperforms all others in 4/5 markets (GW test)
 
 ### Section 7 — Checklist (read and grade yourself)
-13 requirements — see the scorecard above. You score 8/13 PASS.
+13 requirements — see the scorecard above. You score 12/13 PASS (1 PARTIAL: state-of-the-art DNN benchmark not yet deployed).
 
 ---
 
@@ -279,13 +281,13 @@ Key findings:
 | Ensemble (arithmetic avg) | `BacktestEngine._ensemble_forecast()` → `np.mean()` |
 | Input features (247) | `default_transformers_for_model()` output |
 | fARX / LassoX | Same as LEAR — older names for the same model |
-| asinh transform | Not implemented — you use `StandardScaler` |
+| asinh transform | `price_forecasting/data/asinh_scaler.py` — opt-in via `target_scaler="asinh"` |
 | LARS + AIC | Not implemented — you use `LassoCV` with `TimeSeriesSplit` |
-| Tree Parzen Estimator | Not implemented — needed for DNN hyperparameter tuning |
+| Tree Parzen Estimator | `price_forecasting/tuning/dnn_search.py` via Optuna TPE (DNN hyperparameter tuning) |
 | epftoolbox | External library — reference implementation for metrics and DM test |
 | rMAE with naive_2 | `calculate_rmae()` + `build_weekly_naive()` (7-day shift) |
-| GW test | Not implemented |
-| DM test | Not implemented |
+| GW test | `evaluation/statistical_tests.py::giacomini_white_multivariate` |
+| DM test | `evaluation/statistical_tests.py::diebold_mariano` |
 
 ---
 
@@ -309,24 +311,16 @@ Key findings:
 
 ### Where you diverge (acceptable differences)
 
-1. **StandardScaler vs asinh transform** — The paper uses asinh (Equation 2) which handles spikes and negative prices better. Your StandardScaler is simpler but may underperform on volatile markets. Consider adding asinh as an option.
-
-2. **LassoCV vs LARS+AIC** — Your cross-validation approach is more standard and well-understood. The paper's LARS+AIC is faster but the accuracy difference is small.
-
-3. **Single market (DK1)** — Paper insists on multiple markets. Easy to fix: add configs for DE, FR.
+1. **LassoCV vs LARS+AIC** — Your cross-validation approach is more standard and well-understood. The paper's LARS+AIC is faster but the accuracy difference is small.
 
 ### Where you fall short (needs work)
 
-1. **No statistical testing** — This is the paper's strongest recommendation. Without DM/GW tests, you can't claim your Transformer is significantly better than LEAR. Priority: implement DM test.
+1. **No deployed DNN baseline** — The paper's DNN is the target to beat. `DNNModel` exists in the registry and the Optuna search space is wired up, but it is not yet deployed against LEAR in a published benchmark. This is why checklist #2 remains PARTIAL.
 
-2. **No DNN baseline** — The paper's DNN is the target to beat. Your stub means you can only compare against LEAR, which the paper considers the low-compute baseline.
-
-3. **No computation time tracking** — The paper emphasizes that a model is only "better" if its accuracy gain justifies its compute cost. Add timing to `BacktestEngine.run()`.
-
-4. **MAPE still in default output** — The paper explicitly warns against MAPE. Consider removing it from `compute_metrics_summary()` or adding a deprecation note.
+2. **MAPE still in default output** — The paper explicitly warns against MAPE. Consider removing it from `compute_metrics_summary()` or adding a deprecation note.
 
 ### Maturity Score
 
-Using the paper's 13-point checklist: **8/13 PASS (62%)**
+Using the paper's 13-point checklist: **12/13 PASS (92%)**
 
-The 3 fails (computation time, multiple markets, statistical testing) are all fixable with moderate effort. The 2 partials (DNN benchmark, validation set) require more work. Overall, your codebase is well-aligned with the paper's recommendations for the LEAR baseline — the main gaps are in evaluation rigor and model diversity.
+The only remaining PARTIAL is #2 (state-of-the-art comparison), pending DNN deployment. Computation-time tracking, multi-market coverage, DM/GW statistical testing, and the ex-ante validation split all shipped during the pre-freeze cleanup. Overall, the codebase is now fully aligned with the paper's LEAR-baseline recommendations; the remaining work is on the model-diversity axis (deploy DNN, benchmark against LEAR).
