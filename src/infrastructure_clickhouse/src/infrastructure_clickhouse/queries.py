@@ -8,12 +8,12 @@ from infrastructure_clickhouse.client_factory import create_client
 def get_unreconciled_runs(client: Client) -> list[dict]:
     """Find live prediction runs that haven't been reconciled yet (metrics_json='{}').
 
-    Returns all 11 columns so the caller can re-insert the row with updated metrics.
+    Returns all 12 columns so the caller can re-insert the row with updated metrics.
     """
     result = client.query(
         "SELECT run_id, created_utc, experiment_name, area, model_type, "
         "       config_json, metrics_json, training_duration_seconds, "
-        "       data_start_utc, data_end_utc, model_artifact_id "
+        "       data_start_utc, data_end_utc, model_artifact_id, git_sha "
         "FROM algo.experiment_runs FINAL "
         "WHERE metrics_json = '{}' "
         "ORDER BY created_utc"
@@ -30,6 +30,7 @@ def get_unreconciled_runs(client: Client) -> list[dict]:
         "data_start_utc",
         "data_end_utc",
         "model_artifact_id",
+        "git_sha",
     ]
     return [dict(zip(columns, row)) for row in result.result_rows]
 
