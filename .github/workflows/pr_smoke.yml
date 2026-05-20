@@ -38,6 +38,16 @@ jobs:
       ENTSOE_API_KEY: ''
 
     steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: false
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -68,8 +78,8 @@ jobs:
           cache-from: type=gha,scope=algo-repo
           cache-to: type=gha,mode=max,scope=algo-repo
 
-      - name: Start clickhouse, prefect server, worker, loki
-        run: docker compose up -d clickhouse server worker loki
+      - name: Start clickhouse, prefect server, worker
+        run: docker compose up -d clickhouse server worker
 
       - name: Wait for ClickHouse readiness
         run: |
