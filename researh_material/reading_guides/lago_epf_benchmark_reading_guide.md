@@ -36,9 +36,9 @@ This is the paper's Section 7 checklist — the gold standard for rigorous EPF r
 | 4 | Datasets are open-access | **PASS** | ENTSOE data is freely available; your pipeline fetches from the public API |
 | 5 | Multiple markets tested | **PASS** | `configs/dk1_lear.py` + `configs/de_lear.py` both deployed via `deploy_forecast.py::FORECAST_CONFIGS`. DK1 (Nord Pool) and DE (EPEX) covered. Other zones (FR, BE, NL, PL) ingested but not modeled — future work. |
 | 6 | rMAE is used as metric | **PASS** | `calculate_rmae()` in `metrics.py`, `build_weekly_naive()` in `summary.py`, included in `compute_metrics_summary()` |
-| 7 | Statistical testing for significance | **PASS** | `price_forecasting/evaluation/statistical_tests.py` implements `diebold_mariano` and `giacomini_white_multivariate`. `evaluation/summary.py::compute_dm_pvalue_matrix` produces the GW p-value matrix for >2 model comparisons. See `researh_material/reading_guides/statistical_tests_for_epf_reading_guide.md`. |
+| 7 | Statistical testing for significance | **PASS** | `price_forecasting/evaluation/statistical_tests.py` implements `diebold_mariano` and `giacomini_white_multivariate`. `evaluation/summary.py::build_dm_matrix` produces the GW p-value matrix for >2 model comparisons. See `researh_material/reading_guides/statistical_tests_for_epf_reading_guide.md`. |
 | 8 | Models recalibrated daily | **PASS** | `BacktestEngine` supports `refit_interval_days=1` for daily recalibration |
-| 9 | Hyperparameters estimated ex-ante (validation set) | **PASS** | Both production configs declare `val_start_date`/`val_end_date`. `backtesting/splitting.py::split_train_val_test_by_dates` produces a three-way split. `LassoCV(cv=TimeSeriesSplit)` selects `alpha` ex-ante. Optuna trials persisted to `algo.hyperparam_trials` (DNN path). |
+| 9 | Hyperparameters estimated ex-ante (validation set) | **PASS** | Both production configs declare `val_start_date`/`val_end_date`. `backtesting/splitting.py::split_by_dates_with_validation` produces a three-way split. `LassoCV(cv=TimeSeriesSplit)` selects `alpha` ex-ante. Optuna trials persisted to `algo.hyperparam_trials` (DNN path). |
 | 10 | Dataset split dates explicitly stated | **PASS** | `test_start_date`/`test_end_date` in `ExperimentConfig`; training = everything before test_start |
 | 11 | All model inputs explicitly defined | **PASS** | `ExperimentConfig.exogenous_curve_types` + `FeatureTransformer` pipeline documents all inputs |
 | 12 | No data contamination | **PASS** | `split_by_dates()` ensures chronological split; `BacktestEngine._slice_data()` uses only past data for training |
@@ -94,7 +94,7 @@ Your `default_transformers_for_model()` returns `[PriceLagTransformer, Exogenous
 | MAPE | `(1/24Nd) * sum(|p - p_hat|/|p|)` | `calculate_mape()` | **MATCH** (but paper warns MAPE is unreliable) |
 | rMAE | `MAE / MAE_naive` with naive = 7-day shift | `calculate_rmae()` + `build_weekly_naive()` | **MATCH** |
 | DM test | Diebold-Mariano with loss differentials | `evaluation/statistical_tests.py::diebold_mariano` (l1 or l2 loss, two-sided / one-sided alternatives) | **MATCH** |
-| GW test | Giacomini-White conditional predictive ability | `evaluation/statistical_tests.py::giacomini_white_multivariate` + `summary.py::compute_dm_pvalue_matrix` for >2 models | **MATCH** |
+| GW test | Giacomini-White conditional predictive ability | `evaluation/statistical_tests.py::giacomini_white_multivariate` + `summary.py::build_dm_matrix` for >2 models | **MATCH** |
 
 ---
 
@@ -169,7 +169,7 @@ This is more complex than a simple `nn.Linear` stack — it requires Bayesian hy
 | Computation time tracking | 5.8 | `training_duration_seconds` (migration 006) |
 | Asinh variance stabilizing transform | 4.2 | `price_forecasting/data/asinh_scaler.py` |
 | Multi-market coverage (DE in addition to DK1) | 5.1, checklist #5 | `configs/de_lear.py` deployed via `deploy_forecast.py` |
-| Ex-ante validation split | 5.7 | `backtesting/splitting.py::split_train_val_test_by_dates` + `val_start_date`/`val_end_date` in configs |
+| Ex-ante validation split | 5.7 | `backtesting/splitting.py::split_by_dates_with_validation` + `val_start_date`/`val_end_date` in configs |
 
 ### Nice-to-Have
 
