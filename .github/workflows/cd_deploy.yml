@@ -175,8 +175,12 @@ jobs:
           EOF
 
   smoke_run:
-    needs: [changes, deploy_forecast]
-    if: needs.changes.outputs.smoke == 'true' && needs.deploy_forecast.result == 'success'
+    needs: [changes, build_image, deploy_forecast]
+    if: |
+      always()
+      && needs.changes.outputs.smoke == 'true'
+      && (needs.build_image.result == 'success' || needs.build_image.result == 'skipped')
+      && (needs.deploy_forecast.result == 'success' || needs.deploy_forecast.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
