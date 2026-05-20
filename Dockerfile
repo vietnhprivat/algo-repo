@@ -2,6 +2,9 @@
 # This image is used by Prefect Docker worker to run flows as ephemeral containers.
 FROM python:3.13-slim
 
+ARG GIT_SHA=""
+ENV GIT_SHA=${GIT_SHA}
+
 WORKDIR /app
 
 # Install system dependencies
