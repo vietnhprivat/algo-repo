@@ -24,6 +24,7 @@ from infrastructure_clickhouse.logging_setup import build_log_extra, get_logger
 from infrastructure_clickhouse.queries import (
     get_actual_prices_for_period,
     get_predictions_for_runs,
+    get_recent_accuracy,
     get_unreconciled_runs,
 )
 from price_forecasting.evaluation import (
@@ -105,6 +106,7 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
         reconciled = 0
         skipped = 0
         now = datetime.now(timezone.utc)
+        baseline_cache: dict[str, float | None] = {}
 
         for run in runs:
             run_id = str(run["run_id"])
@@ -197,6 +199,35 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
                 f"smape={metrics['smape']:.2f}"
             )
             reconciled += 1
+
+            config_name = run["experiment_name"]
+            if config_name not in baseline_cache:
+                try:
+                    baseline_cache[config_name] = get_recent_accuracy(
+                        client, area, config_name
+                    )
+                except Exception as exc:
+                    LOGGER.warning(
+                        "Failed to fetch accuracy baseline; skipping alert",
+                        extra=build_log_extra(
+                            area=area, config_name=config_name, error=str(exc),
+                        ),
+                    )
+                    baseline_cache[config_name] = None
+            try:
+                _maybe_alert_accuracy_degradation(
+                    area=area,
+                    config_name=config_name,
+                    today_mae=metrics["mae"],
+                    baseline_median_mae=baseline_cache[config_name],
+                )
+            except Exception as exc:
+                LOGGER.warning(
+                    "Accuracy-degradation alert failed; continuing",
+                    extra=build_log_extra(
+                        area=area, config_name=config_name, error=str(exc),
+                    ),
+                )
     finally:
         client.close()
 

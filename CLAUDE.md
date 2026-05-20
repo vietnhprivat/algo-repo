@@ -73,8 +73,8 @@ tests/                       # Mirrors src/ structure
 - **Grafana alert rules** file-based in `grafana/provisioning/alerting/rules.yaml`: data-staleness, drift-detected-today, reconciliation-missed. Never edit via the UI.
 
 ### Hyperparameter tuning
-- `uv run python -m forecast_cli.main tune <config>` runs Optuna TPE with the search space from `price_forecasting.tuning.dnn_search` (Lago §4.3.3: 10 binary feature/selector + 8 architecture HPs). Trials persist to `algo.hyperparam_trials` (migration `008`). Config must declare `val_start_date` and `val_end_date`.
-- After tuning, paste the best params into the config's `model_params` dict and commit. The objective filters Optuna keys the model class doesn't accept (`use_price_d_*`, `use_exog_*`, `preprocessing`, `init_method`); only architecture HPs reach the model.
+- `uv run python -m forecast_cli.main tune <config>` runs Optuna TPE over the architecture-only search space in `price_forecasting.tuning.dnn_search` (6 HPs: `n_neurons`, `activation`, `dropout`, `learning_rate`, `batch_norm`, `l1_reg`). Lago §4.3.3's 10 binary feature/selector HPs and `preprocessing`/`init_method` are intentionally omitted until the preprocessor and model expose constructor-level toggles — until then, suggesting them would create inert search dimensions. The command rejects non-DNN configs and requires `val_start_date` / `val_end_date`. Trials persist to `algo.hyperparam_trials` (migration `008`).
+- After tuning, paste the best params into the config's `model_params` dict and commit. The architecture HPs from `build_dnn_search_space` map 1:1 to `DNNModel.__init__` kwargs (with `n_neurons` → `hidden_units`).
 - DNN serving averages `n_dnn_ensemble` replicates with distinct random seeds (Lago §4.4).
 
 ### CI/CD

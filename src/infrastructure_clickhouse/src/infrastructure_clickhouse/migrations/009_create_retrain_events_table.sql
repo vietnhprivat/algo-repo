@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS algo.retrain_events
 (
     event_id          String,
     created_utc       DateTime64(3, 'UTC'),
+    updated_utc       DateTime64(3, 'UTC'),
     triggered_by      String,
     area              String,
     config_name       String,
@@ -11,5 +12,5 @@ CREATE TABLE IF NOT EXISTS algo.retrain_events
     new_run_id        Nullable(String),
     notes             Nullable(String)
 )
-ENGINE = ReplacingMergeTree(created_utc)
+ENGINE = ReplacingMergeTree(updated_utc)
 ORDER BY event_id;

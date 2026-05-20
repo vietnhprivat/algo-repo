@@ -94,6 +94,20 @@ class TestDNNModelInterface:
         model = DNNModel(hidden_units=128)
         assert model.hidden_units == (128, 128)
 
+    @pytest.mark.parametrize("activation", ["relu", "tanh", "sigmoid", "elu", "softplus"])
+    def test_all_search_space_activations_supported(self, activation):
+        model = DNNModel(hidden_units=(8, 8), activation=activation, epochs=1)
+        X, y = self._make_data(n_samples=20, n_features=6)
+        model.fit(X, y)
+        pred = model.predict_day(X[:1])
+        assert pred.shape == (self.N_PERIODS,)
+
+    def test_unknown_activation_raises(self):
+        model = DNNModel(hidden_units=(8, 8), activation="not_a_real_activation", epochs=1)
+        X, y = self._make_data(n_samples=20, n_features=6)
+        with pytest.raises(ValueError, match="Unknown activation"):
+            model.fit(X, y)
+
 
 class TestRandomForestModelInterface:
     def _make_data(self, n_samples: int = 50, n_features: int = 10, n_periods: int = 24):

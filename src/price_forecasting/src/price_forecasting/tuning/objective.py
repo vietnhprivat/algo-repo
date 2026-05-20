@@ -11,19 +11,6 @@ from price_forecasting.data.preprocessor import DataPreprocessor
 from price_forecasting.evaluation.metrics import calculate_mae
 from price_forecasting.models import get_model
 
-# Search-space params consumed outside the model constructor (feature-selection
-# flags and pre-processing / initialisation choices handled by the pipeline).
-_NON_MODEL_PARAMS = frozenset(
-    {
-        "use_price_d_1", "use_price_d_2", "use_price_d_3", "use_price_d_7",
-        "use_exog_d", "use_exog_d_1", "use_exog_d_7",
-        "use_exog_set_1", "use_exog_set_2",
-        "use_dummy",
-        "preprocessing",
-        "init_method",
-    }
-)
-
 # Map search-space key → DNNModel / LightningModel constructor kwarg where they differ.
 _PARAM_REMAP: Dict[str, str] = {
     "n_neurons": "hidden_units",
@@ -31,14 +18,8 @@ _PARAM_REMAP: Dict[str, str] = {
 
 
 def _extract_model_kwargs(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Filter and remap search-space params to DNNModel constructor kwargs."""
-    model_kwargs: Dict[str, Any] = {}
-    for key, value in params.items():
-        if key in _NON_MODEL_PARAMS:
-            continue
-        mapped_key = _PARAM_REMAP.get(key, key)
-        model_kwargs[mapped_key] = value
-    return model_kwargs
+    """Remap search-space params to DNNModel constructor kwargs."""
+    return {_PARAM_REMAP.get(k, k): v for k, v in params.items()}
 
 
 def dnn_validation_objective(

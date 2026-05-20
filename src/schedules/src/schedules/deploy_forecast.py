@@ -67,6 +67,10 @@ class ForecastFlowDeployment:
         )
 
 
+# LEAR configs only — DNN configs (configs/dk1_dnn.py, configs/de_dnn.py) ship
+# with placeholder hyperparameters and are excluded from scheduling until
+# `forecast-cli tune` has produced validated best_params. Append a DNN config
+# here once its `model_params` block has been replaced with tuned values.
 FORECAST_CONFIGS = ["dk1_lear", "de_lear"]
 DRIFT_AREAS = ["DK1", "DE"]
 

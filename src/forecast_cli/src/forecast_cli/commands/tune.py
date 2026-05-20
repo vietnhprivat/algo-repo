@@ -19,6 +19,11 @@ def tune_command(
 ) -> None:
     """Run Optuna TPE search for a config's DNN hyperparameters."""
     config = load_config(config_name)
+    if config.model_type != "dnn":
+        raise typer.BadParameter(
+            f"tune supports model_type='dnn' only; {config_name} uses "
+            f"model_type={config.model_type!r}"
+        )
     if not config.val_start_date or not config.val_end_date:
         raise typer.BadParameter(
             "tune requires val_start_date and val_end_date on the config"
