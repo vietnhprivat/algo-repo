@@ -10,20 +10,76 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  changes:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.filter.outputs.image }}
+      shared: ${{ steps.filter.outputs.shared }}
+      ingestion: ${{ steps.filter.outputs.ingestion }}
+      forecast: ${{ steps.filter.outputs.forecast }}
+      configs_new: ${{ steps.filter.outputs.configs_new }}
+      grafana: ${{ steps.filter.outputs.grafana }}
+      smoke: ${{ steps.filter.outputs.smoke }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            image:
+              - 'Dockerfile'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'src/data_cli/**'
+              - 'src/forecast_cli/**'
+              - 'src/price_forecasting/**'
+              - 'src/schedules/**'
+            shared:
+              - 'src/domain/**'
+              - 'src/infrastructure_entsoe/**'
+              - 'src/infrastructure_clickhouse/**'
+            ingestion:
+              - 'src/data_cli/**'
+              - 'src/schedules/src/schedules/ingestion.py'
+              - 'src/schedules/src/schedules/deploy_ingestion.py'
+            forecast:
+              - 'src/forecast_cli/**'
+              - 'src/price_forecasting/**'
+              - 'src/schedules/src/schedules/forecast.py'
+              - 'src/schedules/src/schedules/reconciliation.py'
+              - 'src/schedules/src/schedules/drift.py'
+              - 'src/schedules/src/schedules/retrain.py'
+              - 'src/schedules/src/schedules/deploy_forecast.py'
+            configs_new:
+              - 'configs/*.py'
+            grafana:
+              - 'grafana/**'
+            smoke:
+              - 'src/price_forecasting/**'
+              - 'src/forecast_cli/**'
+              - 'src/schedules/src/schedules/forecast.py'
+              - 'src/schedules/src/schedules/reconciliation.py'
+              - 'configs/dk1_lear.py'
+              - 'Dockerfile'
+              - 'pyproject.toml'
+              - 'uv.lock'
+
+  build_image:
+    needs: changes
+    if: needs.changes.outputs.image == 'true' || needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
       - name: Join tailnet
         uses: tailscale/github-action@v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
-      - name: Rebuild image and redeploy flows on host
+      - name: Pull latest main and rebuild image
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -35,12 +91,101 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             docker build -t algo-repo:latest .
+          EOF
+
+  deploy_ingestion:
+    needs: [changes, build_image]
+    if: |
+      always()
+      && (needs.build_image.result == 'success' || needs.build_image.result == 'skipped')
+      && (needs.changes.outputs.ingestion == 'true' || needs.changes.outputs.shared == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Rerun deploy_ingestion.py
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REPO_PATH: ${{ secrets.DEPLOY_REPO_PATH }}
+        run: |
+          tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" <<EOF
+            set -euo pipefail
+            cd "$REPO_PATH"
             export PREFECT_API_URL="http://localhost:4200/api"
             uv run python src/schedules/src/schedules/deploy_ingestion.py
+          EOF
+
+  deploy_forecast:
+    needs: [changes, build_image]
+    if: |
+      always()
+      && (needs.build_image.result == 'success' || needs.build_image.result == 'skipped')
+      && (needs.changes.outputs.forecast == 'true'
+          || needs.changes.outputs.shared == 'true'
+          || needs.changes.outputs.configs_new == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Rerun deploy_forecast.py
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REPO_PATH: ${{ secrets.DEPLOY_REPO_PATH }}
+        run: |
+          tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" <<EOF
+            set -euo pipefail
+            cd "$REPO_PATH"
+            export PREFECT_API_URL="http://localhost:4200/api"
             uv run python src/schedules/src/schedules/deploy_forecast.py
           EOF
 
-      - name: Trigger integration smoke run
+  reload_grafana:
+    needs: changes
+    if: needs.changes.outputs.grafana == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Pull latest main and restart grafana
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REPO_PATH: ${{ secrets.DEPLOY_REPO_PATH }}
+        run: |
+          tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST" <<EOF
+            set -euo pipefail
+            cd "$REPO_PATH"
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose restart grafana
+          EOF
+
+  smoke_run:
+    needs: [changes, deploy_forecast]
+    if: needs.changes.outputs.smoke == 'true' && needs.deploy_forecast.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Trigger daily-forecast-dk1_lear and poll
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}

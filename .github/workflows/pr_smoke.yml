@@ -1,0 +1,162 @@
+name: PR Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/price_forecasting/**'
+      - 'src/forecast_cli/**'
+      - 'src/schedules/src/schedules/forecast.py'
+      - 'src/schedules/src/schedules/reconciliation.py'
+      - 'configs/smoke.py'
+      - 'Dockerfile'
+      - 'Dockerfile.worker'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'tests/smoke/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/pr_smoke.yml'
+
+concurrency:
+  group: pr-smoke-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: algo-repo
+      CLICKHOUSE_HOST: localhost
+      CLICKHOUSE_PORT: '8123'
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: password
+      CLICKHOUSE_DATABASE: algo
+      PREFECT_API_URL: http://localhost:4200/api
+      SLACK_WEBHOOK_URL: ''
+      LOKI_URL: ''
+      ENTSOE_API_KEY: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python deps
+        run: uv sync --frozen
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build algo-repo image (flow runs)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          tags: algo-repo:latest
+          load: true
+          cache-from: type=gha,scope=algo-repo
+          cache-to: type=gha,mode=max,scope=algo-repo
+
+      - name: Start clickhouse, prefect server, worker, loki
+        run: docker compose up -d clickhouse server worker loki
+
+      - name: Wait for ClickHouse readiness
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8123/ping > /dev/null; then
+              echo "ClickHouse ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "ClickHouse not ready after 60s"
+          docker compose logs clickhouse --tail 100
+          exit 1
+
+      - name: Wait for Prefect server readiness
+        run: |
+          for i in {1..60}; do
+            if curl -sf http://localhost:4200/api/health > /dev/null; then
+              echo "Prefect ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Prefect not ready after 120s"
+          docker compose logs server --tail 100
+          exit 1
+
+      - name: Run migrations
+        run: uv run python -m infrastructure_clickhouse.migrations.run_migrations
+
+      - name: Seed synthetic data
+        run: uv run python -m tests.smoke.seed
+
+      - name: Register smoke deployments
+        run: uv run python -m tests.smoke.deploy
+
+      - name: Run daily-forecast-smoke deployment
+        run: |
+          uv run python - <<'PY'
+          import sys
+          from prefect.deployments import run_deployment
+
+          flow_run = run_deployment(
+              name="daily-forecast/daily-forecast-smoke",
+              parameters={"target_date": "2025-06-01"},
+              timeout=300,
+          )
+          state = flow_run.state.type.value if flow_run.state else "UNKNOWN"
+          print(f"daily-forecast-smoke {flow_run.id} -> {state}")
+          sys.exit(0 if state == "COMPLETED" else 1)
+          PY
+
+      - name: Run reconcile-predictions deployment
+        run: |
+          uv run python - <<'PY'
+          import sys
+          from prefect.deployments import run_deployment
+
+          flow_run = run_deployment(
+              name="reconcile-predictions/reconcile-predictions",
+              timeout=180,
+          )
+          state = flow_run.state.type.value if flow_run.state else "UNKNOWN"
+          print(f"reconcile-predictions {flow_run.id} -> {state}")
+          sys.exit(0 if state == "COMPLETED" else 1)
+          PY
+
+      - name: Assert reconciled smoke run exists
+        run: uv run python -m tests.smoke.assert_reconciled
+
+      - name: Capture compose logs on failure
+        if: failure()
+        run: |
+          mkdir -p /tmp/smoke-logs
+          docker compose logs --no-color > /tmp/smoke-logs/compose.log 2>&1 || true
+          docker compose ps > /tmp/smoke-logs/ps.txt 2>&1 || true
+          docker ps -a > /tmp/smoke-logs/docker-ps.txt 2>&1 || true
+
+      - name: Upload smoke logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs-${{ github.event.number }}
+          path: /tmp/smoke-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans || true
