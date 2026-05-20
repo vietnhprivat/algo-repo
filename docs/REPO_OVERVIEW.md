@@ -107,7 +107,7 @@ them up on next run.
 | Orchestrator | Prefect 3.x | Docker work pool, ephemeral flow containers |
 | ML — baseline | scikit-learn (`Lasso`, `LassoCV`) | One Lasso per period (24 or 96) |
 | ML — DNN | PyTorch + Lightning | `LightningModel` base for DNN/Transformer work; seed-varied ensemble averaging in `LiveRunner` |
-| ML — boosted | XGBoost / LightGBM / CatBoost | Wrapped via `GBTModel` |
+| ML — boosted | XGBoost | Wrapped via `GBTModel` |
 | ML — tuning | Optuna 4.x (TPE multivariate) | `forecast-cli tune`; trials persisted to `algo.hyperparam_trials` |
 | ML — scaling | sklearn `StandardScaler` + custom `AsinhScaler` | Target scaler selected by `ExperimentConfig.target_scaler` |
 | DataFrames | Polars (ingest path) + pandas (forecast path) | Domain models use Polars; preprocessor/engine use pandas |
@@ -332,10 +332,6 @@ deduplication must use `FINAL` — or the caller must
 - `algo.hyperparam_trials`: `study_name, trial_number, created_utc, area, model_type, config_name, val_start_utc, val_end_utc, params_json, value (Float64), state` — one row per Optuna trial
 - `algo.retrain_events`: `event_id, created_utc, updated_utc, triggered_by, area, config_name, drift_report_id (Nullable), status, completed_utc (Nullable), new_run_id (Nullable), notes (Nullable)`. **Version key is `updated_utc`**, not `created_utc` — callers must pass a strictly later `updated_utc` on each re-insert so the terminal status row wins deduplication
 
-> **Dead-code note.** `create_energy_prices_table()` in `queries.py` references
-> `algo.energy_prices`, which is not used by any current ingestion path.
-> Candidate for cleanup. See `memory/project_dead_code.md`.
-
 ### `ingest.py` — writes
 
 All inserts go through `insert_polars_dataframe(client, df, table, batch_size=10_000)` which uses `client.insert_arrow(table, df.to_arrow())` in chunks and logs `Starting ClickHouse insert` / `ClickHouse insert failed` to Loki via `LOGGER`.
@@ -460,7 +456,7 @@ config = ExperimentConfig(
     results_dir="results",
     test_start_date="2026-01-01",
     test_end_date="2026-03-22",
-    calibration_windows=[56, 84, 730, 1092],
+    calibration_windows=[56, 84, 1092, 1456],
     refit_interval_days=1,
     exogenous_curve_types=["TotalLoad"],
     model_params={"alpha": 0.01},
@@ -532,7 +528,6 @@ Implementations:
 | `CalendarDummyTransformer()` | 7 (`day_0..day_6`) | Day-of-week one-hot |
 | `CyclicalTimeTransformer()` | 2 (`doy_sin`, `doy_cos`) | Annual seasonality |
 | `MeanWeeklyForecastTransformer(exogenous_columns, window_days=7)` | 1 per column (`{col}_week_mean`) | Compressed alternative for deep models |
-| `AggregatedLagTransformer` | designed, **not implemented** (raises `NotImplementedError`) | summary stats per lag day |
 
 Factory:
 ```python
@@ -558,9 +553,7 @@ BaseModel(ABC)                  # base.py — fit(features, targets) / predict_d
   ├── SklearnModel(ABC)         # sklearn_base.py — for native multi-output sklearn estimators
   │     └── RandomForestModel
   ├── GBTModel(ABC)             # gbt_base.py — trains one estimator per period; eval_set hook
-  │     ├── XGBoostModel
-  │     ├── LightGBMModel
-  │     └── CatBoostModel
+  │     └── XGBoostModel
   ├── LightningModel(ABC)       # lightning_base.py — handles full Lightning Trainer loop
   │     └── DNNModel            # dnn.py — feedforward (256, 256) by default
   └── LearModel                 # lear.py — direct; one Lasso(per period); supports LassoCV when alpha is None/"auto"
@@ -574,8 +567,6 @@ MODEL_REGISTRY = {
     "dnn":      DNNModel,
     "rf":       RandomForestModel,
     "xgboost":  XGBoostModel,
-    "lightgbm": LightGBMModel,
-    "catboost": CatBoostModel,
 }
 
 def get_model(name: str, **kwargs) -> BaseModel: ...   # case-insensitive

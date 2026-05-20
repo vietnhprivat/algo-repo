@@ -5,7 +5,6 @@ from price_forecasting.data.preprocessor import (
     pivot_to_daily as pivot_to_daily,
 )
 from price_forecasting.data.transformers import (
-    AggregatedLagTransformer as AggregatedLagTransformer,
     CalendarDummyTransformer as CalendarDummyTransformer,
     CyclicalTimeTransformer as CyclicalTimeTransformer,
     ExogenousLagTransformer as ExogenousLagTransformer,

@@ -54,3 +54,5 @@ poetry.lock
 # data files
 *.csv
 *.json
+
+results/
