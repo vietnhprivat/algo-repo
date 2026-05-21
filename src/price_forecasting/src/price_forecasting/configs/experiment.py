@@ -59,3 +59,9 @@ class ExperimentConfig:
     # Prefect flow run. Default False (alert-only). Closes the P9 feedback
     # loop (Zarour 2025).
     retrain_on_drift: bool = False
+
+    # W&B project name. When None, uses WANDB_PROJECT env var (default: "algo-research").
+    wandb_project: Optional[str] = None
+
+    # Custom W&B tags applied to runs logged from this config.
+    wandb_tags: List[str] = field(default_factory=list)
