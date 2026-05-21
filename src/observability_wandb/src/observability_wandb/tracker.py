@@ -17,15 +17,17 @@ LOGGER = logging.getLogger(__name__)
 
 class WandbTracker:
     def __init__(self, *, wandb_module: Any | None = None) -> None:
-        if wandb_module is None:
+        self._settings = load_settings()
+        self._enabled = is_enabled()
+        self._prod_runs: dict[tuple[str, str], Any] = {}
+        if wandb_module is not None:
+            self._wandb: Any = wandb_module
+        elif self._enabled:
             import wandb as _wandb
 
             self._wandb = _wandb
         else:
-            self._wandb = wandb_module
-        self._settings = load_settings()
-        self._enabled = is_enabled()
-        self._prod_runs: dict[tuple[str, str], Any] = {}
+            self._wandb = None
 
     @property
     def is_enabled(self) -> bool:
