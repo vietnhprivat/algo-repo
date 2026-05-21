@@ -82,3 +82,19 @@ def test_callback_noops_when_disabled(
     )
     callback(_FakeStudy(study_name="s"), _FakeTrial(0, {}, 0.0, "COMPLETE"))
     assert fake_wandb.init_calls == []
+
+
+def test_callback_returns_noop_without_wandb_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When disabled and no wandb_module injected, factory must return a no-op
+    without importing wandb (deferred-import guarantee)."""
+    monkeypatch.setenv("WANDB_MODE", "disabled")
+    # NO wandb_module argument; the factory must NOT import wandb.
+    callback = build_wandb_sweep_callback(
+        study_name="s", area="DK1", model_type="dnn", config_name="dk1_dnn",
+    )
+    # Calling with no real fake module should not raise:
+    callback(_FakeStudy(study_name="s"), _FakeTrial(0, {}, 0.0, "COMPLETE"))
+    # The no-op branch was taken — confirm by inspecting the qualified name.
+    assert callback.__qualname__.endswith("_noop")

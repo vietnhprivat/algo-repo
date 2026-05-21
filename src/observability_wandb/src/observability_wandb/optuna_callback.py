@@ -16,10 +16,19 @@ def build_wandb_sweep_callback(
     model_type: str,
     config_name: str,
 ) -> Callable[[Any, Any], None]:
+    enabled = is_enabled()
+
+    # When disabled and no injected module, return a no-op without ever
+    # importing wandb — preserves the deferred-import guarantee.
+    if not enabled and wandb_module is None:
+        def _noop(study: Any, trial: Any) -> None:
+            return None
+        return _noop
+
     if wandb_module is None:
         import wandb as wandb_module  # type: ignore[no-redef]
+
     settings = load_settings()
-    enabled = is_enabled()
 
     def _callback(study: Any, trial: Any) -> None:
         if not enabled:
