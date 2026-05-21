@@ -4,6 +4,8 @@ from typing import Callable, Protocol
 
 import optuna
 
+from observability_wandb.optuna_callback import build_wandb_sweep_callback as build_wandb_callback  # noqa: F401 — re-exported for forecast_cli.tune
+
 
 class _SupportsInsert(Protocol):
     def insert_hyperparam_trial(self, **kwargs) -> None: ...
