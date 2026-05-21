@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir uv
 # Copy lockfile + manifest first so the heavy dep install layer caches on uv.lock alone
 # (any src/ change would otherwise bust the layer cache for uv sync).
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
+RUN uv sync --frozen --no-install-workspace
 
 # Copy project sources and install the workspace packages on top of cached deps.
 COPY src/ ./src/
