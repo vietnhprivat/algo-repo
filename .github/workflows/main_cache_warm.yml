@@ -1,0 +1,42 @@
+name: Warm Smoke Cache
+
+# Builds algo-repo:latest on every merge to main and writes the result to
+# the gha cache scope used by PR Smoke. Without this, the smoke cache only
+# lives on PR branches and is evicted when they are deleted — so every new
+# PR pays the cold-build tax. With this, the first build on every new PR
+# branch can restore from main's cache.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'src/**'
+      - '.github/workflows/main_cache_warm.yml'
+
+concurrency:
+  group: main-cache-warm
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build algo-repo image (cache warm only)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          tags: algo-repo:latest
+          load: false
+          cache-from: type=gha,scope=algo-repo
+          cache-to: type=gha,mode=max,scope=algo-repo
