@@ -36,6 +36,7 @@ members = [
     "forecast-cli",
     "infrastructure-clickhouse",
     "infrastructure-entsoe",
+    "observability-wandb",
     "price-forecasting",
     "schedules",
 ]
@@ -168,6 +169,7 @@ dependencies = [
     { name = "jupyter" },
     { name = "matplotlib" },
     { name = "numpy" },
+    { name = "observability-wandb" },
     { name = "optuna" },
     { name = "pandas" },
     { name = "polars" },
@@ -185,6 +187,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "typer" },
     { name = "typos" },
+    { name = "wandb" },
 ]
 
 [package.optional-dependencies]
@@ -193,7 +196,8 @@ cpu = [
     { name = "torch", version = "2.12.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
 ]
 cuda = [
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
 ]
 
 [package.dev-dependencies]
@@ -215,6 +219,7 @@ requires-dist = [
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.1" },
+    { name = "observability-wandb", editable = "src/observability_wandb" },
     { name = "optuna", specifier = ">=4.8.0" },
     { name = "pandas", specifier = ">=3.0.0" },
     { name = "polars", specifier = ">=1.37.1" },
@@ -234,6 +239,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'cuda'", specifier = ">=2.11.0" },
     { name = "typer", specifier = ">=0.21.1" },
     { name = "typos", specifier = ">=1.43.3" },
+    { name = "wandb", specifier = ">=0.27.0" },
 ]
 provides-extras = ["cpu", "cuda"]
 
@@ -933,9 +939,6 @@ wheels = [
 ]
 
 [package.optional-dependencies]
-cublas = [
-    { name = "nvidia-cublas", marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-]
 cudart = [
     { name = "nvidia-cuda-runtime", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
 ]
@@ -1364,6 +1367,30 @@ wheels = [
 [package.optional-dependencies]
 http = [
     { name = "aiohttp" },
+]
+
+[[package]]
+name = "gitdb"
+version = "4.0.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "smmap" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/94/63b0fc47eb32792c7ba1fe1b694daec9a63620db1e313033d18140c2320a/gitdb-4.0.12.tar.gz", hash = "sha256:5ef71f855d191a3326fcfbc0d5da835f26b13fbcba60c32c21091c349ffdb571", size = 394684, upload-time = "2025-01-02T07:20:46.413Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/61/5c78b91c3143ed5c14207f463aecfc8f9dbb5092fb2869baf37c273b2705/gitdb-4.0.12-py3-none-any.whl", hash = "sha256:67073e15955400952c6565cc3e707c554a4eea2e428946f7a4c162fab9bd9bcf", size = 62794, upload-time = "2025-01-02T07:20:43.624Z" },
+]
+
+[[package]]
+name = "gitpython"
+version = "3.1.50"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gitdb" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/33/f6/354ae6491228b5eb40e10d89c4d13c651fe1cf7556e35ebdded50cff57ce/gitpython-3.1.50.tar.gz", hash = "sha256:80da2d12504d52e1f998772dc5baf6e553f8d2fcfe1fcc226c9d9a2ee3372dcc", size = 219798, upload-time = "2026-05-06T04:01:26.571Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/7a/1c6e3562dfd8950adbb11ffbc65d21e7c89d01a6e4f137fa981056de25c5/gitpython-3.1.50-py3-none-any.whl", hash = "sha256:d352abe2908d07355014abdd21ddf798c2a961469239afec4962e9da884858f9", size = 212507, upload-time = "2026-05-06T04:01:23.799Z" },
 ]
 
 [[package]]
@@ -2103,9 +2130,9 @@ dependencies = [
     { name = "packaging" },
     { name = "pytorch-lightning" },
     { name = "pyyaml" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torchmetrics" },
     { name = "tqdm" },
@@ -2752,31 +2779,10 @@ wheels = [
 
 [[package]]
 name = "nvidia-cudnn-cu13"
-version = "9.19.0.56"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-dependencies = [
-    { name = "nvidia-cublas", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/84/26025437c1e6b61a707442184fa0c03d083b661adf3a3eecfd6d21677740/nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:6ed29ffaee1176c612daf442e4dd6cfeb6a0caa43ddcbeb59da94953030b1be4", size = 433781201, upload-time = "2026-02-03T20:40:53.805Z" },
-    { url = "https://files.pythonhosted.org/packages/a3/22/0b4b932655d17a6da1b92fa92ab12844b053bb2ac2475e179ba6f043da1e/nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:d20e1734305e9d68889a96e3f35094d733ff1f83932ebe462753973e53a572bf", size = 366066321, upload-time = "2026-02-03T20:44:52.837Z" },
-    { url = "https://files.pythonhosted.org/packages/91/a2/f020386683ee9ab2c9a9f7f79290d9b0d07f7241de54dc746af2abd188d2/nvidia_cudnn_cu13-9.19.0.56-py3-none-win_amd64.whl", hash = "sha256:40d8c375005bcb01495f8edf375230b203a411a0c05fb6dc92a3781edcb23eac", size = 350547366, upload-time = "2026-02-03T20:50:49.563Z" },
-]
-
-[[package]]
-name = "nvidia-cudnn-cu13"
 version = "9.20.0.48"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 dependencies = [
-    { name = "nvidia-cublas", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "nvidia-cublas", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/56/c5/83384d846b2fd17c44bd499b36c75a45ed4f095fbbb2252294e89cea5c5c/nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:e31454ae00094b0c55319d9d15b6fa2fc50a9e1c0f5c8c80fb75258234e731e1", size = 444574296, upload-time = "2026-03-09T19:28:27.751Z" },
@@ -2846,26 +2852,8 @@ wheels = [
 
 [[package]]
 name = "nvidia-cusparselt-cu13"
-version = "0.8.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/10/8dcd1175260706a2fc92a16a52e306b71d4c1ea0b0cc4a9484183399818a/nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:400c6ed1cf6780fc6efedd64ec9f1345871767e6a1a0a552a1ea0578117ea77c", size = 220791277, upload-time = "2025-08-13T19:22:40.982Z" },
-    { url = "https://files.pythonhosted.org/packages/fd/53/43b0d71f4e702fa9733f8b4571fdca50a8813f1e450b656c239beff12315/nvidia_cusparselt_cu13-0.8.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:25e30a8a7323935d4ad0340b95a0b69926eee755767e8e0b1cf8dd85b197d3fd", size = 169884119, upload-time = "2025-08-13T19:23:41.967Z" },
-    { url = "https://files.pythonhosted.org/packages/57/de/8f0578928b9b1246d7b1324db0528e6b9f9fb54496a49f40bf71f09f1a27/nvidia_cusparselt_cu13-0.8.0-py3-none-win_amd64.whl", hash = "sha256:e80212ed7b1afc97102fbb2b5c82487aa73f6a0edfa6d26c5a152593e520bb8f", size = 156459710, upload-time = "2025-08-13T19:24:18.043Z" },
-]
-
-[[package]]
-name = "nvidia-cusparselt-cu13"
 version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/46/e1/cdc1797eadf82d3a9a575a19b33fdc871a97edbec42c00b5b5e914f4aff4/nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_aarch64.whl", hash = "sha256:4dca476c50bf4780d46cd0bfbd82e2bc10a08e4fef7950917ce8d7578d22a23f", size = 221051344, upload-time = "2025-09-05T18:49:51.289Z" },
     { url = "https://files.pythonhosted.org/packages/34/7d/2661f2fb3ac4302f3a246f5fc030213ac60c1fe0bce84f9783dbd831dbb7/nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl", hash = "sha256:786ce87568c303fadb5afcc7102d454cd3040d75f6f8626f5db460d1871f4dd0", size = 170148586, upload-time = "2025-09-05T18:50:50.248Z" },
@@ -2883,25 +2871,8 @@ wheels = [
 
 [[package]]
 name = "nvidia-nccl-cu13"
-version = "2.28.9"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/55/1920646a2e43ffd4fc958536b276197ed740e9e0c54105b4bb3521591fc7/nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_aarch64.whl", hash = "sha256:01c873ba1626b54caa12272ed228dc5b2781545e0ae8ba3f432a8ef1c6d78643", size = 196561677, upload-time = "2025-11-18T05:49:03.45Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/b4/878fefaad5b2bcc6fcf8d474a25e3e3774bc5133e4b58adff4d0bca238bc/nvidia_nccl_cu13-2.28.9-py3-none-manylinux_2_18_x86_64.whl", hash = "sha256:e4553a30f34195f3fa1da02a6da3d6337d28f2003943aa0a3d247bbc25fefc42", size = 196493177, upload-time = "2025-11-18T05:49:17.677Z" },
-]
-
-[[package]]
-name = "nvidia-nccl-cu13"
 version = "2.29.7"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/72/0d/daf50d44177ee0cbc7ff0a0c91eb5ff676c82be42f9a970bc7597f440c3a/nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_aarch64.whl", hash = "sha256:674a12383e3c38a1bcccae7d4f3633b37852230b6047883cb2f4c2d1b36d9bf5", size = 206014712, upload-time = "2026-03-03T05:34:20.843Z" },
     { url = "https://files.pythonhosted.org/packages/67/f4/58e4e91b6919367c7aafb8e36fce9aad1a3047e536bf7e2fd560927d3a4c/nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl", hash = "sha256:edd81538446786ec3b73972543e53bb43bcaf0bfc8ef76cb679fcc390ffe136d", size = 205976000, upload-time = "2026-03-03T05:36:24.472Z" },
@@ -2943,6 +2914,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918, upload-time = "2025-06-19T22:48:08.269Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065, upload-time = "2025-06-19T22:48:06.508Z" },
+]
+
+[[package]]
+name = "observability-wandb"
+version = "0.1.0"
+source = { editable = "src/observability_wandb" }
+dependencies = [
+    { name = "domain" },
+    { name = "infrastructure-clickhouse" },
+    { name = "wandb" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "domain", editable = "src/domain" },
+    { name = "infrastructure-clickhouse", editable = "src/infrastructure_clickhouse" },
+    { name = "wandb", specifier = ">=0.27.0" },
 ]
 
 [[package]]
@@ -3338,9 +3326,9 @@ source = { editable = "src/price_forecasting" }
 dependencies = [
     { name = "infrastructure-clickhouse" },
     { name = "lightning" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "xgboost" },
 ]
@@ -3804,9 +3792,9 @@ dependencies = [
     { name = "lightning-utilities" },
     { name = "packaging" },
     { name = "pyyaml" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torchmetrics" },
     { name = "tqdm" },
@@ -4394,6 +4382,19 @@ wheels = [
 ]
 
 [[package]]
+name = "sentry-sdk"
+version = "2.60.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/54/a2/2e6c090db384cc515069f4f85542bd5baf6786852073020ea73d4a76d3ea/sentry_sdk-2.60.0.tar.gz", hash = "sha256:0bd25e54e78ca02d0be512529fa644bbbf9e8470d7b26371294012d4ca93c978", size = 452946, upload-time = "2026-05-13T13:34:52.516Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/41/f2b800b7f12a05dd48c2a6280d4dd812d1425fc66ed3fe3fd99420c41d1a/sentry_sdk-2.60.0-py3-none-any.whl", hash = "sha256:28a536c03291c8bcb363cf35c611b32738ec118ff64d8d6383b096448ac4c803", size = 475616, upload-time = "2026-05-13T13:34:50.259Z" },
+]
+
+[[package]]
 name = "setuptools"
 version = "81.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4418,6 +4419,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
+]
+
+[[package]]
+name = "smmap"
+version = "5.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/ea/49c993d6dfdd7338c9b1000a0f36817ed7ec84577ae2e52f890d1a4ff909/smmap-5.0.3.tar.gz", hash = "sha256:4d9debb8b99007ae47165abc08670bd74cb74b5227dda7f643eccc4e9eb5642c", size = 22506, upload-time = "2026-03-09T03:43:26.1Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/d4/59e74daffcb57a07668852eeeb6035af9f32cbfd7a1d2511f17d2fe6a738/smmap-5.0.3-py3-none-any.whl", hash = "sha256:c106e05d5a61449cf6ba9a1e650227ecfb141590d2a98412103ff35d89fc7b2f", size = 24390, upload-time = "2026-03-09T03:43:24.361Z" },
 ]
 
 [[package]]
@@ -4625,26 +4635,17 @@ source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version < '3.14' and sys_platform == 'win32'",
     "python_full_version < '3.14' and sys_platform == 'emscripten'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "cuda-bindings", marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "cuda-toolkit", extra = ["cublas", "cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "filelock", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
-    { name = "fsspec", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
-    { name = "jinja2", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
-    { name = "networkx", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
-    { name = "nvidia-cudnn-cu13", version = "9.19.0.56", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-cusparselt-cu13", version = "0.8.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-nccl-cu13", version = "2.28.9", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-nvshmem-cu13", marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "setuptools", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
-    { name = "sympy", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
-    { name = "triton", version = "3.6.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "typing-extensions", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
+    { name = "filelock", marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "fsspec", marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "jinja2", marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "networkx", marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "setuptools", marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "sympy", marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "typing-extensions", marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/87/89/5ea6722763acee56b045435fb84258db7375c48165ec8be7880ab2b281c5/torch-2.11.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:1e6debd97ccd3205bbb37eb806a9d8219e1139d15419982c09e23ef7d4369d18", size = 80606801, upload-time = "2026-03-23T18:10:18.649Z" },
@@ -4698,21 +4699,21 @@ resolution-markers = [
     "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "cuda-bindings", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "cuda-toolkit", extra = ["cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "filelock", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "fsspec", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "jinja2", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "networkx", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-cublas", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-cudnn-cu13", version = "9.20.0.48", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-cusparselt-cu13", version = "0.8.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-nccl-cu13", version = "2.29.7", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "nvidia-nvshmem-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "setuptools", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "sympy", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "triton", version = "3.7.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "typing-extensions", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "cuda-bindings", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "cuda-toolkit", extra = ["cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "filelock", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "fsspec", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "jinja2", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "networkx", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "nvidia-cublas", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "nvidia-cudnn-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "nvidia-cusparselt-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "nvidia-nccl-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "nvidia-nvshmem-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "setuptools", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "sympy", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "triton", marker = "(sys_platform == 'linux' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "typing-extensions", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/86/ca/01896c80ba921676aa45886b2c5b8d774912de2a1f719de48169c6f755cd/torch-2.12.0-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:90dd587a5f61bfe1307148b581e2084fc5bc4a06e2b90a20e9a36b81087ff16b", size = 88009511, upload-time = "2026-05-13T14:54:47.411Z" },
@@ -4782,9 +4783,9 @@ dependencies = [
     { name = "lightning-utilities" },
     { name = "numpy" },
     { name = "packaging" },
-    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra == 'extra-9-algo-repo-cuda') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'emscripten' and extra != 'extra-9-algo-repo-cpu') or (sys_platform == 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
-    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu' and extra != 'extra-9-algo-repo-cuda') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
+    { name = "torch", version = "2.12.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
     { name = "torch", version = "2.12.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-9-algo-repo-cpu') or (extra == 'extra-9-algo-repo-cpu' and extra == 'extra-9-algo-repo-cuda')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/81/34/39b8b749333db56c0585d7a11fa62a283c087bb1dfc897d69fb8cedbefb1/torchmetrics-1.9.0.tar.gz", hash = "sha256:a488609948600df52d3db4fcdab02e62aab2a85ef34da67037dc3e65b8512faa", size = 581765, upload-time = "2026-03-09T17:41:22.443Z" }
@@ -4832,31 +4833,8 @@ wheels = [
 
 [[package]]
 name = "triton"
-version = "3.6.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/12/34d71b350e89a204c2c7777a9bba0dcf2f19a5bfdd70b57c4dbc5ffd7154/triton-3.6.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:448e02fe6dc898e9e5aa89cf0ee5c371e99df5aa5e8ad976a80b93334f3494fd", size = 176133521, upload-time = "2026-01-20T16:16:13.321Z" },
-    { url = "https://files.pythonhosted.org/packages/f9/0b/37d991d8c130ce81a8728ae3c25b6e60935838e9be1b58791f5997b24a54/triton-3.6.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:10c7f76c6e72d2ef08df639e3d0d30729112f47a56b0c81672edc05ee5116ac9", size = 188289450, upload-time = "2026-01-20T16:00:49.136Z" },
-    { url = "https://files.pythonhosted.org/packages/ce/4e/41b0c8033b503fd3cfcd12392cdd256945026a91ff02452bef40ec34bee7/triton-3.6.0-cp313-cp313t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:1722e172d34e32abc3eb7711d0025bb69d7959ebea84e3b7f7a341cd7ed694d6", size = 176276087, upload-time = "2026-01-20T16:16:18.989Z" },
-    { url = "https://files.pythonhosted.org/packages/35/f8/9c66bfc55361ec6d0e4040a0337fb5924ceb23de4648b8a81ae9d33b2b38/triton-3.6.0-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d002e07d7180fd65e622134fbd980c9a3d4211fb85224b56a0a0efbd422ab72f", size = 188400296, upload-time = "2026-01-20T16:00:56.042Z" },
-    { url = "https://files.pythonhosted.org/packages/49/55/5ecf0dcaa0f2fbbd4420f7ef227ee3cb172e91e5fede9d0ecaddc43363b4/triton-3.6.0-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ef5523241e7d1abca00f1d240949eebdd7c673b005edbbce0aca95b8191f1d43", size = 176138577, upload-time = "2026-01-20T16:16:25.426Z" },
-    { url = "https://files.pythonhosted.org/packages/df/3d/9e7eee57b37c80cec63322c0231bb6da3cfe535a91d7a4d64896fcb89357/triton-3.6.0-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a17a5d5985f0ac494ed8a8e54568f092f7057ef60e1b0fa09d3fd1512064e803", size = 188273063, upload-time = "2026-01-20T16:01:07.278Z" },
-    { url = "https://files.pythonhosted.org/packages/48/db/56ee649cab5eaff4757541325aca81f52d02d4a7cd3506776cad2451e060/triton-3.6.0-cp314-cp314t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0b3a97e8ed304dfa9bd23bb41ca04cdf6b2e617d5e782a8653d616037a5d537d", size = 176274804, upload-time = "2026-01-20T16:16:31.528Z" },
-    { url = "https://files.pythonhosted.org/packages/f6/56/6113c23ff46c00aae423333eb58b3e60bdfe9179d542781955a5e1514cb3/triton-3.6.0-cp314-cp314t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:46bd1c1af4b6704e554cad2eeb3b0a6513a980d470ccfa63189737340c7746a7", size = 188397994, upload-time = "2026-01-20T16:01:14.236Z" },
-]
-
-[[package]]
-name = "triton"
 version = "3.7.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/01/e1/a59a583de59b8f62c495d67c80ee3ea97d09e91ac80c4c6e76456ed8d8ac/triton-3.7.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:abdf6beaa89b1bcfb9a43cd990536ce66091a997841a4814b260b7bee4c88c3c", size = 188503209, upload-time = "2026-05-07T19:05:17.935Z" },
     { url = "https://files.pythonhosted.org/packages/30/b1/b7507bb9815d403927c8dd51d4158ed2e11751a92dbc118a044f247b6848/triton-3.7.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a35d7afe3f3f058e7ec49fcce09794049e0ffc5c59019ac25ec3413741b8c4e7", size = 201453566, upload-time = "2026-05-07T18:46:20.427Z" },
@@ -5080,6 +5058,35 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/37/945b4ca0ac27e3dc4952642d4c900edd030b3da6c9634875af6e13ae80e5/uvloop-0.22.1-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b91328c72635f6f9e0282e4a57da7470c7350ab1c9f48546c0f2866205349d21", size = 4467065, upload-time = "2025-10-16T22:16:58.206Z" },
     { url = "https://files.pythonhosted.org/packages/97/cc/48d232f33d60e2e2e0b42f4e73455b146b76ebe216487e862700457fbf3c/uvloop-0.22.1-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:daf620c2995d193449393d6c62131b3fbd40a63bf7b307a1527856ace637fe88", size = 4328384, upload-time = "2025-10-16T22:16:59.36Z" },
     { url = "https://files.pythonhosted.org/packages/e4/16/c1fd27e9549f3c4baf1dc9c20c456cd2f822dbf8de9f463824b0c0357e06/uvloop-0.22.1-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:6cde23eeda1a25c75b2e07d39970f3374105d5eafbaab2a4482be82f272d5a5e", size = 4296730, upload-time = "2025-10-16T22:17:00.744Z" },
+]
+
+[[package]]
+name = "wandb"
+version = "0.27.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "gitpython" },
+    { name = "packaging" },
+    { name = "platformdirs" },
+    { name = "protobuf" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "sentry-sdk" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8e/31/fe53d06b75ef0a7f2f0ee5931a89f7aedc27d233840b1839616860fed256/wandb-0.27.0.tar.gz", hash = "sha256:579e75300173059f9334e1f513a79ef15f6d9ea5c74e20d695633648cdd02031", size = 41090732, upload-time = "2026-05-14T03:44:08.894Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/5e/2c199e70e636ecfd217cde0bc7469f4511e1d03d0685eb92bfdfce391430/wandb-0.27.0-py3-none-macosx_12_0_arm64.whl", hash = "sha256:c156be4851485f3c4160cb6eb2e8991b4cdeffbccefc5636d33cf5e254847365", size = 24886476, upload-time = "2026-05-14T03:43:27.569Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/cd/a617c871cd304a9804e56a7ec2ec2c65685bf0091a2b9f91910175a149e2/wandb-0.27.0-py3-none-macosx_12_0_x86_64.whl", hash = "sha256:20179f38afb0158859a4141d29ac650d3fdbd0cf801a74ce25565c934f03776c", size = 26045779, upload-time = "2026-05-14T03:43:31.999Z" },
+    { url = "https://files.pythonhosted.org/packages/10/0a/d3f159a201530b84b72ca5f98c68d1f351c2d9a1864558ed76c811407fae/wandb-0.27.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:626497d7975fa898d0a4a239da7a510483495ca3514510dbe75004a25963af4d", size = 25480764, upload-time = "2026-05-14T03:43:35.922Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/6a/8721fcdf71d42639191040a77a585d2982402b1754700cb2ecfc2ca1470a/wandb-0.27.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:f772da7005cc26a2a32b729a16982a583dc68b3d493df6a09d0aa5c5ca5a2060", size = 27256204, upload-time = "2026-05-14T03:43:39.765Z" },
+    { url = "https://files.pythonhosted.org/packages/00/5e/279d167ba79fb7a8a43401c9f25efd0f6663ee9bd1eaf5a8578530198888/wandb-0.27.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:63acfc5b994e4a90e4a2fbdee6d45e664da3dd865bb1419942c8995c06c41cf1", size = 25647469, upload-time = "2026-05-14T03:43:44.817Z" },
+    { url = "https://files.pythonhosted.org/packages/94/51/a69ac59300e3c813939d0764348959ed2a21e14c668cb1cebcb04010da6a/wandb-0.27.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:17aae6e4a88cd05c00ea8f546220918e3ebb6f8c1c36b70ef04a5ac75f0d7160", size = 27599005, upload-time = "2026-05-14T03:43:50.926Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/40/bf510c8758727df020f83b717ebc1fcc1739ed7f6ae1796ebef60bf6f592/wandb-0.27.0-py3-none-win32.whl", hash = "sha256:0bd5659417e386bf6538b5e2ffe6885774c6197f0e4853bfed517d5b0db457f1", size = 25036164, upload-time = "2026-05-14T03:43:54.839Z" },
+    { url = "https://files.pythonhosted.org/packages/54/ff/69f88e7d90c22b79bcb911143c13e59742ee192080b21015ff83a5a1f60a/wandb-0.27.0-py3-none-win_amd64.whl", hash = "sha256:89d584b73166eecee96fb446f18d0e45b1aa45aba6a3696296f3f06d7454516b", size = 25036170, upload-time = "2026-05-14T03:43:59.227Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/38/f7efd7a87297a55c7e9a331a1dbb5b19e54aeacc11fe6f43f8636a73987c/wandb-0.27.0-py3-none-win_arm64.whl", hash = "sha256:a6c129c311edf210a2b4f2f4acc557eff522628125f5f28ed27df19c16c07079", size = 22972710, upload-time = "2026-05-14T03:44:03.275Z" },
 ]
 
 [[package]]

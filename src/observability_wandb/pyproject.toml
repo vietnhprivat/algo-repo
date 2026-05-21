@@ -1,0 +1,15 @@
+[project]
+name = "observability-wandb"
+version = "0.1.0"
+description = "W&B observability layer (research-side dual-write tracker)."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "domain",
+    "infrastructure-clickhouse",
+    "wandb>=0.27.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.28,<0.10.0"]
+build-backend = "uv_build"

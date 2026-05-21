@@ -33,6 +33,8 @@ dependencies = [
     "python-logging-loki>=0.3.1",
     "evidently>=0.7",
     "optuna>=4.8.0",
+    "wandb>=0.27.0",
+    "observability-wandb",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +58,7 @@ members = [
     "src/schedules",
     "src/data_cli",
     "src/forecast_cli",
+    "src/observability_wandb",
 ]
 
 [tool.uv.sources]
@@ -66,6 +69,7 @@ price-forecasting = { workspace = true }
 schedules = { workspace = true }
 data-cli = { workspace = true }
 forecast-cli = { workspace = true }
+observability-wandb = { workspace = true }
 torch = [
     { index = "pytorch-cpu", extra = "cpu" },
 ]
