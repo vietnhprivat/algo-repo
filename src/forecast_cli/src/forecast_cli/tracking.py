@@ -3,6 +3,7 @@
 import base64
 import io
 import json
+import logging
 import os
 import uuid
 from dataclasses import asdict
@@ -21,6 +22,8 @@ from infrastructure_clickhouse.ingest import (
 )
 from observability_wandb.tracker import WandbTracker
 from price_forecasting.configs import ExperimentConfig
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _resolve_git_sha() -> str:
@@ -162,13 +165,19 @@ def track_backtest_run(
 
     per_day = _build_per_day_metrics(forecasts, actuals)
     tags = list(config.wandb_tags) if config.wandb_tags else [config.area, config.model_type]
-    tracker.log_backtest_run(
-        run_id=run_id,
-        config=asdict(config),
-        summary=metrics,
-        per_day=per_day,
-        tags=tags,
-    )
+    try:
+        tracker.log_backtest_run(
+            run_id=run_id,
+            config=asdict(config),
+            summary=metrics,
+            per_day=per_day,
+            tags=tags,
+        )
+    except Exception:
+        LOGGER.warning(
+            "WandbTracker.log_backtest_run failed; continuing without W&B sync",
+            exc_info=True,
+        )
 
     return run_id
 
@@ -243,13 +252,19 @@ def track_prediction(
 
     prediction_records = predictions_df.to_pandas().to_dict(orient="records")
     tags = list(config.wandb_tags) if config.wandb_tags else [config.area, config.model_type]
-    tracker.log_predict_run_with_artifact(
-        run_id=run_id,
-        config=asdict(config),
-        prediction=prediction_records,
-        tags=tags,
-        artifact_id=artifact_id,
-        artifact_blob_b64=artifact_blob_b64,
-    )
+    try:
+        tracker.log_predict_run_with_artifact(
+            run_id=run_id,
+            config=asdict(config),
+            prediction=prediction_records,
+            tags=tags,
+            artifact_id=artifact_id,
+            artifact_blob_b64=artifact_blob_b64,
+        )
+    except Exception:
+        LOGGER.warning(
+            "WandbTracker.log_predict_run_with_artifact failed; continuing without W&B sync",
+            exc_info=True,
+        )
 
     return run_id

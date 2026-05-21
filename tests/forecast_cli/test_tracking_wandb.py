@@ -193,3 +193,77 @@ def test_backtest_disabled_tracker_skips_wandb(
     )
 
     assert fake_wandb.init_calls == []
+
+
+def test_backtest_continues_when_wandb_raises(
+    enabled_env: None,
+    fake_wandb: FakeWandb,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A W&B failure must not break the backtest tracking."""
+    _patch_ch(monkeypatch)
+
+    class _RaisingFakeWandb(FakeWandb):
+        def init(self, **kwargs):
+            raise RuntimeError("W&B outage")
+
+    raising = _RaisingFakeWandb()
+    tracker = WandbTracker(wandb_module=raising)
+    forecasts, actuals = _make_wide_frames()
+    config = _make_config()
+    metrics = {"mae": 4.95, "rmse": 6.7, "smape": 12.0}
+
+    from forecast_cli.tracking import track_backtest_run
+
+    # Must not raise even though W&B init throws.
+    run_id = track_backtest_run(
+        config,
+        forecasts,
+        actuals,
+        metrics,
+        tracker=tracker,
+    )
+    assert run_id  # ClickHouse path still returned a run_id
+
+
+def test_predict_continues_when_wandb_raises(
+    enabled_env: None,
+    fake_wandb: FakeWandb,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A W&B failure must not break the live prediction tracking."""
+    from forecast_cli import tracking
+
+    monkeypatch.setattr(
+        tracking, "insert_experiment_run", lambda *a, **k: None, raising=True
+    )
+    monkeypatch.setattr(
+        tracking,
+        "insert_experiment_predictions",
+        lambda *a, **k: None,
+        raising=True,
+    )
+    monkeypatch.setattr(
+        tracking, "insert_model_artifact", lambda *a, **k: None, raising=True
+    )
+    fake_client = MagicMock()
+    monkeypatch.setattr(tracking, "create_client", lambda: fake_client, raising=True)
+
+    class _RaisingFakeWandb(FakeWandb):
+        def init(self, **kwargs):
+            raise RuntimeError("W&B outage")
+
+    raising = _RaisingFakeWandb()
+    tracker = WandbTracker(wandb_module=raising)
+    config = _make_config()
+    predictions = pd.Series([50.0 + i for i in range(24)], dtype=float)
+
+    # Must not raise even though W&B init throws.
+    run_id = tracking.track_prediction(
+        config,
+        "2026-05-22",
+        predictions,
+        trained_models={"model_key": "fake_model_object"},
+        tracker=tracker,
+    )
+    assert run_id  # ClickHouse path still returned a run_id
