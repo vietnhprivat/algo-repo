@@ -90,7 +90,10 @@ jobs:
             cd "$REPO_PATH"
             git fetch origin main
             git reset --hard origin/main
-            docker build --build-arg GIT_SHA=\$(git rev-parse HEAD) -t algo-repo:latest .
+            docker build \
+              --build-arg GIT_SHA=\$(git rev-parse HEAD) \
+              --build-arg TORCH_VARIANT=cuda \
+              -t algo-repo:latest .
           EOF
 
   deploy_ingestion:

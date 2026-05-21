@@ -58,9 +58,13 @@ jobs:
           context: .
           file: Dockerfile
           tags: algo-repo:latest
+          # CPU-only torch — CI runner doesn't need (and can't fit) the CUDA wheel set.
+          # Prod builds on the deploy host with the default cuda variant.
+          build-args: |
+            TORCH_VARIANT=cpu
           load: true
-          cache-from: type=gha,scope=algo-repo
-          cache-to: type=gha,mode=max,scope=algo-repo
+          cache-from: type=gha,scope=algo-repo-cpu
+          cache-to: type=gha,mode=max,scope=algo-repo-cpu
 
       - name: Start clickhouse, prefect server, worker
         run: docker compose up -d clickhouse server worker
