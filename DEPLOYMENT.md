@@ -74,7 +74,9 @@ docker compose logs worker --tail 20   # look for "Worker 'docker-pool' started!
 uv run python -m infrastructure_clickhouse.migrations.run_migrations
 ```
 
-Current migrations: `001`…`007` (drift reports).
+Current migrations: `001`…`010` (drift reports, hyperparam trials, retrain events, experiment-run git SHA).
+
+In production, migrations auto-apply on every CD deploy (see [CI/CD](#cicd) below). The command above is kept as a recovery procedure for local setup and for manually catching up a host after a CD failure.
 
 ### 4. Register Prefect deployments
 
