@@ -32,6 +32,7 @@ from price_forecasting.evaluation import (
     calculate_rmse,
     calculate_smape,
 )
+from observability_wandb.tracker import WandbTracker
 from schedules.alerting import notify
 
 LOGGER = get_logger(__name__, service="prefect-reconciliation")
@@ -43,6 +44,22 @@ def _ensure_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _log_run_to_wandb(
+    *,
+    tracker: WandbTracker,
+    area: str,
+    config_name: str,
+    target_date: str,
+    metrics: dict[str, float],
+) -> None:
+    tracker.log_prod_reconciled(
+        area=area,
+        config_name=config_name,
+        target_date=target_date,
+        metrics=metrics,
+    )
 
 
 @task(log_prints=True)
@@ -65,6 +82,7 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
     matches predictions to actuals, computes metrics, and re-inserts the
     updated rows (ReplacingMergeTree deduplication handles the upsert).
     """
+    tracker = WandbTracker()
     client = create_client()
     try:
         LOGGER.info(
@@ -202,6 +220,22 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
             reconciled += 1
 
             config_name = run["experiment_name"]
+            target_date = min(r["timestamp_utc"] for r in rows).strftime("%Y-%m-%d")
+            try:
+                _log_run_to_wandb(
+                    tracker=tracker,
+                    area=area,
+                    config_name=config_name,
+                    target_date=target_date,
+                    metrics=metrics,
+                )
+            except Exception as exc:
+                LOGGER.warning(
+                    "W&B prod-sync failed; continuing",
+                    extra=build_log_extra(
+                        area=area, config_name=config_name, error=str(exc),
+                    ),
+                )
             if config_name not in baseline_cache:
                 try:
                     baseline_cache[config_name] = get_recent_accuracy(
