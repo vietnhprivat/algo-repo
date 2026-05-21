@@ -251,12 +251,23 @@ def track_prediction(
         client.close()
 
     prediction_records = predictions_df.to_pandas().to_dict(orient="records")
+    # W&B logs are immutable; the CH `actual=0.0` placeholder (overwritten by
+    # reconciliation in ClickHouse) would otherwise show as a flat-zero series
+    # on the predict run's detail page. Project to only the predicted columns.
+    wandb_predictions = [
+        {
+            "period": idx,
+            "timestamp_utc": row["timestamp_utc"],
+            "predicted": row["predicted"],
+        }
+        for idx, row in enumerate(prediction_records)
+    ]
     tags = list(config.wandb_tags) if config.wandb_tags else [config.area, config.model_type]
     try:
         tracker.log_predict_run_with_artifact(
             run_id=run_id,
             config=asdict(config),
-            prediction=prediction_records,
+            prediction=wandb_predictions,
             tags=tags,
             artifact_id=artifact_id,
             artifact_blob_b64=artifact_blob_b64,

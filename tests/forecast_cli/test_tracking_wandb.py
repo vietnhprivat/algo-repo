@@ -130,6 +130,13 @@ def test_predict_dual_writes_to_wandb(
     assert fake_wandb.runs[0].finished is True
     # prediction rows were logged (one per period)
     assert len(fake_wandb.runs[0].logged) == 24
+    # W&B payload must NOT include the ClickHouse staging placeholders
+    # (actual=0.0 and run_id) which would pollute the predict run's chart.
+    for payload, _ in fake_wandb.runs[0].logged:
+        assert "actual" not in payload
+        assert "run_id" not in payload
+        assert "predicted" in payload
+        assert "timestamp_utc" in payload
     # artifact was attached because trained_models was provided
     assert len(fake_wandb.runs[0].artifacts_logged) == 1
 
