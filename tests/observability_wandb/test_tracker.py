@@ -164,3 +164,32 @@ class TestLogProdReconciled:
         assert len(fake_wandb.init_calls) == 2
         ids = {c["id"] for c in fake_wandb.init_calls}
         assert ids == {"prod-dk1-dk1_lear", "prod-de-de_lear"}
+
+
+class TestLogArtifact:
+    def test_attaches_artifact_to_run(
+        self,
+        enabled_env: None,
+        fake_wandb: FakeWandb,
+        tmp_path,
+    ) -> None:
+        blob = tmp_path / "model.joblib"
+        blob.write_bytes(b"\x00\x01fake-joblib")
+
+        tracker = WandbTracker(wandb_module=fake_wandb)
+        run = fake_wandb.init(project="algo-research", id="r-1")
+
+        tracker.log_artifact(
+            run=run,
+            artifact_id="art-uuid-1",
+            artifact_type="model",
+            local_path=str(blob),
+            metadata={"area": "DK1", "model_type": "lear"},
+        )
+
+        assert len(run.artifacts_logged) == 1
+        artifact = run.artifacts_logged[0]
+        assert artifact.name == "art-uuid-1"
+        assert artifact.type == "model"
+        assert artifact.metadata == {"area": "DK1", "model_type": "lear"}
+        assert b"fake-joblib" in next(iter(artifact.files.values()))

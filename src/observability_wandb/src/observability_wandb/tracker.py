@@ -124,5 +124,10 @@ class WandbTracker:
     ) -> None:
         if not self._enabled:
             return None
-        # Filled in by Task 7.
-        raise NotImplementedError
+        artifact = self._wandb.Artifact(
+            name=artifact_id,
+            type=artifact_type,
+            metadata=dict(metadata),
+        )
+        artifact.add_file(local_path)
+        run.log_artifact(artifact)
