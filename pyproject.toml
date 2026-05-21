@@ -35,6 +35,18 @@ dependencies = [
     "optuna>=4.8.0",
 ]
 
+[project.optional-dependencies]
+# Mirror the torch dep from price-forecasting so uv can route it through the
+# right index per variant. cpu pulls from download.pytorch.org/whl/cpu; cuda
+# pulls from PyPI default (which currently distributes CUDA 13 NVIDIA wheels).
+cpu = ["torch>=2.11.0"]
+cuda = ["torch>=2.11.0"]
+
+[tool.uv]
+conflicts = [
+    [{ extra = "cpu" }, { extra = "cuda" }],
+]
+
 [tool.uv.workspace]
 members = [
     "src/infrastructure_entsoe",
@@ -54,6 +66,14 @@ price-forecasting = { workspace = true }
 schedules = { workspace = true }
 data-cli = { workspace = true }
 forecast-cli = { workspace = true }
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = [

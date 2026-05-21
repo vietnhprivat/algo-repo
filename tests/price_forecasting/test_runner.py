@@ -53,6 +53,18 @@ class TestBacktestRunner:
         assert outputs["forecasts"].shape[0] > 0
         assert outputs["actuals"].shape[0] > 0
 
+    def test_execute_reports_training_duration(self, tmp_path):
+        config = self._make_config(tmp_path)
+        runner = BacktestRunner(config)
+        self._patch_runner(runner)
+
+        outputs = runner.execute()
+
+        assert "training_duration_seconds" in outputs
+        duration = outputs["training_duration_seconds"]
+        assert isinstance(duration, float)
+        assert duration > 0.0
+
         results_dir = tmp_path / "results"
         assert (results_dir / "integration_test_forecasts.csv").exists()
         assert (results_dir / "integration_test_actuals.csv").exists()

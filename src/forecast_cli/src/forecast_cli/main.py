@@ -44,6 +44,7 @@ def backtest(
 
     forecasts = outputs["forecasts"]
     actuals = outputs["actuals"]
+    duration = float(outputs.get("training_duration_seconds", 0.0))
 
     naive = build_weekly_naive(actuals)
     metrics = compute_metrics_summary(forecasts, actuals, naive)
@@ -57,7 +58,13 @@ def backtest(
         typer.echo(f"  rMAE:  {metrics['rmae']:.4f}")
 
     if track:
-        run_id = track_backtest_run(config, forecasts, actuals, metrics)
+        run_id = track_backtest_run(
+            config,
+            forecasts,
+            actuals,
+            metrics,
+            training_duration_seconds=duration,
+        )
         typer.echo(f"\nTracked run {run_id} in ClickHouse.")
 
 
@@ -82,7 +89,8 @@ def predict(
     typer.echo("")
 
     runner = LiveRunner(config)
-    prediction = runner.run_live(target_date_str)
+    result = runner.run_live_with_metadata(target_date_str)
+    prediction = result.prediction
 
     n_periods = len(prediction)
     minutes_per_period = 1440 // n_periods
@@ -94,7 +102,16 @@ def predict(
         typer.echo(f"  {period_index:>4}  {hh:02d}:{mm:02d}  {value:>10.2f}")
 
     if track:
-        run_id = track_prediction(config, target_date_str, prediction)
+        run_id = track_prediction(
+            config,
+            target_date_str,
+            prediction,
+            training_duration_seconds=result.training_duration_seconds,
+            data_start_utc=result.data_start_utc,
+            data_end_utc=result.data_end_utc,
+            trained_models=result.trained_models,
+            config_name=config_name,
+        )
         typer.echo(f"\nTracked prediction {run_id} in ClickHouse.")
 
 

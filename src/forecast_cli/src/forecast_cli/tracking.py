@@ -102,6 +102,8 @@ def track_backtest_run(
     forecasts: pd.DataFrame,
     actuals: pd.DataFrame,
     metrics: dict,
+    *,
+    training_duration_seconds: float = 0.0,
 ) -> str:
     """Store a backtest run and its predictions in ClickHouse.
 
@@ -125,6 +127,7 @@ def track_backtest_run(
             model_type=config.model_type,
             config_json=config_json,
             metrics_json=metrics_json,
+            training_duration_seconds=training_duration_seconds,
             git_sha=_resolve_git_sha(),
         )
         insert_experiment_predictions(client, predictions_df)

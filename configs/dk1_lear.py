@@ -16,5 +16,5 @@ config = ExperimentConfig(
     refit_interval_days=1,
     exogenous_curve_types=["TotalLoad"],
     target_scaler="asinh",
-    model_params={"alpha": 0.01},
+    model_params={"alpha": "auto"},
 )

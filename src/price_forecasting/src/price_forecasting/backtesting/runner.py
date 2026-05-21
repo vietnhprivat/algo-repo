@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -60,6 +61,7 @@ class BacktestRunner(BaseRunner):
 
     def execute(self, dataframe: pd.DataFrame | None = None):
         print(f"Running Experiment: {self.config.experiment_name}")
+        start_perf = time.perf_counter()
 
         features, targets = self._load_and_preprocess_data(dataframe)
         split = self._split_data(features, targets)
@@ -75,6 +77,7 @@ class BacktestRunner(BaseRunner):
         print("Backtest completed.")
 
         outputs = self._prepare_outputs(forecasts, actuals)
+        outputs["training_duration_seconds"] = float(time.perf_counter() - start_perf)
         self._save_outputs(outputs)
         return outputs
 
