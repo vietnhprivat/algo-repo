@@ -20,14 +20,22 @@ RUN apt-get update && apt-get install -y \
 # Install uv
 RUN pip install --no-cache-dir uv
 
+# UV_LINK_MODE=copy because the BuildKit cache mount lives on a separate
+# filesystem from /app/.venv, so uv's default hardlink mode would fail.
+ENV UV_LINK_MODE=copy
+
 # Copy lockfile + manifest first so the heavy dep install layer caches on uv.lock alone
 # (any src/ change would otherwise bust the layer cache for uv sync).
+# --mount=type=cache persists uv's wheel cache across builds even when the
+# layer cache is busted by a uv.lock change — only new/changed wheels download.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-workspace --extra ${TORCH_VARIANT}
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-workspace --extra ${TORCH_VARIANT}
 
 # Copy project sources and install the workspace packages on top of cached deps.
 COPY src/ ./src/
-RUN uv sync --frozen --extra ${TORCH_VARIANT}
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --extra ${TORCH_VARIANT}
 
 # Add virtual environment bin to PATH so prefect and all packages are available
 ENV PATH="/app/.venv/bin:$PATH"
