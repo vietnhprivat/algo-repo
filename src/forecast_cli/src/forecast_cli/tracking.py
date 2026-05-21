@@ -3,12 +3,14 @@
 import base64
 import io
 import json
+import logging
 import os
 import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
 
 import joblib
+import numpy as np
 import pandas as pd
 import polars as pl
 
@@ -18,7 +20,10 @@ from infrastructure_clickhouse.ingest import (
     insert_experiment_run,
     insert_model_artifact,
 )
+from observability_wandb.tracker import WandbTracker
 from price_forecasting.configs import ExperimentConfig
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _resolve_git_sha() -> str:
@@ -97,6 +102,22 @@ def _prediction_series_to_long(
     )
 
 
+def _build_per_day_metrics(
+    forecasts: pd.DataFrame,
+    actuals: pd.DataFrame,
+) -> list[dict]:
+    """Compute per-day MAE and RMSE from wide-format DataFrames."""
+    per_day = []
+    for date in forecasts.index:
+        f_row = forecasts.loc[date].to_numpy()
+        a_row = actuals.loc[date].to_numpy()
+        diff = f_row - a_row
+        mae = float(np.mean(np.abs(diff)))
+        rmse = float(np.sqrt(np.mean(diff**2)))
+        per_day.append({"target_date": str(date)[:10], "mae": mae, "rmse": rmse})
+    return per_day
+
+
 def track_backtest_run(
     config: ExperimentConfig,
     forecasts: pd.DataFrame,
@@ -104,11 +125,19 @@ def track_backtest_run(
     metrics: dict,
     *,
     training_duration_seconds: float = 0.0,
+    tracker: WandbTracker | None = None,
 ) -> str:
     """Store a backtest run and its predictions in ClickHouse.
 
+    After the ClickHouse writes succeed, also logs to W&B via ``tracker``
+    when W&B is enabled.  Pass a ``WandbTracker`` instance for tests; the
+    default (``None``) constructs one from the environment.
+
     Returns the generated run_id.
     """
+    if tracker is None:
+        tracker = WandbTracker()
+
     run_id = _generate_run_id()
     now = datetime.now(timezone.utc)
     config_json = json.dumps(asdict(config))
@@ -134,6 +163,22 @@ def track_backtest_run(
     finally:
         client.close()
 
+    per_day = _build_per_day_metrics(forecasts, actuals)
+    tags = list(config.wandb_tags) if config.wandb_tags else [config.area, config.model_type]
+    try:
+        tracker.log_backtest_run(
+            run_id=run_id,
+            config=asdict(config),
+            summary=metrics,
+            per_day=per_day,
+            tags=tags,
+        )
+    except Exception:
+        LOGGER.warning(
+            "WandbTracker.log_backtest_run failed; continuing without W&B sync",
+            exc_info=True,
+        )
+
     return run_id
 
 
@@ -147,11 +192,19 @@ def track_prediction(
     data_end_utc: datetime | None = None,
     trained_models: dict | None = None,
     config_name: str | None = None,
+    tracker: WandbTracker | None = None,
 ) -> str:
-    """Store a live prediction in ClickHouse.
+    """Store a live prediction in ClickHouse, then dual-write to W&B.
+
+    After the ClickHouse writes succeed, also logs to W&B via ``tracker``
+    when W&B is enabled.  Pass a ``WandbTracker`` instance for tests; the
+    default (``None``) constructs one from the environment.
 
     Returns the generated run_id.
     """
+    if tracker is None:
+        tracker = WandbTracker()
+
     run_id = _generate_run_id()
     now = datetime.now(timezone.utc)
     config_json = json.dumps(asdict(config))
@@ -159,11 +212,13 @@ def track_prediction(
     predictions_df = _prediction_series_to_long(run_id, target_date, predictions)
 
     client = create_client()
+    artifact_blob_b64: str | None = None
+    artifact_id: str | None = None
     try:
-        artifact_id = None
         if trained_models:
             artifact_id = str(uuid.uuid4())
             blob, size_bytes = _serialize_model(trained_models)
+            artifact_blob_b64 = blob
             insert_model_artifact(
                 client,
                 artifact_id=artifact_id,
@@ -194,5 +249,33 @@ def track_prediction(
         insert_experiment_predictions(client, predictions_df)
     finally:
         client.close()
+
+    prediction_records = predictions_df.to_pandas().to_dict(orient="records")
+    # W&B logs are immutable; the CH `actual=0.0` placeholder (overwritten by
+    # reconciliation in ClickHouse) would otherwise show as a flat-zero series
+    # on the predict run's detail page. Project to only the predicted columns.
+    wandb_predictions = [
+        {
+            "period": idx,
+            "timestamp_utc": row["timestamp_utc"],
+            "predicted": row["predicted"],
+        }
+        for idx, row in enumerate(prediction_records)
+    ]
+    tags = list(config.wandb_tags) if config.wandb_tags else [config.area, config.model_type]
+    try:
+        tracker.log_predict_run_with_artifact(
+            run_id=run_id,
+            config=asdict(config),
+            prediction=wandb_predictions,
+            tags=tags,
+            artifact_id=artifact_id,
+            artifact_blob_b64=artifact_blob_b64,
+        )
+    except Exception:
+        LOGGER.warning(
+            "WandbTracker.log_predict_run_with_artifact failed; continuing without W&B sync",
+            exc_info=True,
+        )
 
     return run_id

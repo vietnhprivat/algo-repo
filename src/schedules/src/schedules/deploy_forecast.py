@@ -19,6 +19,12 @@ load_dotenv()
 
 CONFIGS_DIR = Path.cwd().resolve() / "configs"
 
+# W&B environment variables for observability_wandb
+WANDB_API_KEY = os.environ.get("WANDB_API_KEY", "")
+WANDB_ENTITY = os.environ.get("WANDB_ENTITY", "")
+WANDB_PROJECT = os.environ.get("WANDB_PROJECT", "algo-research")
+WANDB_MODE = os.environ.get("WANDB_MODE", "" if WANDB_API_KEY else "disabled")
+
 
 class ForecastFlowDeployment:
     def __init__(
@@ -60,6 +66,10 @@ class ForecastFlowDeployment:
                     "CLICKHOUSE_DATABASE": "algo",
                     "LOKI_URL": os.getenv("LOKI_URL", "http://loki:3100/loki/api/v1/push"),
                     "SLACK_WEBHOOK_URL": os.getenv("SLACK_WEBHOOK_URL", ""),
+                    "WANDB_API_KEY": WANDB_API_KEY,
+                    "WANDB_ENTITY": WANDB_ENTITY,
+                    "WANDB_PROJECT": WANDB_PROJECT,
+                    "WANDB_MODE": WANDB_MODE,
                 },
             },
             tags=["forecast", "production"],

@@ -8,7 +8,7 @@ import typer
 from forecast_cli.config_loader import load_config
 from price_forecasting.tuning.dnn_search import build_dnn_search_space
 from price_forecasting.tuning.objective import dnn_validation_objective
-from price_forecasting.tuning.optuna_storage import build_persistence_callback
+from price_forecasting.tuning.optuna_storage import build_persistence_callback, build_wandb_callback
 
 
 def tune_command(
@@ -43,7 +43,7 @@ def tune_command(
         def insert_hyperparam_trial(self, **kwargs):
             insert_hyperparam_trial(client, **kwargs)
 
-    cb = build_persistence_callback(
+    ch_cb = build_persistence_callback(
         client=_Inserter(),
         study_name=name,
         area=config.area,
@@ -51,6 +51,12 @@ def tune_command(
         config_name=config_name,
         val_start_utc=datetime.fromisoformat(config.val_start_date).replace(tzinfo=timezone.utc),
         val_end_utc=datetime.fromisoformat(config.val_end_date).replace(tzinfo=timezone.utc),
+    )
+    wandb_cb = build_wandb_callback(
+        study_name=name,
+        area=config.area,
+        model_type=config.model_type,
+        config_name=config_name,
     )
 
     study = optuna.create_study(
@@ -61,7 +67,7 @@ def tune_command(
         study.optimize(
             lambda t: dnn_validation_objective(t, config, build_dnn_search_space),
             n_trials=n_trials,
-            callbacks=[cb],
+            callbacks=[ch_cb, wandb_cb],
             show_progress_bar=True,
         )
     finally:

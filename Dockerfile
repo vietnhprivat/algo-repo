@@ -2,13 +2,18 @@
 # This image is used by Prefect Docker worker to run flows as ephemeral containers.
 FROM python:3.13-slim
 
+# Build-time arg: Git SHA baked into image for production tracking
 ARG GIT_SHA=""
 ENV GIT_SHA=${GIT_SHA}
 
-# TORCH_VARIANT selects which torch wheel set to install: "cuda" (default, PyPI
-# wheels with CUDA 13 NVIDIA libs, ~3 GB) or "cpu" (download.pytorch.org/whl/cpu,
-# ~250 MB). CI uses "cpu" to fit the GHA runner's disk budget; prod uses "cuda".
+# Torch variant: "cuda" (default, ~3 GB) or "cpu" (~250 MB)
 ARG TORCH_VARIANT=cuda
+
+# Runtime env consumed by observability_wandb (set via Prefect flow env or .env):
+#   WANDB_API_KEY    - DTU academic API key
+#   WANDB_ENTITY     - team workspace
+#   WANDB_PROJECT    - default research project (algo-research)
+#   WANDB_MODE       - set to "disabled" to no-op
 
 WORKDIR /app
 

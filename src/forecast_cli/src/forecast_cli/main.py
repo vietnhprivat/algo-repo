@@ -3,6 +3,7 @@
 import typer
 
 from data_cli.utils import parse_flexible_datetime
+from forecast_cli.commands import ablate
 from forecast_cli.commands.tune import tune_command
 from forecast_cli.config_loader import load_config
 from forecast_cli.tracking import track_backtest_run, track_prediction
@@ -116,6 +117,7 @@ def predict(
 
 
 app.command("tune")(tune_command)
+app.add_typer(ablate.app, name="ablate")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@
 > conventions / hard rules) or `DEPLOYMENT.md` (ops runbook). It is a deep
 > **reference** about *what exists and how it fits together*.
 >
-> Last refreshed against commit `2d5989a` (May 2026, PR #67 — MLOps & EPF research fidelity).
+> Last refreshed against PR #78 (May 2026 — W&B research observability layer).
 
 ---
 
@@ -102,7 +102,7 @@ them up on next run.
 | Layer | Choice | Notes |
 |-------|--------|-------|
 | Python | 3.13 | `requires-python = ">=3.13"`, `.python-version` set |
-| Package manager | `uv` workspace | 7 workspace members under `src/` |
+| Package manager | `uv` workspace | 8 workspace members under `src/` |
 | DB / OLAP | ClickHouse 25.6 | `algo` database, `ReplacingMergeTree` engines |
 | Orchestrator | Prefect 3.x | Docker work pool, ephemeral flow containers |
 | ML — baseline | scikit-learn (`Lasso`, `LassoCV`) | One Lasso per period (24 or 96) |
@@ -115,6 +115,7 @@ them up on next run.
 | Observability | Loki (logs) + Grafana 12 + auto-provisioned dashboards + file-provisioned alert rules | |
 | Alerting | Slack webhook | `schedules.alerting.notify` — no-ops if `SLACK_WEBHOOK_URL` unset |
 | Drift | Evidently 0.7 (`DataDriftPreset`) | KS test, in-process inside flow; can trigger retrain |
+| Observability — research | W&B (`observability_wandb` package) | Backtests, predict runs, DNN training (Lightning), Optuna sweeps, ablation sweeps, reconciled prod metrics. Algo-research + algo-prod projects. No-op when `WANDB_MODE=disabled`. |
 | CLI | Typer | `data-cli` and `forecast-cli` (`backtest`, `predict`, `tune`) |
 | CI/CD | GitHub Actions + Tailscale | Pre-merge: pytest + ruff. Post-merge: SSH-deploy and smoke-test flow |
 
@@ -150,7 +151,7 @@ algo-repo/
 │   └── reading_guides/           # Section-by-section paper synthesis + codebase mappings
 ├── results/                      # Local backtest outputs (forecasts.csv, metrics.json)
 │
-├── src/                          # 7 uv workspace packages
+├── src/                          # 8 uv workspace packages
 │   ├── domain/                              # Pure dataclasses, no I/O
 │   │   └── src/domain/{areas,curves,currency}.py
 │   ├── infrastructure_entsoe/               # ENTSO-E HTTP client + XML parsers
@@ -158,10 +159,12 @@ algo-repo/
 │   ├── infrastructure_clickhouse/           # CH client + ingest + queries + migrations
 │   │   └── src/infrastructure_clickhouse/{ingest,queries,client_factory,logging_setup}.py
 │   │       └── migrations/00{1..7}_*.sql
+│   ├── observability_wandb/                 # W&B research surface (tracker, lightning logger, sweep cb, artifacts)
+│   │   └── src/observability_wandb/{tracker,client_factory,lightning_logger,optuna_callback,artifacts}.py
 │   ├── data_cli/                            # `data-cli entsoe backfill <kind>` Typer app
 │   │   └── src/data_cli/{main,utils,entsoe/{backfill,services}}.py
-│   ├── forecast_cli/                        # `forecast-cli {backtest,predict}` Typer app
-│   │   └── src/forecast_cli/{main,config_loader,tracking}.py
+│   ├── forecast_cli/                        # `forecast-cli {backtest,predict,tune,ablate}` Typer app
+│   │   └── src/forecast_cli/{main,config_loader,tracking,commands/{tune,ablate}}.py
 │   ├── price_forecasting/                   # The actual ML pipeline (see §9)
 │   │   └── src/price_forecasting/
 │   │       ├── configs/experiment.py        # ExperimentConfig dataclass (+ val dates, target_scaler, n_dnn_ensemble, retrain_on_drift)
@@ -444,6 +447,9 @@ class ExperimentConfig:
     feature_transformers: list | None = None                # None → defaults
     n_dnn_ensemble: int = 1                                 # seed-varied ensemble size for DNN live serving (Lago §4.4)
     retrain_on_drift: bool = False                          # gate for drift→retrain hook in schedules.drift
+
+    wandb_project: str | None = None                        # consumed by build_lightning_logger only; tracker calls use WANDB_PROJECT env
+    wandb_tags: list[str] = []                              # extra W&B run tags
 ```
 
 Example config (`configs/dk1_lear.py`):
@@ -738,13 +744,14 @@ adapter — never duplicate the fetch+insert logic.
 
 ### 9.2 `forecast-cli` (`src/forecast_cli/`)
 
-`uv run python -m forecast_cli.main {backtest|predict|tune}`
+`uv run python -m forecast_cli.main {backtest|predict|tune|ablate}`
 
 | Command | Args | Notes |
 |---|---|---|
-| `backtest <config_name>` | `--track` (optional) | Loads `configs/<config_name>.py`, runs `BacktestRunner`, prints MAE/RMSE/sMAPE/rMAE summary |
-| `predict <config_name>`  | `-d/--date`, `--track` | Runs `LiveRunner`, prints `period | HH:MM | predicted` table |
-| `tune <config_name>`     | `-n/--n-trials`, `--study-name`, `--dry-run` | Optuna TPE search for DNN architecture HPs. Rejects non-DNN configs and requires `val_start_date`/`val_end_date`. Trials persisted to `algo.hyperparam_trials`. |
+| `backtest <config_name>` | `--track` (optional) | Loads `configs/<config_name>.py`, runs `BacktestRunner`, prints MAE/RMSE/sMAPE/rMAE summary. With `--track`, dual-writes to ClickHouse and W&B `algo-research`. |
+| `predict <config_name>`  | `-d/--date`, `--track` | Runs `LiveRunner`, prints `period | HH:MM | predicted` table. With `--track`, dual-writes to ClickHouse and W&B (W&B payload projects out the `actual=0.0` CH staging placeholder). |
+| `tune <config_name>`     | `-n/--n-trials`, `--study-name`, `--dry-run` | Optuna TPE search for DNN architecture HPs. Rejects non-DNN configs and requires `val_start_date`/`val_end_date`. Trials persisted to `algo.hyperparam_trials` AND mirrored as a W&B sweep grouped by `study_name`. |
+| `ablate <config_name>`   | `--vary <field>`, `--over <json>`, `--study-name` | Sweeps one `ExperimentConfig` field across a JSON list of values (e.g. `--vary calibration_windows --over '[[56,84],[56,84,1092,1456]]'`). Each variant runs a full backtest and is emitted as a W&B sweep trial. No ClickHouse tracking by default. |
 
 **`--track`** writes to ClickHouse:
 
@@ -895,6 +902,22 @@ Two layers:
 > **Always edit alert rules as YAML** in `grafana/provisioning/alerting/`.
 > UI edits are overwritten on container restart, same as dashboards.
 
+### W&B (research)
+
+`observability_wandb.tracker.WandbTracker` is the single owner of W&B-side
+schema. Dual-write call sites: `forecast_cli.tracking.track_backtest_run /
+track_prediction`, `price_forecasting.models.lightning_base.LightningModel`
+(via `WandbLogger`), `price_forecasting.tuning.optuna_storage`, and
+`schedules.reconciliation`. Production system is unaffected when the
+tracker is disabled.
+
+- `algo-research` project — backtests, predict runs, DNN training, sweeps,
+  ablations.
+- `algo-prod` project — one continuous run per `(area, config_name)`,
+  one step per reconciled day. Run ID format: `prod-{area_lower}-{config}`.
+- Disabled-mode: set `WANDB_MODE=disabled` or unset `WANDB_API_KEY`.
+- New CLI: `forecast-cli ablate <config> --vary <field> --over <json>`.
+
 ---
 
 ## 12. CI/CD
@@ -957,6 +980,10 @@ at your peril.
 - Cached `WindowState` reuses the **same scaler** across days within a refit
   interval — this is intentional. Refitting the scaler each day would leak
   test info backwards.
+- `BacktestRunner` / `LiveRunner` attach `model._config = self.config` after
+  `get_model(...)` so `LightningModel`'s Trainer picks up the W&B project
+  via `build_lightning_logger(self._config)`. Harmless on non-Lightning
+  models (they ignore the unused attribute).
 
 ### Tracking
 
@@ -970,6 +997,15 @@ at your peril.
   (not `created_utc`). `created_utc` is immutable per event; `updated_utc`
   must be strictly later on each re-insert (running → completed/failed)
   so the terminal status row wins deduplication.
+- **W&B dual-write is best-effort**: `track_backtest_run` / `track_prediction`
+  wrap the `WandbTracker` call in try/except and log a WARNING on failure.
+  ClickHouse writes complete first; W&B failures never block the CLI or
+  flow. Same pattern in `reconciliation._log_run_to_wandb`. Disable
+  entirely with `WANDB_MODE=disabled`.
+- **`predict` W&B payload**: `track_prediction` projects records to
+  `{period, timestamp_utc, predicted}` before sending to the tracker — the
+  ClickHouse staging `actual=0.0` placeholder must NOT reach W&B since
+  W&B logs are immutable and reconciliation cannot overwrite them.
 
 ### Tuning
 

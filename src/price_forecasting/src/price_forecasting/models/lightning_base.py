@@ -11,6 +11,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
+from observability_wandb.lightning_logger import build_lightning_logger
 from price_forecasting.models.base import BaseModel
 
 logging.getLogger("lightning.pytorch").setLevel(logging.WARNING)
@@ -128,7 +129,7 @@ class LightningModel(BaseModel, L.LightningModule):
             enable_progress_bar=False,
             enable_model_summary=False,
             enable_checkpointing=False,
-            logger=False,
+            logger=build_lightning_logger(getattr(self, "_config", None)) or False,
             log_every_n_steps=1,
             callbacks=[early_stop_cb, best_weight_cb],
         )
