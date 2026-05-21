@@ -70,8 +70,19 @@ class WandbTracker:
     ) -> None:
         if not self._enabled:
             return None
-        # Filled in by Task 5.
-        raise NotImplementedError
+        run = self._wandb.init(
+            project=self._settings.default_project,
+            entity=self._settings.entity,
+            id=run_id,
+            job_type="predict",
+            tags=list(tags),
+            config=dict(config),
+        )
+        try:
+            for step, row in enumerate(prediction):
+                run.log(dict(row), step=step)
+        finally:
+            run.finish()
 
     def log_prod_reconciled(
         self,

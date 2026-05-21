@@ -75,3 +75,29 @@ class TestLogBacktestRun:
             "smape": 12.0,
             "rmae": 0.82,
         }
+
+
+class TestLogPredictRun:
+    def test_logs_prediction_table_with_correct_metadata(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+        prediction = [
+            {"period": 0, "timestamp_utc": "2026-05-22T00:00:00Z", "predicted": 50.1},
+            {"period": 1, "timestamp_utc": "2026-05-22T01:00:00Z", "predicted": 48.4},
+        ]
+        tracker.log_predict_run(
+            run_id="predict-2026-05-22-dk1",
+            config={"area": "DK1", "target_date": "2026-05-22"},
+            prediction=prediction,
+            tags=["DK1", "lear", "predict"],
+        )
+
+        call = fake_wandb.init_calls[0]
+        assert call["job_type"] == "predict"
+        assert call["id"] == "predict-2026-05-22-dk1"
+
+        run = fake_wandb.runs[0]
+        assert run.finished is True
+        assert len(run.logged) == 2
+        assert run.logged[0][0]["predicted"] == 50.1
