@@ -204,44 +204,6 @@ class MeanWeeklyForecastTransformer(FeatureTransformer):
         return pd.concat(parts, axis=1)
 
 
-class AggregatedLagTransformer(FeatureTransformer):
-    """Compressed lag features using summary statistics per lag day.
-
-    Instead of pivoting each lag day into n_periods columns, computes
-    summary statistics per lag day. This compresses n_periods columns
-    into a fixed number of columns per lag:
-
-        {column}_lag{d}_mean
-        {column}_lag{d}_min
-        {column}_lag{d}_max
-        {column}_lag{d}_std
-        {column}_lag{d}_range   (max - min, peak-to-trough spread)
-
-    Example: for price with lags [1, 2, 3, 7], produces 4 * 5 = 20 columns
-    instead of 4 * 24 = 96 columns (hourly) or 4 * 96 = 384 columns (15-min).
-
-    Use case: models with small calibration windows where the feature-to-sample
-    ratio with full pivoted lags is too high. DNN models or experiments with
-    many exogenous curves benefit most.
-
-    Configuration:
-        columns: list[str] — which columns to aggregate (e.g. ["price", "TotalLoad"])
-        lags: list[int] — which day-lags to compute (e.g. [1, 2, 3, 7])
-        stats: list[str] — which stats (default: ["mean", "min", "max", "std", "range"])
-
-    NOT YET IMPLEMENTED.
-    """
-
-    def transform(
-        self,
-        hourly_dataframe: pd.DataFrame,
-        daily_prices: pd.DataFrame,
-    ) -> pd.DataFrame:
-        raise NotImplementedError(
-            "AggregatedLagTransformer is designed but not yet implemented."
-        )
-
-
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ from price_forecasting.models.base import BaseModel
 
 class GBTModel(BaseModel):
     """
-    Abstract base for gradient boosted tree models (XGBoost, LightGBM, CatBoost).
+    Abstract base for gradient boosted tree models (currently: XGBoost).
 
     Trains one estimator per output period — correct for single-output libraries.
     Subclasses implement _build_estimator() and override _fit_period() to add
