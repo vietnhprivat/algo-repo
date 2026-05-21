@@ -3,6 +3,7 @@
 import base64
 import io
 import json
+import os
 import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -18,6 +19,15 @@ from infrastructure_clickhouse.ingest import (
     insert_model_artifact,
 )
 from price_forecasting.configs import ExperimentConfig
+
+
+def _resolve_git_sha() -> str:
+    """Return the build-time git SHA from env, or '' if unset.
+
+    Env-driven on purpose: production sets GIT_SHA at image build time via
+    cd_deploy.yml. Local runs leave it unset to avoid stamping dirty trees.
+    """
+    return os.environ.get("GIT_SHA", "")
 
 
 def _generate_run_id() -> str:
@@ -115,6 +125,7 @@ def track_backtest_run(
             model_type=config.model_type,
             config_json=config_json,
             metrics_json=metrics_json,
+            git_sha=_resolve_git_sha(),
         )
         insert_experiment_predictions(client, predictions_df)
     finally:
@@ -175,6 +186,7 @@ def track_prediction(
             data_start_utc=data_start_utc,
             data_end_utc=data_end_utc,
             model_artifact_id=artifact_id,
+            git_sha=_resolve_git_sha(),
         )
         insert_experiment_predictions(client, predictions_df)
     finally:

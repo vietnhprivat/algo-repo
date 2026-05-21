@@ -60,6 +60,7 @@ tests/                       # Mirrors src/ structure
 - **Experiment run columns** (migration `006`): `training_duration_seconds`, `data_start_utc`, `data_end_utc`, `model_artifact_id`. Populate them via the keyword-only params of `insert_experiment_run()`.
 - **Reconciliation** (`schedules/reconciliation.py`): fetches all unreconciled runs, batches queries **per area** (one predictions query + one actuals query — never N+1), skips any run with a missing hour (retried the next day), and updates via **re-insert with newer `created_utc`** so `ReplacingMergeTree` keeps the new row. Never use `UPDATE` or `OPTIMIZE FINAL` — reads use the `FINAL` keyword.
 - **Metrics on live predictions**: computed from flat `np.ndarray`s via `calculate_mae/rmse/smape`, not the wide-format `compute_metrics_summary()` (which is backtest-oriented).
+- **Git SHA capture**: `algo.experiment_runs.git_sha` is populated from the `GIT_SHA` environment variable, baked into the production image at build time via `--build-arg GIT_SHA=$(git rev-parse HEAD)` in `cd_deploy.yml`. Local runs leave it as `""` (empty string) so dirty working trees do not produce misleading SHAs.
 
 ### Observability
 - **Structured logging via Loki**: use the handler configured in `infrastructure_clickhouse.logging_setup`. Never `print()` in `schedules/*` or `infrastructure_*` — use the module logger with `build_log_extra(**context)` so fields reach Loki as labels.
