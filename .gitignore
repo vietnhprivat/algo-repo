@@ -56,3 +56,6 @@ poetry.lock
 *.json
 
 results/
+
+# W&B local cache
+wandb/
