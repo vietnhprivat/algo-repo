@@ -79,7 +79,7 @@ jobs:
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
-      - name: Pull latest main and rebuild image
+      - name: Pull latest main, apply migrations, and rebuild image
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -90,6 +90,7 @@ jobs:
             cd "$REPO_PATH"
             git fetch origin main
             git reset --hard origin/main
+            uv run python -m infrastructure_clickhouse.migrations.run_migrations
             docker build \
               --build-arg GIT_SHA=\$(git rev-parse HEAD) \
               --build-arg TORCH_VARIANT=cuda \
