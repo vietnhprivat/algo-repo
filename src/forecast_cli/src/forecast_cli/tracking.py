@@ -9,6 +9,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 
 import joblib
+import numpy as np
 import pandas as pd
 import polars as pl
 
@@ -18,6 +19,7 @@ from infrastructure_clickhouse.ingest import (
     insert_experiment_run,
     insert_model_artifact,
 )
+from observability_wandb.tracker import WandbTracker
 from price_forecasting.configs import ExperimentConfig
 
 
@@ -97,6 +99,22 @@ def _prediction_series_to_long(
     )
 
 
+def _build_per_day_metrics(
+    forecasts: pd.DataFrame,
+    actuals: pd.DataFrame,
+) -> list[dict]:
+    """Compute per-day MAE and RMSE from wide-format DataFrames."""
+    per_day = []
+    for date in forecasts.index:
+        f_row = forecasts.loc[date].to_numpy()
+        a_row = actuals.loc[date].to_numpy()
+        diff = f_row - a_row
+        mae = float(np.mean(np.abs(diff)))
+        rmse = float(np.sqrt(np.mean(diff**2)))
+        per_day.append({"target_date": str(date)[:10], "mae": mae, "rmse": rmse})
+    return per_day
+
+
 def track_backtest_run(
     config: ExperimentConfig,
     forecasts: pd.DataFrame,
@@ -104,11 +122,19 @@ def track_backtest_run(
     metrics: dict,
     *,
     training_duration_seconds: float = 0.0,
+    tracker: WandbTracker | None = None,
 ) -> str:
     """Store a backtest run and its predictions in ClickHouse.
 
+    After the ClickHouse writes succeed, also logs to W&B via ``tracker``
+    when W&B is enabled.  Pass a ``WandbTracker`` instance for tests; the
+    default (``None``) constructs one from the environment.
+
     Returns the generated run_id.
     """
+    if tracker is None:
+        tracker = WandbTracker()
+
     run_id = _generate_run_id()
     now = datetime.now(timezone.utc)
     config_json = json.dumps(asdict(config))
@@ -133,6 +159,16 @@ def track_backtest_run(
         insert_experiment_predictions(client, predictions_df)
     finally:
         client.close()
+
+    per_day = _build_per_day_metrics(forecasts, actuals)
+    tags = list(config.wandb_tags) if config.wandb_tags else [config.area, config.model_type]
+    tracker.log_backtest_run(
+        run_id=run_id,
+        config=asdict(config),
+        summary=metrics,
+        per_day=per_day,
+        tags=tags,
+    )
 
     return run_id
 
