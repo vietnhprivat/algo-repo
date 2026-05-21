@@ -40,6 +40,7 @@ def insert_experiment_run(
     data_start_utc: datetime | None = None,
     data_end_utc: datetime | None = None,
     model_artifact_id: str | None = None,
+    git_sha: str = "",
 ) -> None:
     _epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
@@ -56,6 +57,7 @@ def insert_experiment_run(
             "data_start_utc": [data_start_utc if data_start_utc is not None else _epoch],
             "data_end_utc": [data_end_utc if data_end_utc is not None else _epoch],
             "model_artifact_id": [model_artifact_id if model_artifact_id is not None else ""],
+            "git_sha": [git_sha],
         },
         schema={
             "run_id": pl.String,
@@ -69,6 +71,7 @@ def insert_experiment_run(
             "data_start_utc": pl.Datetime("us", "UTC"),
             "data_end_utc": pl.Datetime("us", "UTC"),
             "model_artifact_id": pl.String,
+            "git_sha": pl.String,
         },
     )
     insert_polars_dataframe(client, df, "algo.experiment_runs")

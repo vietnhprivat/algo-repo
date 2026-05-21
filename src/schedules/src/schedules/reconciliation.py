@@ -187,6 +187,7 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
                 data_start_utc=_ensure_utc(run["data_start_utc"]),
                 data_end_utc=_ensure_utc(run["data_end_utc"]),
                 model_artifact_id=run["model_artifact_id"],
+                git_sha=run["git_sha"],
             )
 
             LOGGER.info(

@@ -14,7 +14,9 @@ TS1 = datetime(2026, 4, 10, 12, 0, 0, tzinfo=timezone.utc)
 TS2 = datetime(2026, 4, 10, 13, 0, 0, tzinfo=timezone.utc)
 
 
-def _make_run(run_id: str = "run-1", area: str = "DK1") -> dict:
+def _make_run(
+    run_id: str = "run-1", area: str = "DK1", git_sha: str = "abc1234"
+) -> dict:
     return {
         "run_id": run_id,
         "area": area,
@@ -26,6 +28,7 @@ def _make_run(run_id: str = "run-1", area: str = "DK1") -> dict:
         "data_start_utc": datetime(2026, 1, 1, tzinfo=timezone.utc),
         "data_end_utc": datetime(2026, 4, 9, tzinfo=timezone.utc),
         "model_artifact_id": None,
+        "git_sha": git_sha,
     }
 
 
@@ -214,6 +217,38 @@ class TestReconcileAreaTask:
         assert "mae" in metrics
         assert "rmse" in metrics
         assert "smape" in metrics
+
+    @patch("schedules.reconciliation._maybe_alert_accuracy_degradation")
+    @patch("schedules.reconciliation.get_recent_accuracy")
+    @patch("schedules.reconciliation.insert_experiment_run")
+    @patch("schedules.reconciliation.insert_experiment_predictions")
+    @patch("schedules.reconciliation.get_actual_prices_for_period")
+    @patch("schedules.reconciliation.get_predictions_for_runs")
+    @patch("schedules.reconciliation.create_client")
+    def test_preserves_original_git_sha_on_reinsert(
+        self,
+        mock_create_client,
+        mock_get_preds,
+        mock_get_actuals,
+        mock_insert_preds,
+        mock_insert_run,
+        mock_get_baseline,
+        mock_alert,
+    ):
+        """Re-insert must carry the SHA from the prediction-time row, not '' or the
+        current deploy's SHA. Otherwise the column becomes useless after the first
+        reconciliation."""
+        mock_create_client.return_value = MagicMock()
+        original_sha = "deadbeef0123456789abcdef0123456789abcdef"
+        run = _make_run("run-1", "DK1", git_sha=original_sha)
+        mock_get_preds.return_value = [_make_prediction("run-1", TS1, predicted=55.0)]
+        mock_get_actuals.return_value = [{"timestamp_utc": TS1, "price": 50.0}]
+
+        reconcile_area_task.fn("DK1", [run])
+
+        _, kwargs = mock_insert_run.call_args
+        assert kwargs["git_sha"] == original_sha
+        assert kwargs["git_sha"] != ""
 
     @patch("schedules.reconciliation._maybe_alert_accuracy_degradation")
     @patch("schedules.reconciliation.get_recent_accuracy")
