@@ -23,7 +23,9 @@ class BaseRunner:
 
     def _get_model_factory(self) -> Callable[[], BaseModel]:
         def factory() -> BaseModel:
-            return get_model(self.config.model_type, **self.config.model_params)
+            model = get_model(self.config.model_type, **self.config.model_params)
+            model._config = self.config
+            return model
 
         return factory
 

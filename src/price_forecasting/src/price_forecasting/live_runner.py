@@ -28,7 +28,9 @@ class LiveRunner:
 
     def _get_model_factory(self):
         def factory() -> BaseModel:
-            return get_model(self.config.model_type, **self.config.model_params)
+            model = get_model(self.config.model_type, **self.config.model_params)
+            model._config = self.config
+            return model
 
         return factory
 
@@ -36,7 +38,10 @@ class LiveRunner:
         def factory():
             params = dict(self.config.model_params)
             params["random_seed"] = seed
-            return get_model(self.config.model_type, **params)
+            model = get_model(self.config.model_type, **params)
+            model._config = self.config
+            return model
+
         return factory
 
     def _load_and_preprocess_data(
