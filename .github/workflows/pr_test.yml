@@ -26,7 +26,10 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        # cpu and cuda extras are mutually-exclusive (torch routing). Pick cpu
+        # for CI to fit the runner; --all-extras would activate both and fail
+        # the declared uv conflict.
+        run: uv sync --extra cpu --dev
 
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
