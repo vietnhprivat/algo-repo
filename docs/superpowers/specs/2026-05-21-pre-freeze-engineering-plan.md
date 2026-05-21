@@ -232,6 +232,68 @@ re-run window accordingly. The fallback (keep `alpha=0.01`, narrow the
 
 ---
 
+### PR 5 — `ci/cd-auto-apply-migrations`  (added post-PR-2 deploy incident)
+
+**Incident:** Merging PR 2 (`feat/git-sha-experiment-tracking`) broke the
+post-deploy smoke run on 2026-05-21. The CD pipeline rebuilt the image
+with the new `insert_experiment_run(... git_sha=...)` call site but
+never applied migration `010_alter_experiment_runs_add_git_sha.sql` on
+the deploy host. The first `daily-forecast-dk1_lear` flow run on the
+new image hit ClickHouse with a `git_sha` column the DB didn't have,
+and the flow failed.
+
+This is a pre-existing pattern (migrations 007, 008, 009 also relied on
+a manual `run_migrations` step documented in `DEPLOYMENT.md`), but PR 2
+is the first where a schema gap and a code gap shipped in the *same*
+image — so the implicit "operator remembers to run migrations" coupling
+finally failed loudly. The fix is to wire migration application into CD
+so this class of bug cannot recur.
+
+**Changes:**
+- `.github/workflows/cd_deploy.yml`:
+  - After the `git reset --hard origin/main` step on the deploy host,
+    before `docker build`, add a step that runs
+    `uv run python -m infrastructure_clickhouse.migrations.run_migrations`
+    on the deploy host (same `tailscale ssh` block).
+  - Migrations are idempotent (`IF NOT EXISTS`) so re-runs are safe.
+  - If migrations fail, the workflow fails before image rebuild — old
+    image keeps running against the old schema. No half-deployed state.
+- `DEPLOYMENT.md`:
+  - Update the migration section: note that migrations now auto-apply
+    on every CD deploy. The manual `run_migrations` command stays
+    documented as a recovery procedure but is no longer the primary
+    path.
+  - Update the migration count to reflect current head (010 as of
+    today; bump whenever a new one lands).
+
+**Validation:**
+- A fresh CD deploy applies all pending migrations before image rebuild.
+- The `daily-forecast-dk1_lear` smoke run on the post-deploy image
+  reaches `state=COMPLETED`.
+- Inspect `system.parts` for `algo.experiment_runs` to confirm the
+  `git_sha` column exists on the deploy DB.
+
+**Recovery for the current incident (do this before PR 5 lands):**
+```bash
+tailscale ssh "$DEPLOY_USER@$DEPLOY_HOST"
+cd "$REPO_PATH"
+uv run python -m infrastructure_clickhouse.migrations.run_migrations
+```
+Then re-run the failed CD workflow (or wait for the next scheduled
+flow). Confirm the next `daily-forecast` flow completes.
+
+**Risk:** Low — migrations are idempotent and `run_migrations.py` is
+the same script operators have been running by hand. Worst case: a
+new migration with a logic bug breaks deploys; mitigation is that the
+deploy fails *before* the image is rebuilt, so the running service
+keeps working.
+
+**Priority:** High — this is the root cause of the 2026-05-21 smoke
+failure and will recur on the next migration-bearing PR if not fixed.
+Land before PR 4.
+
+---
+
 ## Sequencing
 
 PRs 1–3 are file-level disjoint and can be reviewed in parallel. PR 4
@@ -244,17 +306,22 @@ Suggested merge order:
 1. **PR 1** (lowest risk, clears the deck) — ~30 min implementation
 2. **PR 3** (independent, can be drafted in parallel) — ~20 min
 3. **PR 2** (touches deploy pipeline) — ~1 h
-4. **PR 4** (closes the honesty gap surfaced by review of PR 3) — ~1–2 h
+4. **PR 5** (CD auto-apply migrations — root-cause fix for the
+   2026-05-21 smoke failure; land before PR 4 so PR 4's eventual schema
+   touches stay safe) — ~30 min
+5. **PR 4** (closes the honesty gap surfaced by review of PR 3) — ~1–2 h
    implementation + 1 backtest re-run
 
-Total wall-clock: ~3–4 hours implementation + review + one backtest.
+Total wall-clock: ~4 hours implementation + review + one backtest.
 
 ## Definition of done
 
-- All four PRs merged to `main`.
-- CD pipeline green on the post-PR-2 deploy.
+- All five PRs merged to `main`.
+- CD pipeline green on the post-PR-2 deploy *and* the post-PR-5 deploy.
 - `algo.experiment_runs` rows created after PR 2 deploy carry a non-empty
   `git_sha`.
+- After PR 5: a CD deploy applies pending migrations automatically, and
+  the post-deploy smoke run reaches `state=COMPLETED`.
 - After PR 4: a fresh DK1 backtest writes a non-zero
   `training_duration_seconds`, and `LearModel.best_alphas` is populated
   (proof the `LassoCV` branch actually ran).
