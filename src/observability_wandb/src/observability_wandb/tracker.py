@@ -14,6 +14,8 @@ from observability_wandb.client_factory import is_enabled, load_settings
 
 LOGGER = logging.getLogger(__name__)
 
+_PROD_PROJECT = "algo-prod"
+
 
 class WandbTracker:
     def __init__(self, *, wandb_module: Any | None = None) -> None:
@@ -94,8 +96,22 @@ class WandbTracker:
     ) -> None:
         if not self._enabled:
             return None
-        # Filled in by Task 6.
-        raise NotImplementedError
+        key = (area, config_name)
+        run = self._prod_runs.get(key)
+        if run is None:
+            run = self._wandb.init(
+                project=_PROD_PROJECT,
+                entity=self._settings.entity,
+                id=f"prod-{area.lower()}-{config_name}",
+                resume="allow",
+                job_type="prod-reconciled",
+                tags=[area, config_name],
+                config={"area": area, "config_name": config_name},
+            )
+            self._prod_runs[key] = run
+        payload = dict(metrics)
+        payload["target_date"] = target_date
+        run.log(payload)
 
     def log_artifact(
         self,

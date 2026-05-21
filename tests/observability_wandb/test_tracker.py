@@ -101,3 +101,66 @@ class TestLogPredictRun:
         assert run.finished is True
         assert len(run.logged) == 2
         assert run.logged[0][0]["predicted"] == 50.1
+
+
+class TestLogProdReconciled:
+    def test_first_call_inits_run_in_algo_prod_project(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_prod_reconciled(
+            area="DK1",
+            config_name="dk1_lear",
+            target_date="2026-05-21",
+            metrics={"mae": 4.5, "rmse": 6.1, "smape": 11.0},
+        )
+
+        call = fake_wandb.init_calls[0]
+        assert call["project"] == "algo-prod"
+        assert call["entity"] == "dtu-thesis"
+        assert call["id"] == "prod-dk1-dk1_lear"
+        assert call["resume"] == "allow"
+        assert "DK1" in call["tags"]
+        assert "dk1_lear" in call["tags"]
+
+        run = fake_wandb.runs[0]
+        assert run.finished is False  # continuous, do not finish
+        assert len(run.logged) == 1
+        assert run.logged[0][0]["mae"] == 4.5
+        assert run.logged[0][0]["target_date"] == "2026-05-21"
+
+    def test_second_call_reuses_run_no_reinit(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_prod_reconciled(
+            area="DK1", config_name="dk1_lear",
+            target_date="2026-05-20", metrics={"mae": 5.0},
+        )
+        tracker.log_prod_reconciled(
+            area="DK1", config_name="dk1_lear",
+            target_date="2026-05-21", metrics={"mae": 4.5},
+        )
+
+        assert len(fake_wandb.init_calls) == 1
+        assert len(fake_wandb.runs[0].logged) == 2
+
+    def test_distinct_runs_per_area_config(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_prod_reconciled(
+            area="DK1", config_name="dk1_lear",
+            target_date="2026-05-21", metrics={"mae": 4.5},
+        )
+        tracker.log_prod_reconciled(
+            area="DE", config_name="de_lear",
+            target_date="2026-05-21", metrics={"mae": 3.8},
+        )
+
+        assert len(fake_wandb.init_calls) == 2
+        ids = {c["id"] for c in fake_wandb.init_calls}
+        assert ids == {"prod-dk1-dk1_lear", "prod-de-de_lear"}
