@@ -89,7 +89,8 @@ the value through the build + runtime path.
   ```
   (Use the next free migration number at implementation time —
   `010` here is illustrative.)
-- `Dockerfile` and `Dockerfile.worker`:
+- `Dockerfile` (only — `Dockerfile.worker` is the Prefect worker daemon, it
+  does not run flows or write `experiment_runs`, so it does not need `GIT_SHA`):
   - `ARG GIT_SHA=""` near the top
   - `ENV GIT_SHA=${GIT_SHA}` so it survives into the running container
 - `.github/workflows/cd_deploy.yml`:
@@ -136,10 +137,10 @@ Pure doc rewrite of
 
 | # | Requirement | Old | New | Evidence to cite |
 |---|---|---|---|---|
-| 3 | Computational cost evaluated | FAIL | PASS | `training_duration_seconds` column in `algo.experiment_runs` (migration 006); per-run timing captured by `LiveRunner.run_live_with_metadata` |
+| 3 | Computational cost evaluated | FAIL | PASS | `training_duration_seconds` column in `algo.experiment_runs` (migration 006); per-run timing captured by `LiveRunner.run_live_with_metadata` in the scheduled Prefect flow (see PR 4 — backtest + CLI `predict` instrumentation required to make this PASS true for the thesis research path) |
 | 5 | Multiple markets tested | FAIL | PASS | `configs/de_lear.py` exists and is deployed via `deploy_forecast.py::FORECAST_CONFIGS = ["dk1_lear", "de_lear"]` |
-| 7 | Statistical testing for significance | FAIL | PASS | `price_forecasting/evaluation/statistical_tests.py` implements `diebold_mariano` + `giacomini_white_multivariate`; `compute_dm_pvalue_matrix` in `evaluation/summary.py` for >2 models |
-| 9 | Hyperparameters estimated ex-ante | PARTIAL | PASS | `val_start_date`/`val_end_date` declared in both production configs; `split_train_val_test_by_dates` in `backtesting/splitting.py`; Optuna tuning persists trials to `algo.hyperparam_trials` |
+| 7 | Statistical testing for significance | FAIL | PASS | `price_forecasting/evaluation/statistical_tests.py` implements `diebold_mariano` + `giacomini_white_multivariate`; `build_dm_matrix` in `evaluation/summary.py` for >2 models |
+| 9 | Hyperparameters estimated ex-ante | PARTIAL | PASS | `val_start_date`/`val_end_date` declared in both production configs; `split_by_dates_with_validation` in `backtesting/splitting.py`; Optuna tuning persists trials to `algo.hyperparam_trials` (see PR 4 — LEAR `alpha="auto"` + reframed description required to make the LEAR side of this claim true) |
 
 **Deep-comparison row updates** (section "Deep Comparison: Paper's LEAR Specification vs Your Implementation"):
 - VST asinh: `DIFFERENT — paper uses asinh, you use z-score standardization`
@@ -161,23 +162,102 @@ commits up to <PR-1 merge SHA>`.
 
 ---
 
+### PR 4 — `feat/lago-compliance-followup`  (added post-review of PR 3)
+
+Code-review of PR 3 found that two upgraded PASS rows (#3 and #9) describe
+the *intended* design rather than the *deployed* behaviour. The components
+exist (`run_live_with_metadata`, `split_by_dates_with_validation`, the
+`LassoCV` branch in `LearModel.fit`) but they are not wired into the paths
+the thesis actually runs. This PR closes the gap so the scorecard's PASS
+claims are honest.
+
+**#3 — instrument the backtest + CLI predict timing path**
+
+Today only `schedules/forecast.py` (the daily Prefect flow) populates
+`training_duration_seconds`. Backtests and CLI predictions store `0.0`.
+
+Changes:
+- `src/price_forecasting/src/price_forecasting/backtesting/runner.py`:
+  Wrap the `BacktestRunner.execute()` work in `time.perf_counter()` and
+  return `training_duration_seconds` in the result dict.
+- `src/forecast_cli/src/forecast_cli/tracking.py`:
+  Add `training_duration_seconds: float = 0.0` kwarg to
+  `track_backtest_run`, forward to `insert_experiment_run`.
+- `src/forecast_cli/src/forecast_cli/main.py`:
+  In the `predict` command, swap `runner.run_live()` →
+  `runner.run_live_with_metadata()` and pass
+  `result.training_duration_seconds` to `track_prediction`.
+
+**#9 — make LEAR ex-ante hyperparameter selection actually run**
+
+Today both LEAR configs set `model_params={"alpha": 0.01}`, and
+`LearModel.fit()` only invokes `LassoCV` when `alpha in (None, "auto")`.
+So `LassoCV` is never invoked in production. The 3-way splitter is
+defined but `BacktestRunner._split_data()` calls the 2-way `split_by_dates`.
+
+Changes:
+- `configs/dk1_lear.py` and `configs/de_lear.py`: change
+  `model_params={"alpha": 0.01}` → `model_params={"alpha": "auto"}`. This
+  flips `LearModel.fit()` to the `LassoCV(cv=TimeSeriesSplit)` branch —
+  ex-ante alpha selection by construction (CV folds within training data).
+- Re-run baseline backtests on DK1 and DE; confirm `rMAE` does not
+  regress materially. If it does, fall back to fixed `alpha` and reframe
+  #9 description rather than re-fudge the claim.
+- *Optional* — wire `split_by_dates_with_validation` into
+  `BacktestRunner._split_data()` when `val_start_date`/`val_end_date` are
+  set in config. Not strictly required for LEAR (LassoCV does internal
+  TimeSeriesSplit on the training fold), but makes the validation set
+  explicit for downstream DNN work.
+
+After landing, reframe the #9 row to:
+> Both configs declare `val_start_date`/`val_end_date`. DNN/Optuna path
+> uses them for ex-ante tuning (trials in `algo.hyperparam_trials`,
+> migration 008). LEAR uses `LassoCV(cv=TimeSeriesSplit)` on training
+> data — ex-ante by construction.
+
+**Validation:**
+- `pytest tests/ -v` passes (add tests for timing capture in backtest +
+  CLI predict paths).
+- One backtest run on DK1 after the change writes a non-zero
+  `training_duration_seconds`.
+- `LearModel.best_alphas` is populated for at least one fit (proof that
+  the `LassoCV` branch ran).
+- DK1 rMAE on the standard backtest window is within ~5% of the
+  `alpha=0.01` baseline.
+
+**Risk:** Medium. `LassoCV` makes each LEAR fit ~5× slower (inner CV
+loop). If thesis backtests are already tight on wall-clock, schedule the
+re-run window accordingly. The fallback (keep `alpha=0.01`, narrow the
+#9 description) is always available.
+
+---
+
 ## Sequencing
 
-All three PRs are file-level disjoint and can be reviewed in parallel.
+PRs 1–3 are file-level disjoint and can be reviewed in parallel. PR 4
+was added after code review of PR 3 surfaced the #3 + #9 honesty gap;
+it depends on PR 2 (the `git_sha` schema additions in `experiment_runs`
+must already be applied) but is otherwise independent.
+
 Suggested merge order:
 
 1. **PR 1** (lowest risk, clears the deck) — ~30 min implementation
 2. **PR 3** (independent, can be drafted in parallel) — ~20 min
-3. **PR 2** (touches deploy pipeline, ship last) — ~1 h
+3. **PR 2** (touches deploy pipeline) — ~1 h
+4. **PR 4** (closes the honesty gap surfaced by review of PR 3) — ~1–2 h
+   implementation + 1 backtest re-run
 
-Total wall-clock: ~2 hours implementation + review.
+Total wall-clock: ~3–4 hours implementation + review + one backtest.
 
 ## Definition of done
 
-- All three PRs merged to `main`.
+- All four PRs merged to `main`.
 - CD pipeline green on the post-PR-2 deploy.
 - `algo.experiment_runs` rows created after PR 2 deploy carry a non-empty
   `git_sha`.
+- After PR 4: a fresh DK1 backtest writes a non-zero
+  `training_duration_seconds`, and `LearModel.best_alphas` is populated
+  (proof the `LassoCV` branch actually ran).
 - `pytest tests/ -v` green.
 - `ruff check` clean.
 - Codebase frozen. Any further change requires explicit thesis-blocking

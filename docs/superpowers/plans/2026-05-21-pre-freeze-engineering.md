@@ -398,7 +398,7 @@ def _resolve_git_sha() -> str:
 
 Then find every call to `insert_experiment_run(...)` in this file and add `git_sha=_resolve_git_sha()` to the kwargs.
 
-Use `git grep -n insert_experiment_run src/forecast_cli/` to find the call sites (likely in `track_prediction` and `track_backtest`).
+Use `git grep -n insert_experiment_run src/forecast_cli/` to find the call sites (likely in `track_prediction` and `track_backtest_run`).
 
 - [ ] **Step 7: Run the new test**
 
@@ -545,6 +545,25 @@ Open `researh_material/reading_guides/lago_epf_benchmark_reading_guide.md`. Belo
 
 If PR 1 is not yet merged, omit the trailing clause.
 
+> ⚠️ **Post-review note (added after PR 3 review):** Steps 3 and 6 below
+> as originally written ship PASS descriptions that overstate the
+> *deployed* behaviour for the LEAR research path. Specifically:
+>
+> - **Step 3 (#3 PASS):** the description implies timing is captured
+>   on every tracked run via `insert_experiment_run`. In reality only
+>   the Prefect scheduled flow calls `run_live_with_metadata()`. CLI
+>   `predict --track` and all `backtest --track` runs store `0.0`.
+> - **Step 6 (#9 PASS):** the description implies LEAR uses
+>   `split_by_dates_with_validation` + `LassoCV`. In reality both LEAR
+>   configs use fixed `alpha=0.01` (so `LassoCV` never runs), and
+>   `BacktestRunner._split_data()` calls the 2-way `split_by_dates`.
+>   The 3-way splitter exists but has zero callers in `src/`.
+>
+> PR 3 (this PR) shipped the original PASS descriptions; the honesty
+> gap is closed by PR 4 (`feat/lago-compliance-followup`, see spec).
+> When executing PR 4, return to this guide and rewrite the #3 and #9
+> rows using the narrowed descriptions in PR 4's spec section.
+
 - [ ] **Step 3: Update the 13-point checklist score table — row 3 (computational cost)**
 
 In the section "The Paper's 13-Point Checklist vs Your Codebase", find the table row for `#3 Computational cost evaluated`. Replace its row with:
@@ -566,7 +585,7 @@ Replace the `#5 Multiple markets tested` row with:
 Replace the `#7 Statistical testing for significance` row with:
 
 ```markdown
-| 7 | Statistical testing for significance | **PASS** | `price_forecasting/evaluation/statistical_tests.py` implements `diebold_mariano` and `giacomini_white_multivariate`. `evaluation/summary.py::compute_dm_pvalue_matrix` produces the GW p-value matrix for >2 model comparisons. See `researh_material/reading_guides/statistical_tests_for_epf_reading_guide.md`. |
+| 7 | Statistical testing for significance | **PASS** | `price_forecasting/evaluation/statistical_tests.py` implements `diebold_mariano` and `giacomini_white_multivariate`. `evaluation/summary.py::build_dm_matrix` produces the GW p-value matrix for >2 model comparisons. See `researh_material/reading_guides/statistical_tests_for_epf_reading_guide.md`. |
 ```
 
 - [ ] **Step 6: Update row 9 (ex-ante hyperparameters)**
@@ -574,7 +593,7 @@ Replace the `#7 Statistical testing for significance` row with:
 Replace the `#9 Hyperparameters estimated ex-ante` row with:
 
 ```markdown
-| 9 | Hyperparameters estimated ex-ante (validation set) | **PASS** | Both production configs declare `val_start_date`/`val_end_date`. `backtesting/splitting.py::split_train_val_test_by_dates` produces a three-way split. `LassoCV(cv=TimeSeriesSplit)` selects `alpha` ex-ante. Optuna trials persisted to `algo.hyperparam_trials` (DNN path). |
+| 9 | Hyperparameters estimated ex-ante (validation set) | **PASS** | Both production configs declare `val_start_date`/`val_end_date`. `backtesting/splitting.py::split_by_dates_with_validation` produces a three-way split. `LassoCV(cv=TimeSeriesSplit)` selects `alpha` ex-ante. Optuna trials persisted to `algo.hyperparam_trials` (DNN path). |
 ```
 
 - [ ] **Step 7: Update the headline score line**
@@ -603,7 +622,7 @@ Find the rows for `DM test` and `GW test` (currently marked `MISSING`). Replace 
 
 ```markdown
 | DM test | Diebold-Mariano with loss differentials | `evaluation/statistical_tests.py::diebold_mariano` (l1 or l2 loss, two-sided / one-sided alternatives) | **MATCH** |
-| GW test | Giacomini-White conditional predictive ability | `evaluation/statistical_tests.py::giacomini_white_multivariate` + `summary.py::compute_dm_pvalue_matrix` for >2 models | **MATCH** |
+| GW test | Giacomini-White conditional predictive ability | `evaluation/statistical_tests.py::giacomini_white_multivariate` + `summary.py::build_dm_matrix` for >2 models | **MATCH** |
 ```
 
 - [ ] **Step 10: Verify nothing else in the file contradicts the new scores**
@@ -669,10 +688,123 @@ EOF
 
 ---
 
+## Task 4: PR 4 — Lago compliance follow-up (added post-review of PR 3)
+
+**Branch:** `feat/lago-compliance-followup`
+
+**Context:** Code review of PR 3 found that two upgraded PASS rows (#3
+and #9) describe the *intended* design rather than the *deployed*
+behaviour. The components exist but are not wired into the LEAR
+research path. PR 4 closes the gap so the scorecard's PASS claims are
+honest. See spec PR 4 section for the full rationale.
+
+### Subtask 4A — Instrument backtest + CLI predict timing (closes #3 honesty gap)
+
+- [ ] **Step 1: Add timing to `BacktestRunner.execute()`**
+
+Open `src/price_forecasting/src/price_forecasting/backtesting/runner.py`. At the top of `execute()` capture a start time:
+
+```python
+import time
+...
+def execute(self) -> Dict[str, pd.DataFrame]:
+    _start = time.perf_counter()
+    ...
+    # at the end, before returning:
+    duration = time.perf_counter() - _start
+    return {
+        "forecasts": forecasts_df,
+        "actuals": actuals_df,
+        "training_duration_seconds": float(duration),
+    }
+```
+
+- [ ] **Step 2: Thread duration into `track_backtest_run`**
+
+Open `src/forecast_cli/src/forecast_cli/tracking.py`. Add a keyword-only param `training_duration_seconds: float = 0.0` to `track_backtest_run`. Forward it to `insert_experiment_run(...)` alongside the existing kwargs.
+
+- [ ] **Step 3: Pass duration from CLI backtest**
+
+Open `src/forecast_cli/src/forecast_cli/main.py`. In the `backtest` command, after calling `runner.execute()` and before `track_backtest_run(...)`, pull the duration out of the result dict and pass it through:
+
+```python
+result = runner.execute()
+forecasts = result["forecasts"]
+actuals = result["actuals"]
+duration = result.get("training_duration_seconds", 0.0)
+...
+run_id = track_backtest_run(
+    config, forecasts, actuals, metrics,
+    training_duration_seconds=duration,
+)
+```
+
+- [ ] **Step 4: Switch CLI predict to `run_live_with_metadata`**
+
+Same file, in the `predict` command, replace `runner.run_live(target_date_str)` with `runner.run_live_with_metadata(target_date)`. Extract `result.prediction` and `result.training_duration_seconds`, then pass duration through to `track_prediction(...)`.
+
+- [ ] **Step 5: Tests**
+
+Add tests under `tests/forecast_cli/` and `tests/price_forecasting/backtesting/` that assert the duration column is populated when running a backtest and a CLI predict against fake clients.
+
+### Subtask 4B — Make LEAR ex-ante hyperparameter selection actually run (closes #9 honesty gap)
+
+- [ ] **Step 1: Flip LEAR configs to `alpha="auto"`**
+
+Open `configs/dk1_lear.py` and `configs/de_lear.py`. Change:
+
+```python
+model_params={"alpha": 0.01},
+```
+
+to:
+
+```python
+model_params={"alpha": "auto"},
+```
+
+This flips `LearModel.fit()` (`src/price_forecasting/src/price_forecasting/models/lear.py`) into the `LassoCV(cv=TimeSeriesSplit, alphas=...)` branch — ex-ante alpha selection by construction.
+
+- [ ] **Step 2: Run baseline backtests**
+
+```bash
+uv run python -m forecast_cli.main backtest dk1_lear --track
+uv run python -m forecast_cli.main backtest de_lear --track
+```
+
+Confirm:
+- Each run writes a non-zero `training_duration_seconds` to `algo.experiment_runs`.
+- `LearModel.best_alphas` is populated (proof the CV branch ran). Either log it from the runner or query: `SELECT metrics_json FROM algo.experiment_runs FINAL ORDER BY created_utc DESC LIMIT 2`.
+- `rMAE` on the standard window does not regress by more than ~5% vs the `alpha=0.01` baseline. If it does: revert configs and instead reframe the #9 description rather than re-fudging the claim.
+
+- [ ] **Step 3: Reframe the #9 row in the reading guide**
+
+Open `researh_material/reading_guides/lago_epf_benchmark_reading_guide.md`. Replace the #9 row with:
+
+```markdown
+| 9 | Hyperparameters estimated ex-ante (validation set) | **PASS** | Both production configs declare `val_start_date`/`val_end_date`. DNN/Optuna path uses them for ex-ante tuning (trials in `algo.hyperparam_trials`, migration 008). LEAR uses `LassoCV(cv=TimeSeriesSplit)` on training data — ex-ante by construction. |
+```
+
+- [ ] **Step 4: Reframe the #3 row in the reading guide**
+
+Once Subtask 4A lands and a backtest produces a non-zero duration, replace the #3 row with:
+
+```markdown
+| 3 | Computational cost evaluated | **PASS** | `training_duration_seconds` column in `algo.experiment_runs` (migration 006); captured on every tracked run: scheduled Prefect flow via `LiveRunner.run_live_with_metadata`, CLI `predict --track` via the same, and `backtest --track` via timed `BacktestRunner.execute()`. |
+```
+
+- [ ] **Step 5 (optional): Wire `split_by_dates_with_validation` into `BacktestRunner._split_data()`**
+
+Not strictly required for LEAR (LassoCV does its own TimeSeriesSplit on training data), but makes the validation set explicit for downstream DNN backtests. Defer unless DNN backtests are in scope before the freeze.
+
+---
+
 ## Definition of done
 
-- All three PRs merged to `main`
+- All four PRs merged to `main`
 - `algo.experiment_runs` rows created after PR 2 deploy carry non-empty `git_sha`
+- After PR 4: a fresh DK1 backtest writes a non-zero `training_duration_seconds`, and `LearModel.best_alphas` is populated (proof the `LassoCV` branch ran)
+- Reading guide #3 and #9 rows updated to the post-PR-4 narrowed descriptions
 - `uv run pytest tests/ -v` green
 - `uv run ruff check` clean
 - Codebase frozen — further changes require explicit thesis-blocking justification
@@ -686,4 +818,4 @@ Verified against `docs/superpowers/specs/2026-05-21-pre-freeze-engineering-plan.
 
 Discovered during exploration (added to the plan, not in original spec): the spec mentioned removing `EnergyPriceObservation`, but `git grep` shows no such class exists in src/ — only the `Observations` domain class which is production. Spec was over-broad on that one item; plan drops the nonexistent class reference and instead adds `src/infrastructure_entsoe/src/infrastructure_entsoe/main.py` (a real orphan demo script that imports a nonexistent `insert_energy_prices_batch`) to PR 1's deletion list. This is the correct dead-code target.
 
-No placeholders, no TBDs. Type/method names checked: `insert_experiment_run`, `_resolve_git_sha`, `track_prediction`, `track_backtest`, `LiveRunner.run_live_with_metadata` all spelled consistently across tasks.
+No placeholders, no TBDs. Type/method names checked: `insert_experiment_run`, `_resolve_git_sha`, `track_prediction`, `track_backtest_run`, `LiveRunner.run_live_with_metadata` all spelled consistently across tasks.
