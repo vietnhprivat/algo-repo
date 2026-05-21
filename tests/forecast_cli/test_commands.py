@@ -1,5 +1,6 @@
 """Tests for forecast_cli backtest and predict commands."""
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -8,6 +9,7 @@ from typer.testing import CliRunner
 
 from forecast_cli.main import app
 from price_forecasting import ExperimentConfig
+from price_forecasting.live_runner import LiveResult
 
 runner = CliRunner()
 
@@ -44,6 +46,16 @@ def _make_prediction_series(n_periods: int = 24) -> pd.Series:
     )
 
 
+def _make_live_result(n_periods: int = 24, duration: float = 1.25) -> LiveResult:
+    return LiveResult(
+        prediction=_make_prediction_series(n_periods),
+        data_start_utc=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        data_end_utc=datetime(2024, 6, 14, tzinfo=timezone.utc),
+        training_duration_seconds=duration,
+        trained_models={},
+    )
+
+
 class TestBacktestCommand:
 
     @patch("forecast_cli.main.BacktestRunner")
@@ -76,6 +88,7 @@ class TestBacktestCommand:
         mock_load.return_value = config
 
         outputs = _make_backtest_outputs()
+        outputs["training_duration_seconds"] = 12.5
         mock_runner_instance = MagicMock()
         mock_runner_instance.execute.return_value = outputs
         mock_runner_cls.return_value = mock_runner_instance
@@ -86,6 +99,8 @@ class TestBacktestCommand:
         assert result.exit_code == 0
         assert "Tracked run fake-uuid-1234" in result.output
         mock_track.assert_called_once()
+        _, kwargs = mock_track.call_args
+        assert kwargs["training_duration_seconds"] == 12.5
 
     @patch("forecast_cli.main.load_config")
     def test_backtest_missing_config_exits(self, mock_load):
@@ -102,9 +117,9 @@ class TestPredictCommand:
         config = _make_test_config()
         mock_load.return_value = config
 
-        prediction = _make_prediction_series()
+        live_result = _make_live_result()
         mock_runner_instance = MagicMock()
-        mock_runner_instance.run_live.return_value = prediction
+        mock_runner_instance.run_live_with_metadata.return_value = live_result
         mock_runner_cls.return_value = mock_runner_instance
 
         result = runner.invoke(app, ["predict", "dk1_lear", "-d", "2024-06-15"])
@@ -114,7 +129,9 @@ class TestPredictCommand:
         assert "Period" in result.output
         assert "Time" in result.output
         assert "Price" in result.output
-        mock_runner_instance.run_live.assert_called_once_with("2024-06-15")
+        mock_runner_instance.run_live_with_metadata.assert_called_once_with(
+            "2024-06-15"
+        )
 
     @patch("forecast_cli.main.LiveRunner")
     @patch("forecast_cli.main.track_prediction")
@@ -125,9 +142,9 @@ class TestPredictCommand:
         config = _make_test_config()
         mock_load.return_value = config
 
-        prediction = _make_prediction_series()
+        live_result = _make_live_result(duration=2.5)
         mock_runner_instance = MagicMock()
-        mock_runner_instance.run_live.return_value = prediction
+        mock_runner_instance.run_live_with_metadata.return_value = live_result
         mock_runner_cls.return_value = mock_runner_instance
         mock_track.return_value = "fake-uuid-5678"
 
@@ -138,6 +155,10 @@ class TestPredictCommand:
         assert result.exit_code == 0
         assert "Tracked prediction fake-uuid-5678" in result.output
         mock_track.assert_called_once()
+        _, kwargs = mock_track.call_args
+        assert kwargs["training_duration_seconds"] == 2.5
+        assert kwargs["data_start_utc"] == live_result.data_start_utc
+        assert kwargs["data_end_utc"] == live_result.data_end_utc
 
     def test_predict_missing_date_exits(self):
         result = runner.invoke(app, ["predict", "dk1_lear"])
