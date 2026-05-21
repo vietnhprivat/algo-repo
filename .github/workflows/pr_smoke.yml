@@ -46,16 +46,6 @@ jobs:
         -v ${{ github.workspace }}/configs:/app/configs
 
     steps:
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          swap-storage: false
-
       - name: Checkout
         uses: actions/checkout@v4
 
