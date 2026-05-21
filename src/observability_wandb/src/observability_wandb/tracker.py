@@ -131,3 +131,42 @@ class WandbTracker:
         )
         artifact.add_file(local_path)
         run.log_artifact(artifact)
+
+    def log_predict_run_with_artifact(
+        self,
+        *,
+        run_id: str,
+        config: Mapping[str, Any],
+        prediction: Iterable[Mapping[str, Any]],
+        tags: Iterable[str],
+        artifact_id: str | None = None,
+        artifact_blob_b64: str | None = None,
+    ) -> None:
+        if not self._enabled:
+            return None
+        from observability_wandb.artifacts import log_model_blob
+
+        run = self._wandb.init(
+            project=self._settings.default_project,
+            entity=self._settings.entity,
+            id=run_id,
+            job_type="predict",
+            tags=list(tags),
+            config=dict(config),
+        )
+        try:
+            for step, row in enumerate(prediction):
+                run.log(dict(row), step=step)
+            if artifact_id and artifact_blob_b64:
+                log_model_blob(
+                    tracker=self,
+                    run=run,
+                    artifact_id=artifact_id,
+                    blob_b64=artifact_blob_b64,
+                    metadata={
+                        "area": config.get("area"),
+                        "run_id": run_id,
+                    },
+                )
+        finally:
+            run.finish()

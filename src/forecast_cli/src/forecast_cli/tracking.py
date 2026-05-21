@@ -183,11 +183,19 @@ def track_prediction(
     data_end_utc: datetime | None = None,
     trained_models: dict | None = None,
     config_name: str | None = None,
+    tracker: WandbTracker | None = None,
 ) -> str:
-    """Store a live prediction in ClickHouse.
+    """Store a live prediction in ClickHouse, then dual-write to W&B.
+
+    After the ClickHouse writes succeed, also logs to W&B via ``tracker``
+    when W&B is enabled.  Pass a ``WandbTracker`` instance for tests; the
+    default (``None``) constructs one from the environment.
 
     Returns the generated run_id.
     """
+    if tracker is None:
+        tracker = WandbTracker()
+
     run_id = _generate_run_id()
     now = datetime.now(timezone.utc)
     config_json = json.dumps(asdict(config))
@@ -195,11 +203,13 @@ def track_prediction(
     predictions_df = _prediction_series_to_long(run_id, target_date, predictions)
 
     client = create_client()
+    artifact_blob_b64: str | None = None
+    artifact_id: str | None = None
     try:
-        artifact_id = None
         if trained_models:
             artifact_id = str(uuid.uuid4())
             blob, size_bytes = _serialize_model(trained_models)
+            artifact_blob_b64 = blob
             insert_model_artifact(
                 client,
                 artifact_id=artifact_id,
@@ -230,5 +240,16 @@ def track_prediction(
         insert_experiment_predictions(client, predictions_df)
     finally:
         client.close()
+
+    prediction_records = predictions_df.to_pandas().to_dict(orient="records")
+    tags = list(config.wandb_tags) if config.wandb_tags else [config.area, config.model_type]
+    tracker.log_predict_run_with_artifact(
+        run_id=run_id,
+        config=asdict(config),
+        prediction=prediction_records,
+        tags=tags,
+        artifact_id=artifact_id,
+        artifact_blob_b64=artifact_blob_b64,
+    )
 
     return run_id

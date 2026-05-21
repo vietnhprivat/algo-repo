@@ -166,6 +166,80 @@ class TestLogProdReconciled:
         assert ids == {"prod-dk1-dk1_lear", "prod-de-de_lear"}
 
 
+class TestLogPredictRunWithArtifact:
+    def test_init_predict_job_type_rows_artifact_and_finish(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        import base64
+
+        tracker = WandbTracker(wandb_module=fake_wandb)
+        prediction = [
+            {"period": 0, "timestamp_utc": "2026-05-22T00:00:00Z", "predicted": 51.0},
+            {"period": 1, "timestamp_utc": "2026-05-22T01:00:00Z", "predicted": 49.5},
+        ]
+        blob_b64 = base64.b64encode(b"\x00fake-model-bytes").decode("ascii")
+
+        tracker.log_predict_run_with_artifact(
+            run_id="predict-art-001",
+            config={"area": "DK1", "target_date": "2026-05-22"},
+            prediction=prediction,
+            tags=["DK1", "lear", "predict"],
+            artifact_id="artifact-uuid-1",
+            artifact_blob_b64=blob_b64,
+        )
+
+        assert len(fake_wandb.init_calls) == 1
+        call = fake_wandb.init_calls[0]
+        assert call["job_type"] == "predict"
+        assert call["id"] == "predict-art-001"
+
+        run = fake_wandb.runs[0]
+        assert len(run.logged) == 2
+        assert run.logged[0][0]["predicted"] == 51.0
+        assert run.logged[1][0]["predicted"] == 49.5
+
+        assert len(run.artifacts_logged) == 1
+        artifact = run.artifacts_logged[0]
+        assert artifact.name == "artifact-uuid-1"
+
+        assert run.finished is True
+
+    def test_skips_artifact_when_no_blob(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+        prediction = [{"period": 0, "predicted": 50.0}]
+
+        tracker.log_predict_run_with_artifact(
+            run_id="predict-no-art",
+            config={"area": "DK1"},
+            prediction=prediction,
+            tags=["DK1"],
+            artifact_id=None,
+            artifact_blob_b64=None,
+        )
+
+        run = fake_wandb.runs[0]
+        assert len(run.logged) == 1
+        assert run.artifacts_logged == []
+        assert run.finished is True
+
+    def test_noops_when_disabled(
+        self, monkeypatch: pytest.MonkeyPatch, fake_wandb: FakeWandb
+    ) -> None:
+        monkeypatch.setenv("WANDB_MODE", "disabled")
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_predict_run_with_artifact(
+            run_id="predict-disabled",
+            config={"area": "DK1"},
+            prediction=[{"period": 0, "predicted": 50.0}],
+            tags=["DK1"],
+        )
+
+        assert fake_wandb.init_calls == []
+
+
 class TestLogArtifact:
     def test_attaches_artifact_to_run(
         self,

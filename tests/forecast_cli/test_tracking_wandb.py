@@ -90,6 +90,86 @@ def test_backtest_dual_writes_to_wandb(
     assert fake_wandb.runs[0].finished is True
 
 
+def test_predict_dual_writes_to_wandb(
+    enabled_env: None,
+    fake_wandb: FakeWandb,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Calling track_prediction with a tracker writes to W&B in addition to CH."""
+    from forecast_cli import tracking
+
+    monkeypatch.setattr(
+        tracking, "insert_experiment_run", lambda *a, **k: None, raising=True
+    )
+    monkeypatch.setattr(
+        tracking,
+        "insert_experiment_predictions",
+        lambda *a, **k: None,
+        raising=True,
+    )
+    monkeypatch.setattr(
+        tracking, "insert_model_artifact", lambda *a, **k: None, raising=True
+    )
+    fake_client = MagicMock()
+    monkeypatch.setattr(tracking, "create_client", lambda: fake_client, raising=True)
+
+    tracker = WandbTracker(wandb_module=fake_wandb)
+    config = _make_config()
+    predictions = pd.Series([50.0 + i for i in range(24)], dtype=float)
+
+    tracking.track_prediction(
+        config,
+        "2026-05-22",
+        predictions,
+        trained_models={"model_key": "fake_model_object"},
+        tracker=tracker,
+    )
+
+    assert len(fake_wandb.init_calls) == 1
+    assert fake_wandb.init_calls[0]["job_type"] == "predict"
+    assert fake_wandb.runs[0].finished is True
+    # prediction rows were logged (one per period)
+    assert len(fake_wandb.runs[0].logged) == 24
+    # artifact was attached because trained_models was provided
+    assert len(fake_wandb.runs[0].artifacts_logged) == 1
+
+
+def test_predict_no_artifact_when_no_trained_models(
+    enabled_env: None,
+    fake_wandb: FakeWandb,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When no trained_models are given, no artifact is attached."""
+    from forecast_cli import tracking
+
+    monkeypatch.setattr(
+        tracking, "insert_experiment_run", lambda *a, **k: None, raising=True
+    )
+    monkeypatch.setattr(
+        tracking,
+        "insert_experiment_predictions",
+        lambda *a, **k: None,
+        raising=True,
+    )
+    fake_client = MagicMock()
+    monkeypatch.setattr(tracking, "create_client", lambda: fake_client, raising=True)
+
+    tracker = WandbTracker(wandb_module=fake_wandb)
+    config = _make_config()
+    predictions = pd.Series([50.0] * 24, dtype=float)
+
+    tracking.track_prediction(
+        config,
+        "2026-05-22",
+        predictions,
+        tracker=tracker,
+    )
+
+    assert len(fake_wandb.init_calls) == 1
+    assert fake_wandb.init_calls[0]["job_type"] == "predict"
+    assert fake_wandb.runs[0].artifacts_logged == []
+
+
 def test_backtest_disabled_tracker_skips_wandb(
     monkeypatch: pytest.MonkeyPatch,
     fake_wandb: FakeWandb,
