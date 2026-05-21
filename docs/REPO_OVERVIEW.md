@@ -115,6 +115,7 @@ them up on next run.
 | Observability | Loki (logs) + Grafana 12 + auto-provisioned dashboards + file-provisioned alert rules | |
 | Alerting | Slack webhook | `schedules.alerting.notify` — no-ops if `SLACK_WEBHOOK_URL` unset |
 | Drift | Evidently 0.7 (`DataDriftPreset`) | KS test, in-process inside flow; can trigger retrain |
+| Observability — research | W&B (`observability_wandb` package) | Backtests, predict runs, DNN training (Lightning), Optuna sweeps, ablation sweeps, reconciled prod metrics. Algo-research + algo-prod projects. No-op when `WANDB_MODE=disabled`. |
 | CLI | Typer | `data-cli` and `forecast-cli` (`backtest`, `predict`, `tune`) |
 | CI/CD | GitHub Actions + Tailscale | Pre-merge: pytest + ruff. Post-merge: SSH-deploy and smoke-test flow |
 
@@ -894,6 +895,22 @@ Two layers:
 
 > **Always edit alert rules as YAML** in `grafana/provisioning/alerting/`.
 > UI edits are overwritten on container restart, same as dashboards.
+
+### W&B (research)
+
+`observability_wandb.tracker.WandbTracker` is the single owner of W&B-side
+schema. Dual-write call sites: `forecast_cli.tracking.track_backtest_run /
+track_prediction`, `price_forecasting.models.lightning_base.LightningModel`
+(via `WandbLogger`), `price_forecasting.tuning.optuna_storage`, and
+`schedules.reconciliation`. Production system is unaffected when the
+tracker is disabled.
+
+- `algo-research` project — backtests, predict runs, DNN training, sweeps,
+  ablations.
+- `algo-prod` project — one continuous run per `(area, config_name)`,
+  one step per reconciled day. Run ID format: `prod-{area_lower}-{config}`.
+- Disabled-mode: set `WANDB_MODE=disabled` or unset `WANDB_API_KEY`.
+- New CLI: `forecast-cli ablate <config> --vary <field> --over <json>`.
 
 ---
 

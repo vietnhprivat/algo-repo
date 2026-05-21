@@ -66,6 +66,14 @@ tests/                       # Mirrors src/ structure
 - **Structured logging via Loki**: use the handler configured in `infrastructure_clickhouse.logging_setup`. Never `print()` in `schedules/*` or `infrastructure_*` — use the module logger with `build_log_extra(**context)` so fields reach Loki as labels.
 - **Grafana dashboards** auto-provision from `grafana/provisioning/` and `grafana/dashboards/`. Three dashboards: Data Quality, Model Performance, Operational (Loki log stream). Adding a panel = editing the JSON file in `grafana/dashboards/` (do not edit through the UI — changes will be overwritten on restart).
 - **Drift detection** (`schedules/drift.py`): Evidently runs **in-process** inside the Prefect flow, no Evidently service. Reference window = 90 days, current window = 7 days. Results land in `algo.drift_reports` (migration `007`); a drift event emits a WARNING to Loki.
+- **W&B research surface**: `observability_wandb.tracker.WandbTracker` is the
+  ONLY place `wandb` is imported outside its own package. Other packages
+  depend on the tracker (`WandbTracker`, `build_lightning_logger`,
+  `build_wandb_sweep_callback`). Disable for local/CI with
+  `WANDB_MODE=disabled` — the tracker no-ops cleanly. Two projects:
+  `algo-research` (default) and `algo-prod` (hardcoded for reconciliation
+  sync). New CLI: `forecast-cli ablate <config> --vary <field> --over
+  <json>` runs an ablation sweep and emits to W&B.
 
 ### Alerting
 - **Slack notifications** via `SLACK_WEBHOOK_URL`. Helper `schedules.alerting.notify(subject, message, severity)` no-ops if the var is unset, so local dev never fails.

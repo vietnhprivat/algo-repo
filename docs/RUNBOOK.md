@@ -69,6 +69,30 @@ OPTIMIZE TABLE algo.timeseries FINAL;
 OPTIMIZE TABLE algo.forecasts FINAL;
 ```
 
+## W&B troubleshooting
+
+**Tracker is no-opping silently.**
+Check the env: `WANDB_MODE` should be empty or `online`, and
+`WANDB_API_KEY` must be set. The tracker logs nothing to Loki when
+disabled (silent by design — see `client_factory.is_enabled`).
+
+**Runs land in the wrong project.**
+Backtests / predict / tune / ablate write to `WANDB_PROJECT` (default
+`algo-research`). The reconciliation prod-sync hardcodes `algo-prod` —
+this is intentional and not configurable.
+
+**Daily prod run does not appear.**
+The prod-mirror run uses a deterministic ID `prod-{area_lower}-{config}`
+with `resume="allow"`. If it doesn't appear, check the reconciliation
+flow's Loki logs for `WandbTracker` exceptions (the tracker catches
+errors but logs at WARNING).
+
+**Authoring Reports with Claude Code.**
+The W&B MCP server is configured at the repo level. Restart your Claude
+Code session if it doesn't appear under `/mcp`. The key is read from
+`.env` via the local-scope `~/.claude.json` entry. To re-register after
+rotating the key: `claude mcp remove wandb && claude mcp add --transport http wandb https://mcp.withwandb.com/mcp --header "Authorization: Bearer $WANDB_API_KEY"`.
+
 ## Common pitfalls
 
 - Editing an existing migration: don't. Add a new one.
