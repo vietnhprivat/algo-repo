@@ -27,15 +27,23 @@ jobs:
     timeout-minutes: 20
     env:
       COMPOSE_PROJECT_NAME: algo-repo
-      CLICKHOUSE_HOST: localhost
-      CLICKHOUSE_PORT: '8123'
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: password
-      CLICKHOUSE_DATABASE: algo
-      PREFECT_API_URL: http://localhost:4200/api
-      SLACK_WEBHOOK_URL: ''
-      LOKI_URL: ''
-      ENTSOE_API_KEY: ''
+      # All Python steps run inside the algo-repo:latest image — no host uv sync.
+      # Services are reachable by compose service name on the algo-repo_default network.
+      DOCKER_RUN_ARGS: >-
+        --rm -i
+        --network algo-repo_default
+        -e CLICKHOUSE_HOST=clickhouse
+        -e CLICKHOUSE_PORT=8123
+        -e CLICKHOUSE_USER=default
+        -e CLICKHOUSE_PASSWORD=password
+        -e CLICKHOUSE_DATABASE=algo
+        -e PREFECT_API_URL=http://server:4200/api
+        -e SLACK_WEBHOOK_URL=
+        -e LOKI_URL=
+        -e ENTSOE_API_KEY=
+        -e SMOKE_CONFIGS_HOST_DIR=${{ github.workspace }}/configs
+        -v ${{ github.workspace }}/tests:/app/tests
+        -v ${{ github.workspace }}/configs:/app/configs
 
     steps:
       - name: Free disk space
@@ -50,20 +58,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: Install Python deps
-        run: uv sync --frozen
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -108,17 +102,17 @@ jobs:
           exit 1
 
       - name: Run migrations
-        run: uv run python -m infrastructure_clickhouse.migrations.run_migrations
+        run: docker run $DOCKER_RUN_ARGS algo-repo:latest python -m infrastructure_clickhouse.migrations.run_migrations
 
       - name: Seed synthetic data
-        run: uv run python -m tests.smoke.seed
+        run: docker run $DOCKER_RUN_ARGS algo-repo:latest python -m tests.smoke.seed
 
       - name: Register smoke deployments
-        run: uv run python -m tests.smoke.deploy
+        run: docker run $DOCKER_RUN_ARGS algo-repo:latest python -m tests.smoke.deploy
 
       - name: Run daily-forecast-smoke deployment
         run: |
-          uv run python - <<'PY'
+          docker run $DOCKER_RUN_ARGS algo-repo:latest python - <<'PY'
           import sys
           from prefect.deployments import run_deployment
 
@@ -134,7 +128,7 @@ jobs:
 
       - name: Run reconcile-predictions deployment
         run: |
-          uv run python - <<'PY'
+          docker run $DOCKER_RUN_ARGS algo-repo:latest python - <<'PY'
           import sys
           from prefect.deployments import run_deployment
 
@@ -148,7 +142,7 @@ jobs:
           PY
 
       - name: Assert reconciled smoke run exists
-        run: uv run python -m tests.smoke.assert_reconciled
+        run: docker run $DOCKER_RUN_ARGS algo-repo:latest python -m tests.smoke.assert_reconciled
 
       - name: Capture compose logs on failure
         if: failure()

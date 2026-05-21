@@ -10,7 +10,14 @@ from pathlib import Path
 from schedules.forecast import daily_forecast_flow
 from schedules.reconciliation import reconcile_predictions_flow
 
-CONFIGS_DIR = Path.cwd().resolve() / "configs"
+# Host path to configs/ — used as a Docker bind mount when the Prefect Docker
+# worker spawns flow-run containers. Defaults to cwd()/configs (correct when
+# this script runs on the host). When invoked inside a container in CI, set
+# SMOKE_CONFIGS_HOST_DIR to the host-side workspace path so the daemon-level
+# mount resolves correctly.
+CONFIGS_DIR = Path(
+    os.getenv("SMOKE_CONFIGS_HOST_DIR") or str(Path.cwd().resolve() / "configs")
+)
 
 _COMMON_ENV = {
     "PREFECT_API_URL": "http://server:4200/api",
