@@ -185,8 +185,8 @@ rationale for the choice.
 \section{Zarour's Nine MLOps Practices — Implementation}
 
 The nine sections that follow map every MLOps practice identified by Zarour
-et al.\ \cite{zarour2025} to a concrete subsystem in algo-repo. Each section
-follows the same four-paragraph shape: Zarour's own framing, the
+et al.\ (introduced in \S1.3) to a concrete subsystem in algo-repo. Each
+section follows the same four-paragraph shape: the practice's framing, the
 implementation found in this repository, the technology chosen and its
 rejected alternatives, and the design rationale scoped to a single-host MVP.
 Where a practice is only partially realised, the limitation is stated
@@ -244,8 +244,9 @@ in \texttt{tests/price\_forecasting/test\_smoke.py}. \texttt{.github/workflows/p
 runs \texttt{ruff check} for linting and import hygiene. \texttt{.github/workflows/pr\_smoke.yml}
 runs an end-to-end LEAR smoke test against a minimal dataset; this workflow
 includes a path filter introduced on the current branch that skips the smoke
-step entirely when a pull request touches only documentation files, preventing
-docs-only changes from being held back by a several-minute build.
+step when a push touches only files outside the gated paths, preventing
+documentation-only or other unrelated changes from being held back by a
+several-minute Docker build.
 
 GitHub Actions was chosen over Jenkins or CircleCI because it is co-located
 with the repository and requires no separately managed runner host. The three
@@ -575,8 +576,12 @@ rebuilds \texttt{algo-repo:latest} with \texttt{GIT\_SHA} baked in via
 \texttt{deploy\_ingestion.py} and \texttt{deploy\_forecast.py} to register
 updated Prefect deployments, and finally triggers \texttt{daily-forecast-dk1\_lear}
 and polls until the flow run completes, confirming that the freshly deployed
-image can produce a valid forecast on the live host. The PR gate enforces
-correctness; the deploy gate enforces delivery.
+image can produce a valid forecast on the live host. A parallel
+\texttt{reload\_grafana} job restarts the Grafana container so that file-provisioned
+dashboards and alert rule changes take effect, and a separate
+\texttt{main\_cache\_warm.yml} workflow runs on merges to \texttt{main} to
+pre-populate the GitHub Actions cache used by the next PR's Docker build.
+The PR gate enforces correctness; the deploy gate enforces delivery.
 
 \subsection{Tailscale-mediated deploy without exposing the host}
 
