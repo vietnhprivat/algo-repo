@@ -81,7 +81,7 @@ being automatically removed on completion.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\linewidth]{../figures/system_implementation/f1-architecture}
+  \includegraphics[width=\linewidth]{f1-architecture}
   \caption{Host-level architecture. A single Docker Compose host runs ClickHouse, the Prefect server and worker, Loki, and Grafana. Flow runs spawn ephemeral \texttt{algo-repo:latest} containers that read ClickHouse, call ENTSO-E, and emit logs back to Loki.}
   \label{fig:f1-architecture}
 \end{figure}
@@ -112,7 +112,7 @@ significant drift is detected.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\linewidth]{../figures/system_implementation/f2-data-plane}
+  \includegraphics[width=\linewidth]{f2-data-plane}
   \caption{Data plane. ENTSO-E data flows through typed mappers into ClickHouse, where the forecasting pipeline reads it, trains and evaluates models, and writes predictions and artifacts back. Reconciliation and drift detection close the loop on a daily cadence.}
   \label{fig:f2-data-plane}
 \end{figure}
@@ -539,7 +539,7 @@ from ClickHouse alone.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.75\linewidth]{../figures/system_implementation/f4-drift-feedback}
+  \includegraphics[width=0.75\linewidth]{f4-drift-feedback}
   \caption{Drift-triggered retraining loop. Drift events land in \texttt{algo.drift\_reports} and post to Slack; configs with \texttt{retrain\_on\_drift=True} additionally trigger a retraining flow that records each event in \texttt{algo.retrain\_events}.}
   \label{fig:f4-drift-feedback}
 \end{figure}
@@ -604,7 +604,7 @@ ever open to the public internet.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\linewidth]{../figures/system_implementation/f3-cicd}
+  \includegraphics[width=\linewidth]{f3-cicd}
   \caption{CI/CD pipeline. GitHub Actions runs the PR gate and the deploy gate; the deploy gate reaches the production host across the Tailscale link, rebuilds the image, redeploys Prefect, and triggers a smoke forecast.}
   \label{fig:f3-cicd}
 \end{figure}

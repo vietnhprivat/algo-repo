@@ -7,7 +7,7 @@
 \begin{document}
 \begin{tikzpicture}[
   % --- node styles ---
-  step/.style={
+  pipestep/.style={
     draw, rectangle,
     minimum width=3.0cm, minimum height=0.85cm,
     align=center, font=\small
@@ -38,15 +38,15 @@
 % ============================================================
 
 % --- PR-time workflows (left cluster, stacked vertically) ---
-\node[step] (pr_test)
+\node[pipestep] (pr_test)
     at (-7.5, 6.2)
     {pr\_test\\(pytest)};
 
-\node[step] (pr_lint)
+\node[pipestep] (pr_lint)
     [below=0.45cm of pr_test]
     {pr\_ruff-lint\\(ruff check)};
 
-\node[step] (pr_smoke)
+\node[pipestep] (pr_smoke)
     [below=0.45cm of pr_lint]
     {pr\_smoke\\(LEAR smoke,\\path-gated)};
 
@@ -56,11 +56,11 @@
     {PR\\gate};
 
 % --- Post-merge (push to main) workflows ---
-\node[step] (cd_changes)
+\node[pipestep] (cd_changes)
     at (1.2, 6.2)
     {cd\_deploy\\path filter\\(dorny)};
 
-\node[step] (cache_warm)
+\node[pipestep] (cache_warm)
     at (4.8, 6.2)
     {main\_cache\_warm\\(GHA cache write,\\CPU build)};
 
@@ -68,23 +68,23 @@
 % DEPLOY HOST LANE
 % ============================================================
 
-\node[step] (build_img)
+\node[pipestep] (build_img)
     at (1.2, -1.5)
     {git pull + run migrations\\+ docker build\\algo-repo:latest (CUDA)};
 
-\node[step] (deploy_ing)
+\node[pipestep] (deploy_ing)
     [below=0.55cm of build_img]
     {deploy\_ingestion.py\\(register Prefect\\ingestion deployments)};
 
-\node[step] (deploy_fcast)
+\node[pipestep] (deploy_fcast)
     [below=0.55cm of deploy_ing]
     {deploy\_forecast.py\\(register Prefect\\forecast deployments)};
 
-\node[step] (reload_gf)
+\node[pipestep] (reload_gf)
     at (5.0, -1.5)
     {git pull +\\docker compose\\restart grafana};
 
-\node[step] (smoke_run)
+\node[pipestep] (smoke_run)
     [below=0.55cm of deploy_fcast]
     {trigger daily-forecast-\\dk1\_lear\\\& poll until COMPLETED};
 
