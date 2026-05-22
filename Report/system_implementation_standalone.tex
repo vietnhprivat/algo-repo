@@ -1,0 +1,35 @@
+% Standalone wrapper to render `chapters/system_implementation.tex` as a PDF.
+% Useful for proofing before integration into the master thesis document.
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, shapes.symbols, backgrounds, fit, calc}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+% Tolerate slightly looser lines so long \texttt{} paths don't overrun the margin.
+\setlength{\emergencystretch}{3em}
+\hyphenpenalty=1000
+\tolerance=1000
+
+\graphicspath{{figures/system_implementation/}}
+
+\begin{document}
+
+\tableofcontents
+\clearpage
+
+\input{chapters/system_implementation}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

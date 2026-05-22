@@ -1,0 +1,153 @@
+% F2 — Data plane (vertical layout)
+% Standalone TikZ figure: compile with lualatex or pdflatex.
+% The enclosing chapter supplies \caption{}; no caption text lives here.
+\documentclass[tikz,border=5pt]{standalone}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, shapes.symbols, backgrounds, fit, calc}
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=0.9cm and 1.4cm,
+  % --- node styles ---
+  proc/.style={
+    draw, rectangle,
+    minimum width=3.0cm, minimum height=0.9cm,
+    align=center, font=\small
+  },
+  db/.style={
+    draw, cylinder,
+    shape border rotate=90,
+    minimum width=2.8cm, minimum height=0.9cm,
+    align=center, font=\small,
+    aspect=0.25
+  },
+  cloud_node/.style={
+    draw, cloud,
+    cloud puffs=10, cloud puff arc=120,
+    minimum width=2.8cm, minimum height=1.2cm,
+    align=center, font=\small
+  },
+  hex/.style={
+    draw, regular polygon, regular polygon sides=6,
+    minimum size=1.3cm,
+    align=center, font=\footnotesize
+  },
+  % --- arrow styles ---
+  arr/.style={-{Stealth[length=6pt]}, thick},
+  cond/.style={-{Stealth[length=6pt]}, thick, dashed}
+]
+
+% =====================================================================
+% Vertical (top-to-bottom) flow.
+% Centre column carries the main ingestion-to-evaluation pipeline.
+% Storage tables that are written to (forecasts, model_artifacts) sit
+% to the right of the writer that fills them. Reconciliation/drift sit
+% as a side branch off algo.experiment_runs.
+% =====================================================================
+
+% ---- centre column, top to bottom ----
+\node[cloud_node] (entsoe)  {ENTSO-E};
+
+\node[proc]       (fetch)   [below=of entsoe]
+    {ENTSO-E fetch\\area\\($\times 4$)};
+
+\node[proc]       (mappers) [below=of fetch] {mappers};
+
+% ts and fc placed symmetrically on either side of the centre column so
+% the pair is centred under mappers.
+\node[db]         (ts)      [below=of mappers, xshift=-1.8cm]
+    {algo.\\timeseries};
+
+\node[db]         (fc)      [below=of mappers, xshift=1.8cm]
+    {algo.\\forecasts};
+
+\node[proc]       (preproc) [below=3.0cm of mappers]
+    {Data\\Preprocessor};
+
+\node[proc]       (ft)      [below=of preproc]
+    {Feature\\Transformers};
+
+% ---- backtest / live runner row — well separated horizontally so arrows
+%      from feature transformers and to the storage row don't collide ----
+\node[proc]       (backtest)[below left=2.4cm and 1.6cm of ft]
+    {Backtest\\Engine};
+
+\node[proc]       (live)    [below right=2.4cm and 1.6cm of ft]
+    {Live\\Runner};
+
+% ---- experiment-tracking stores: runs under backtest, artifacts under live
+%      so every engine has a single direct downstream store ----
+\node[db]         (runs)    [below=1.4cm of backtest]
+    {algo.\\experiment\_runs};
+
+\node[db]         (artifacts)[below=1.4cm of live]
+    {algo.\\model\_artifacts};
+
+% ---- feedback loop: reconciliation (under runs) and drift (under artifacts)
+\node[proc]       (recon)   [below=1.4cm of runs]
+    {reconciliation};
+
+\node[proc]       (drift)   [below=1.4cm of artifacts]
+    {drift\\detection};
+
+% ---- terminal nodes ----
+\node[db]         (drift_rep)[below=of drift]
+    {algo.\\drift\_reports};
+
+\node[db]         (retrain_ev)[below=of drift_rep]
+    {algo.\\retrain\_events};
+
+\node[hex]        (slack_recon)[left=1.2cm of recon] {notify};
+\node[hex]        (slack_drift)[right=1.2cm of drift] {notify};
+
+% =====================================================================
+% ARROWS — main vertical flow
+% =====================================================================
+\draw[arr] (entsoe)  -- (fetch);
+\draw[arr] (fetch)   -- (mappers);
+
+% mappers fans out to algo.timeseries (left) and algo.forecasts (right),
+% with a short shared stub directly under mappers.
+\draw[arr] (mappers.south) -- ++(0,-0.35) -| (ts.north);
+\draw[arr] (mappers.south) -- ++(0,-0.35) -| (fc.north);
+
+% Both stores feed the preprocessor (entering from its west / east sides)
+\draw[arr] (ts.south) |- (preproc.west);
+\draw[arr] (fc.south) |- (preproc.east);
+
+\draw[arr] (preproc) -- (ft);
+
+% feature transformers to both engines: horizontal then DOWN into the top
+% of each engine (entering vertically from above).
+\draw[arr] (ft.south) -| (backtest.north);
+\draw[arr] (ft.south) -| (live.north);
+
+% engines write straight down into their respective stores
+\draw[arr] (backtest.south) -- (runs.north);
+\draw[arr] (live.south)     -- (artifacts.north);
+
+% =====================================================================
+% Feedback branch
+% =====================================================================
+\draw[arr] (runs.south)      -- (recon.north);
+\draw[arr] (artifacts.south) -- (drift.north);
+
+% reconciliation updates metrics_json on runs (loop back via the right side)
+\draw[arr] (recon.east) -- ++(0.4,0) |- (runs.east)
+    node[pos=0.3, right, font=\scriptsize] {metrics\_json};
+
+% reconciliation -> notify when MAE degrades
+\draw[cond] (recon.west) -- (slack_recon.east)
+    node[midway, above=16pt, font=\scriptsize, align=center]
+    {MAE $>$ 1.5$\times$\\30-day median};
+
+% drift -> drift_reports (always) and Slack (always when drift)
+\draw[arr] (drift.south) -- (drift_rep.north);
+\draw[arr] (drift.east) -- (slack_drift.west);
+
+% drift_reports -> retrain_events when retrain_on_drift=True
+\draw[cond] (drift_rep.south) -- (retrain_ev.north)
+    node[midway, right, font=\scriptsize]
+    {retrain\_on\_drift=True};
+
+\end{tikzpicture}
+\end{document}
