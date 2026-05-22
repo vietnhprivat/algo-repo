@@ -9,16 +9,51 @@ the maturity status of each practice after reading it.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Introduction}
-% fill in Task 6
 
 \subsection{Problem framing}
-% fill in Task 6
+Electricity price forecasting (EPF) is the task of predicting day-ahead
+wholesale electricity prices for a given bidding zone from a combination of
+historical prices and exogenous signals such as load, renewable generation, and
+calendar effects. Research on EPF has produced increasingly accurate offline
+benchmarks — LEAR, deep neural networks, and hybrid ensembles — evaluated on
+fixed historical holdout periods under idealised conditions.
+
+Production EPF, however, imposes a different and harder set of requirements.
+A deployed forecasting system must continuously ingest fresh market data from
+external APIs, retrain or recalibrate models on a rolling basis as the price
+distribution shifts, monitor prediction quality in near-real time, and align
+the evaluation methodology with actual operational use — a contrast that the
+EPF research literature largely sidesteps in favour of reporting accuracy on
+offline benchmarks \cite{lago2021}.
 
 \subsection{Scope of this chapter}
-% fill in Task 6
+This chapter documents the \emph{system} built around the forecasting models:
+the orchestration layer, infrastructure choices, observability stack, and
+CI/CD pipeline that together enable the platform to run reliably in
+production. It does not cover the modelling research itself — LEAR
+hyperparameters, DNN architecture, the asinh price transformation, or the
+Diebold--Mariano and Giacomini--White statistical tests — except where a
+modelling decision directly motivates or constrains an MLOps practice.
+Operational how-to material such as running backfills, adding new bidding
+areas, or re-deploying Prefect flows is maintained in the repository's
+\texttt{RUNBOOK.md} and \texttt{CONTRIBUTING.md} and is not repeated here.
 
 \subsection{Methodology — Zarour (2025) as structuring lens}
-% fill in Task 6
+The chapter is organised around the nine MLOps practices identified in the
+systematic literature review by Zarour et al.\ \cite{zarour2025}: version
+control, continuous integration, reproducibility, containerisation and
+infrastructure-as-code, collaboration and documentation, continuous training,
+experiment tracking and model registry, continuous monitoring, and the
+feedback loop with drift-triggered retraining. Each practice section follows
+a fixed shape: (i) Zarour's own framing of the practice and what it requires
+of a production ML system; (ii) the concrete implementation found in
+algo-repo; (iii) the technology chosen and the alternatives that were
+considered and rejected; (iv) the design rationale given the single-host MVP
+scope of the platform; and (v) an optional architecture or flow diagram where
+one aids comprehension. This structure makes it straightforward to assess
+which practices are fully implemented, partially implemented, or deliberately
+deferred, and to trace every technology choice back to an explicit
+justification.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{System at a Glance}
