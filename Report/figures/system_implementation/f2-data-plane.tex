@@ -1,21 +1,22 @@
-% F2 — Data plane
+% F2 — Data plane (vertical layout)
 % Standalone TikZ figure: compile with lualatex or pdflatex.
 % The enclosing chapter supplies \caption{}; no caption text lives here.
 \documentclass[tikz,border=5pt]{standalone}
-\usetikzlibrary{positioning, arrows.meta, shapes.geometric, shapes.symbols, backgrounds, fit}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, shapes.symbols, backgrounds, fit, calc}
 
 \begin{document}
 \begin{tikzpicture}[
+  node distance=0.9cm and 1.4cm,
   % --- node styles ---
   proc/.style={
     draw, rectangle,
-    minimum width=2.6cm, minimum height=0.9cm,
+    minimum width=3.0cm, minimum height=0.9cm,
     align=center, font=\small
   },
   db/.style={
     draw, cylinder,
     shape border rotate=90,
-    minimum width=2.6cm, minimum height=0.9cm,
+    minimum width=2.8cm, minimum height=0.9cm,
     align=center, font=\small,
     aspect=0.25
   },
@@ -27,8 +28,8 @@
   },
   hex/.style={
     draw, regular polygon, regular polygon sides=6,
-    minimum size=1.4cm,
-    align=center, font=\small
+    minimum size=1.3cm,
+    align=center, font=\footnotesize
   },
   % --- arrow styles ---
   arr/.style={-{Stealth[length=6pt]}, thick},
@@ -36,156 +37,117 @@
 ]
 
 % =====================================================================
-% ROW 1: ENTSO-E → fetch → mappers → algo.timeseries / algo.forecasts
+% Vertical (top-to-bottom) flow.
+% Centre column carries the main ingestion-to-evaluation pipeline.
+% Storage tables that are written to (forecasts, model_artifacts) sit
+% to the right of the writer that fills them. Reconciliation/drift sit
+% as a side branch off algo.experiment_runs.
 % =====================================================================
-\node[cloud_node] (entsoe) {ENTSO-E};
 
-\node[proc] (fetch)    [right=1.4cm of entsoe]
-    {ENTSO-E fetch fns\\($\times 4$)};
+% ---- centre column, top to bottom ----
+\node[cloud_node] (entsoe)  {ENTSO-E};
 
-\node[proc] (mappers)  [right=1.4cm of fetch]
-    {mappers};
+\node[proc]       (fetch)   [below=of entsoe]
+    {ENTSO-E fetch\\area\\($\times 4$)};
 
-\node[db]   (ts)       [right=1.4cm of mappers]
+\node[proc]       (mappers) [below=of fetch] {mappers};
+
+% ts and fc placed symmetrically on either side of the centre column so
+% the pair is centred under mappers.
+\node[db]         (ts)      [below=of mappers, xshift=-1.8cm]
     {algo.\\timeseries};
 
-\node[db]   (fc)       [below=0.6cm of ts]
+\node[db]         (fc)      [below=of mappers, xshift=1.8cm]
     {algo.\\forecasts};
 
-% =====================================================================
-% ROW 2: DataPreprocessor → FeatureTransformers → wide matrix
-% =====================================================================
-\node[proc] (preproc)  [right=1.8cm of ts]
+\node[proc]       (preproc) [below=3.0cm of mappers]
     {Data\\Preprocessor};
 
-\node[proc] (ft)       [right=1.4cm of preproc]
+\node[proc]       (ft)      [below=of preproc]
     {Feature\\Transformers};
 
-\node[proc] (matrix)   [right=1.4cm of ft]
-    {wide matrix};
-
-% =====================================================================
-% ROW 3 (top): BacktestEngine
-% ROW 3 (bottom): LiveRunner
-% =====================================================================
-\node[proc] (backtest) [right=1.6cm of matrix, yshift=0.8cm]
+% ---- backtest / live runner row — well separated horizontally so arrows
+%      from feature transformers and to the storage row don't collide ----
+\node[proc]       (backtest)[below left=2.4cm and 1.6cm of ft]
     {Backtest\\Engine};
 
-\node[proc] (live)     [right=1.6cm of matrix, yshift=-0.8cm]
+\node[proc]       (live)    [below right=2.4cm and 1.6cm of ft]
     {Live\\Runner};
 
-% =====================================================================
-% ROW 4: algo.experiment_runs + algo.model_artifacts (same column)
-% =====================================================================
-\node[db]   (runs)     [right=1.8cm of backtest, yshift=-0.8cm]
+% ---- experiment-tracking stores: runs under backtest, artifacts under live
+%      so every engine has a single direct downstream store ----
+\node[db]         (runs)    [below=1.4cm of backtest]
     {algo.\\experiment\_runs};
 
-\node[db]   (artifacts)[below=0.6cm of runs]
+\node[db]         (artifacts)[below=1.4cm of live]
     {algo.\\model\_artifacts};
 
-% =====================================================================
-% ROW 5 (below runs): reconciliation and drift detection
-% =====================================================================
-\node[proc] (recon)    [below=1.6cm of runs, xshift=-1.8cm]
+% ---- feedback loop: reconciliation (under runs) and drift (under artifacts)
+\node[proc]       (recon)   [below=1.4cm of runs]
     {reconciliation};
 
-\node[proc] (drift)    [below=1.6cm of runs, xshift=1.8cm]
+\node[proc]       (drift)   [below=1.4cm of artifacts]
     {drift\\detection};
 
-% =====================================================================
-% ROW 6: Slack (degradation) and algo.retrain_events + algo.drift_reports
-% =====================================================================
-\node[hex]  (slack1)   [below=1.2cm of recon]
-    {Slack};
-
-\node[db]   (retrain_ev)[below=1.2cm of drift, xshift=-1.2cm]
-    {algo.\\retrain\_events};
-
-\node[db]   (drift_rep) [below=1.2cm of drift, xshift=1.2cm]
+% ---- terminal nodes ----
+\node[db]         (drift_rep)[below=of drift]
     {algo.\\drift\_reports};
 
-\node[hex]  (slack2)   [right=1.2cm of drift_rep]
-    {Slack};
+\node[db]         (retrain_ev)[below=of drift_rep]
+    {algo.\\retrain\_events};
+
+\node[hex]        (slack_recon)[left=1.2cm of recon] {notify};
+\node[hex]        (slack_drift)[right=1.2cm of drift] {notify};
 
 % =====================================================================
-% ARROWS — primary left-to-right flow
+% ARROWS — main vertical flow
 % =====================================================================
+\draw[arr] (entsoe)  -- (fetch);
+\draw[arr] (fetch)   -- (mappers);
 
-% ENTSO-E → fetch
-\draw[arr] (entsoe.east) -- (fetch.west);
+% mappers fans out to algo.timeseries (left) and algo.forecasts (right),
+% with a short shared stub directly under mappers.
+\draw[arr] (mappers.south) -- ++(0,-0.35) -| (ts.north);
+\draw[arr] (mappers.south) -- ++(0,-0.35) -| (fc.north);
 
-% fetch → mappers
-\draw[arr] (fetch.east) -- (mappers.west);
+% Both stores feed the preprocessor (entering from its west / east sides)
+\draw[arr] (ts.south) |- (preproc.west);
+\draw[arr] (fc.south) |- (preproc.east);
 
-% mappers → algo.timeseries
-\draw[arr] (mappers.east) -- (ts.west);
+\draw[arr] (preproc) -- (ft);
 
-% mappers → algo.forecasts (bent down)
-\draw[arr] (mappers.south) -- ++(0,-0.3) -| (fc.west);
+% feature transformers to both engines: horizontal then DOWN into the top
+% of each engine (entering vertically from above).
+\draw[arr] (ft.south) -| (backtest.north);
+\draw[arr] (ft.south) -| (live.north);
 
-% algo.timeseries → DataPreprocessor
-\draw[arr] (ts.east) -- (preproc.west);
-
-% algo.forecasts → DataPreprocessor (bent up via right)
-\draw[arr] (fc.east) -- ++(0.4,0) |- (preproc.west);
-
-% DataPreprocessor → FeatureTransformers
-\draw[arr] (preproc.east) -- (ft.west);
-
-% FeatureTransformers → wide matrix
-\draw[arr] (ft.east) -- (matrix.west);
-
-% wide matrix → BacktestEngine (up-right)
-\draw[arr] (matrix.east) -- ++(0.4,0) |- (backtest.west);
-
-% wide matrix → LiveRunner (down-right)
-\draw[arr] (matrix.east) -- ++(0.4,0) |- (live.west);
-
-% BacktestEngine → algo.experiment_runs
-\draw[arr] (backtest.east) -- ++(0.4,0) |- (runs.west);
-
-% LiveRunner → algo.experiment_runs
-\draw[arr] (live.east) -- ++(0.4,0) |- (runs.west);
-
-% BacktestEngine → algo.model_artifacts
-\draw[arr] (backtest.east) -- ++(0.5,0) |- (artifacts.west);
-
-% LiveRunner → algo.model_artifacts
-\draw[arr] (live.east) -- ++(0.3,0) |- (artifacts.west);
+% engines write straight down into their respective stores
+\draw[arr] (backtest.south) -- (runs.north);
+\draw[arr] (live.south)     -- (artifacts.north);
 
 % =====================================================================
-% ARROWS — vertical branch at experiment_runs
+% Feedback branch
 % =====================================================================
+\draw[arr] (runs.south)      -- (recon.north);
+\draw[arr] (artifacts.south) -- (drift.north);
 
-% algo.experiment_runs → reconciliation
-\draw[arr] (runs.south) -- ++(0,-0.5) -| (recon.north);
+% reconciliation updates metrics_json on runs (loop back via the right side)
+\draw[arr] (recon.east) -- ++(0.4,0) |- (runs.east)
+    node[pos=0.3, right, font=\scriptsize] {metrics\_json};
 
-% algo.experiment_runs → drift detection
-\draw[arr] (runs.south) -- ++(0,-0.5) -| (drift.north);
-
-% =====================================================================
-% ARROWS — conditional / annotated edges
-% =====================================================================
-
-% reconciliation → Slack (MAE > 1.5x 30-day median)
-\draw[cond] (recon.south) -- (slack1.north)
-    node[midway, right, font=\scriptsize, align=left]
+% reconciliation -> notify when MAE degrades
+\draw[cond] (recon.west) -- (slack_recon.east)
+    node[midway, above=16pt, font=\scriptsize, align=center]
     {MAE $>$ 1.5$\times$\\30-day median};
 
-% reconciliation → algo.experiment_runs (metrics_json update, loop back)
-\draw[arr] (recon.east) -- ++(0.5,0) |- (runs.south east)
-    node[pos=0.3, below, font=\scriptsize] {metrics\_json};
+% drift -> drift_reports (always) and Slack (always when drift)
+\draw[arr] (drift.south) -- (drift_rep.north);
+\draw[arr] (drift.east) -- (slack_drift.west);
 
-% drift detection → triggered_retrain_flow → algo.retrain_events
-\draw[cond] (drift.south) -- ++(0,-0.3) -| (retrain_ev.north)
-    node[pos=0.2, left, font=\scriptsize, align=right]
+% drift_reports -> retrain_events when retrain_on_drift=True
+\draw[cond] (drift_rep.south) -- (retrain_ev.north)
+    node[midway, right, font=\scriptsize]
     {retrain\_on\_drift=True};
-
-% drift detection → algo.drift_reports
-\draw[arr] (drift.south) -- ++(0,-0.3) -| (drift_rep.north);
-
-% drift detection → Slack
-\draw[arr] (drift.east) -- ++(0.3,0) |- (slack2.north);
 
 \end{tikzpicture}
 \end{document}

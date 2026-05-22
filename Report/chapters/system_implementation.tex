@@ -110,9 +110,9 @@ the recent price distribution against a ninety-day reference window,
 triggering a Slack alert and an optional automatic retraining run when
 significant drift is detected.
 
-\begin{figure}[h]
+\begin{figure}[p]
   \centering
-  \includegraphics[width=\linewidth]{f2-data-plane}
+  \includegraphics[height=0.85\textheight,keepaspectratio]{f2-data-plane}
   \caption{Data plane. ENTSO-E data flows through typed mappers into ClickHouse, where the forecasting pipeline reads it, trains and evaluates models, and writes predictions and artifacts back. Reconciliation and drift detection close the loop on a daily cadence.}
   \label{fig:f2-data-plane}
 \end{figure}
@@ -125,29 +125,31 @@ Zarour practice it realises.
 
 \begin{table}[h]
   \centering
+  \footnotesize
   \caption{Operational inventory of Prefect deployments. Cron strings are UTC.}
   \label{tab:inventory}
-  \begin{tabular}{l l l l p{4.5cm} l}
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabularx}{\linewidth}{@{}l l l >{\raggedright\arraybackslash}p{3.6cm} X l@{}}
     \toprule
-    \textbf{Deployment} & \textbf{Area / scope} & \textbf{Cron (UTC)} & \textbf{Flow module} & \textbf{Purpose} & \textbf{Closes Z. P\#} \\
+    \textbf{Deployment} & \textbf{Area} & \textbf{Cron (UTC)} & \textbf{Flow module} & \textbf{Purpose} & \textbf{Zarour} \\
     \midrule
-    entsoe-backfill-dk1 & DK1 & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
-    entsoe-backfill-dk2 & DK2 & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
-    entsoe-backfill-nl  & NL  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
-    entsoe-backfill-be  & BE  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
-    entsoe-backfill-de  & DE  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
-    entsoe-backfill-fr  & FR  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
-    entsoe-backfill-pl  & PL  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-backfill-dk1 & DK1 & 0 * * * * & schedules.ingestion.\allowbreak{}entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-backfill-dk2 & DK2 & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-backfill-nl  & NL  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-backfill-be  & BE  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-backfill-de  & DE  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-backfill-fr  & FR  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-backfill-pl  & PL  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P1, P2 \\
     \midrule
-    daily-forecast-dk1\_lear & DK1 / LEAR & 0 6 * * *  & schedules.forecast.daily\_forecast\_flow & Daily refit and day-ahead forecast & P6 \\
-    daily-forecast-de\_lear  & DE  / LEAR & 0 6 * * *  & schedules.forecast.daily\_forecast\_flow & Daily refit and day-ahead forecast & P6 \\
+    daily-forecast-dk1\_lear & DK1 / LEAR & 0 6 * * *  & schedules.forecast.\allowbreak{}daily\_forecast\_flow & Daily refit and day-ahead forecast & P6 \\
+    daily-forecast-de\_lear  & DE  / LEAR & 0 6 * * *  & {\itshape (as above)} & Daily refit and day-ahead forecast & P6 \\
     \midrule
-    reconcile-predictions & all & 0 18 * * * & schedules.reconciliation.reconcile\_predictions\_flow & Day-after reconciliation against published actuals & P7, P8 \\
+    reconcile-predictions & all & 0 18 * * * & schedules.reconciliation.\allowbreak{}reconcile\_predictions\_flow & Day-after reconciliation against published actuals & P7, P8 \\
     \midrule
-    drift-detection-dk1 & DK1 & 0 19 * * * & schedules.drift.drift\_detection\_flow & 90-day reference vs 7-day current, KS test & P8, P9 \\
-    drift-detection-de  & DE  & 0 19 * * * & schedules.drift.drift\_detection\_flow & 90-day reference vs 7-day current, KS test & P8, P9 \\
+    drift-detection-dk1 & DK1 & 0 19 * * * & schedules.drift.\allowbreak{}drift\_detection\_flow & 90-day reference vs 7-day current, KS test & P8, P9 \\
+    drift-detection-de  & DE  & 0 19 * * * & {\itshape (as above)} & 90-day reference vs 7-day current, KS test & P8, P9 \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 \subsection{Technology stack}
@@ -160,7 +162,7 @@ rationale for the choice.
   \centering
   \caption{Technology stack and rationale.}
   \label{tab:tech-stack}
-  \begin{tabular}{l l l p{6cm}}
+  \begin{tabularx}{\linewidth}{@{}l l l X@{}}
     \toprule
     \textbf{Tool} & \textbf{Role} & \textbf{Status} & \textbf{Why this choice} \\
     \midrule
@@ -178,7 +180,7 @@ rationale for the choice.
     Kubernetes       & Container orchestration             & Deferred & Until multi-host deployment is justified \\
     DVC              & Data versioning                     & Deferred & ENTSO-E data is replayable from source; ClickHouse + \texttt{GIT\_SHA} suffice \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 % ─────────────────────────────────────────────────────────────────────────────
@@ -477,7 +479,7 @@ a new row in twelve hours; \texttt{drift-detected-today} fires when any row
 in \texttt{algo.drift\_reports} for the current day carries
 \texttt{drift\_detected = 1}; and \texttt{reconciliation-missed} fires when
 no \texttt{reconcile-predictions} run has completed in the last 25 hours. In
-addition, \texttt{schedules.reconciliation.\_maybe\_alert\_accuracy\_degradation}
+addition, \texttt{schedules.reconciliation.\allowbreak{}\_maybe\_alert\allowbreak{}\_accuracy\_degradation}
 fires a Slack notification whenever today's MAE exceeds
 1.5\,$\times$ the 30-day median, computed from \texttt{algo.experiment\_runs}
 via \texttt{queries.get\_recent\_accuracy}.
@@ -559,7 +561,7 @@ top of this foundation depend on.
 
 Three GitHub Actions workflows form the PR gate. \texttt{pr\_test.yml} runs
 the full pytest suite — domain models, XML mappers, ClickHouse ingest, and the
-LEAR smoke test in \texttt{tests/price\_forecasting/test\_smoke.py} — against
+LEAR smoke test in \texttt{tests/\allowbreak{}price\_forecasting/\allowbreak{}test\_smoke.py} — against
 every pull request targeting \texttt{main}. \texttt{pr\_ruff-lint.yaml}
 enforces \texttt{ruff check} for linting and import hygiene. \texttt{pr\_smoke.yml}
 builds the \texttt{algo-repo:latest} image, starts a Compose stack with
@@ -666,7 +668,7 @@ trigger.
   \centering
   \caption{Maturity assessment of Zarour's nine practices as realised in algo-repo.}
   \label{tab:maturity}
-  \begin{tabular}{l l p{8cm}}
+  \begin{tabularx}{\linewidth}{@{}l l X@{}}
     \toprule
     \textbf{Practice} & \textbf{Status} & \textbf{One-line evidence} \\
     \midrule
@@ -680,7 +682,7 @@ trigger.
     P8 --- Continuous monitoring        & Realised & Loki plus three Grafana dashboards plus file-based alert rules \\
     P9 --- Feedback loop and retraining & Minimal  & Drift-triggered retrain behind a config flag, two areas only \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
 \subsection{Known gaps}

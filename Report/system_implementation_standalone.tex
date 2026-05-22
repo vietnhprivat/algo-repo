@@ -9,10 +9,16 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{array}
+\usepackage{tabularx}
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.geometric, shapes.symbols, backgrounds, fit, calc}
 \usepackage{hyperref}
 \usepackage{microtype}
+
+% Tolerate slightly looser lines so long \texttt{} paths don't overrun the margin.
+\setlength{\emergencystretch}{3em}
+\hyphenpenalty=1000
+\tolerance=1000
 
 \graphicspath{{figures/system_implementation/}}
 
