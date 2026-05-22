@@ -646,24 +646,158 @@ host, not a target architecture chosen speculatively.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Maturity Assessment and Limitations}
-% fill in Task 18
 
 \subsection{Practice-by-practice status}
-% fill in Task 18
+
+The table below summarises the implementation status of each Zarour practice as
+realised in algo-repo. The three status labels map directly to the evidence
+inventory that precedes them: a practice is \emph{Realised} when a concrete,
+production-running artefact closes it end-to-end; \emph{Minimal} when the
+mechanism exists but its scope is intentionally restricted; and \emph{Deferred}
+when a gap was identified, a tool evaluated, and adoption postponed to a named
+trigger.
+
+\begin{table}[h]
+  \centering
+  \caption{Maturity assessment of Zarour's nine practices as realised in algo-repo.}
+  \label{tab:maturity}
+  \begin{tabular}{l l p{8cm}}
+    \toprule
+    \textbf{Practice} & \textbf{Status} & \textbf{One-line evidence} \\
+    \midrule
+    P1 --- Version control              & Realised & Git, GitHub, \texttt{configs/}, migrations, dashboards and alert rules all in Git \\
+    P2 --- Continuous integration       & Realised & \texttt{pr\_test}, \texttt{pr\_ruff-lint}, \texttt{pr\_smoke} gates on every PR \\
+    P3 --- Reproducibility              & Realised & \texttt{GIT\_SHA} plus data-window columns stamped on every experiment run \\
+    P4 --- Containerisation             & Realised & \texttt{docker-compose.yml} plus file-provisioned Grafana and alert rules \\
+    P5 --- Collaboration                & Realised & \texttt{CLAUDE.md}, \texttt{REPO\_OVERVIEW.md}, \texttt{RUNBOOK.md}, \texttt{CONTRIBUTING.md}, plus Slack alerts \\
+    P6 --- Continuous training          & Realised & \texttt{daily-forecast} deployments refit at 06:00 UTC \\
+    P7 --- Experiment tracking          & Realised & \texttt{algo.experiment\_runs} plus W\&B research surface \\
+    P8 --- Continuous monitoring        & Realised & Loki plus three Grafana dashboards plus file-based alert rules \\
+    P9 --- Feedback loop and retraining & Minimal  & Drift-triggered retrain behind a config flag, two areas only \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Known gaps}
-% fill in Task 18
+
+Forecast and drift-detection deployments are currently scoped to two bidding
+areas --- DK1 and DE. The five remaining ingestion areas (DK2, NL, BE, FR, PL)
+receive hourly ENTSO-E data through the \texttt{entsoe-backfill-*} deployments
+but have no corresponding \texttt{daily-forecast} or \texttt{drift-detection}
+flow, which means prediction-quality monitoring and drift-triggered retraining
+are unavailable for those markets. Expanding coverage requires adding new
+experiment config files and appending the corresponding entries to the
+\texttt{FORECAST\_CONFIGS} list in \texttt{deploy\_forecast.py}; no flow code
+needs to change.
+
+Model artifacts are serialised with joblib and stored as base64-encoded blobs
+in the \texttt{algo.model\_artifacts} ClickHouse table. This is practical for
+the current LEAR models, whose serialised size is on the order of
+one hundred kilobytes, but it will not scale gracefully to large DNN weight
+tensors. A PyTorch model with several million parameters can easily exceed ten
+megabytes per artifact; at that point the blob column approach introduces
+non-trivial read amplification for ClickHouse and makes artifact management
+cumbersome. The appropriate migration path is to a cloud-managed model store
+once that threshold is crossed.
+
+The Optuna hyperparameter search persists trials across sessions in
+\texttt{algo.hyperparam\_trials} and resumes seamlessly on subsequent calls to
+\texttt{forecast-cli tune}. However, only one search space is currently encoded:
+the DNN architecture space covering six parameters (\texttt{n\_neurons},
+\texttt{activation}, \texttt{dropout}, \texttt{learning\_rate},
+\texttt{batch\_norm}, \texttt{l1\_reg}). The ten binary feature and selector
+hyperparameters identified by Lago et al.\ \cite{lago2021} in their \S4.3.3,
+together with the \texttt{preprocessing} and \texttt{init\_method} choices,
+remain manual decisions set in the config file, because the preprocessor and
+model constructors do not yet expose the corresponding constructor-level
+toggles. Until those toggles exist, including them in the Optuna space would
+create inert search dimensions.
 
 \subsection{Deferred tooling and adoption triggers}
-% fill in Task 18
+
+Each tool evaluated and not adopted during the MLOps build-out was deferred to
+a specific, observable trigger rather than to an indefinite future review.
+
+\begin{itemize}
+  \item \textbf{MLflow} --- deferred until the production experiment-config count
+        exceeds ten. At the current scale, ClickHouse and W\&B together cover the
+        audit-log and research-surface roles that MLflow would fill without adding
+        a seventh service to the Compose stack.
+  \item \textbf{Kubernetes} --- deferred until a second deploy host is justified by
+        availability requirements. The single-host scope means there is exactly one
+        failure domain; the control-plane overhead of Kubernetes is not warranted
+        until workloads must be distributed across multiple hosts.
+  \item \textbf{Cloud-managed model store} --- deferred until DNN model weights
+        exceed the practical limit for ClickHouse blob storage, taken as
+        approximately ten megabytes per artifact. Below that threshold the
+        \texttt{algo.model\_artifacts} table keeps artifacts co-located with their
+        experiment rows without requiring a separate storage service.
+  \item \textbf{DVC} --- deferred for as long as ENTSO-E data is fully replayable
+        from the Transparency Platform API at the required resolution. The
+        combination of \texttt{ReplacingMergeTree} deduplication and the
+        \texttt{GIT\_SHA} column on \texttt{algo.experiment\_runs} provides
+        sufficient provenance without maintaining a separate binary data store.
+\end{itemize}
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Conclusion}
-% fill in Task 19
+
+Of Zarour's nine MLOps practices, eight are realised end-to-end in algo-repo
+and one --- P9, the feedback loop and drift-triggered retraining --- is
+minimally realised, scoped to two bidding areas behind an opt-in config flag.
+Every realised practice has been mapped in this chapter to a concrete repository
+artefact: a Prefect deployment, a ClickHouse migration, a GitHub Actions
+workflow, or a Grafana dashboard. The four tools that remain deferred ---
+MLflow, Kubernetes, a cloud-managed model store, and DVC --- are held back not
+by oversight but by the deliberate single-host MVP scope under which the
+deferred-cost and current-value trade-off does not yet justify adoption; each
+deferred tool carries a named, observable adoption trigger so that the decision
+to adopt it can be revisited against a concrete condition rather than
+re-litigated from first principles. Together, these nine practices and their
+supporting artefacts constitute a production ML platform that ingests live
+market data, refits daily, monitors prediction quality and data drift, and
+maintains a complete audit trail from every experiment row back to the exact
+Git commit and data window that produced it.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \appendix
 \section{Glossary}
-% fill in Task 19
+
+\begin{description}
+  \item[LEAR] Lasso Estimated AutoRegressive ensemble for day-ahead electricity
+        price forecasting, the primary baseline model from Lago et al.\
+        \cite{lago2021}.
+  \item[DNN] Deep neural network; in this chapter, a multi-layer perceptron
+        ensemble whose final prediction is the arithmetic mean of
+        \texttt{n\_dnn\_ensemble} replicates trained with distinct random seeds.
+  \item[EPF] Electricity price forecasting: the task of predicting day-ahead
+        wholesale electricity prices for a given bidding zone from historical
+        prices and exogenous signals.
+  \item[ENTSO-E] European Network of Transmission System Operators for
+        Electricity; the body that operates the Transparency Platform API from
+        which the platform ingests price, load, and generation data.
+  \item[Lasso] Least Absolute Shrinkage and Selection Operator, an
+        L1-regularised linear regression that simultaneously shrinks
+        coefficients and performs automatic feature selection.
+  \item[TPE] Tree-structured Parzen Estimator, the Bayesian optimisation
+        sampler used by Optuna when running \texttt{forecast-cli tune}.
+  \item[MLOps] Machine Learning Operations: the set of practices for
+        reliably building, deploying, and operating machine learning systems
+        in production.
+  \item[ReplacingMergeTree] A ClickHouse storage engine that deduplicates
+        rows sharing the same sort key during background merge, used throughout
+        the platform to make re-insertion safe under the platform's
+        append-only write semantics.
+  \item[Tailscale] A mesh VPN built on WireGuard used here to grant the
+        GitHub Actions runner ephemeral SSH access to the deploy host without
+        exposing any port on that host to the public internet.
+  \item[Loki] Grafana Labs' log aggregation system, used here as the
+        structured-log backend for all Prefect flows and infrastructure modules
+        via direct Python push through \texttt{python-logging-loki}.
+  \item[Evidently] An open-source library for data and model drift detection,
+        used here in in-process mode inside the Prefect drift-detection flow to
+        run a Kolmogorov--Smirnov test comparing a 90-day reference window
+        against a 7-day current window.
+\end{description}
 
 % Bibliography is included by the master thesis document, not here.
