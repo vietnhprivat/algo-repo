@@ -545,19 +545,104 @@ from ClickHouse alone.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Cross-cutting: CI/CD as the binding fabric}
-% fill in Task 17
+
+CI/CD in algo-repo is not a single pipeline but a layered system of gates:
+three workflows that protect every pull request from landing broken code, and
+one deploy workflow that ensures every merge to \texttt{main} propagates
+faithfully to the running production host. Together they make the repository
+and the host converge reliably without requiring manual intervention, which
+is the property that all of the observability and tracking practices built on
+top of this foundation depend on.
 
 \subsection{PR gate vs deploy gate}
-% fill in Task 17
+
+Three GitHub Actions workflows form the PR gate. \texttt{pr\_test.yml} runs
+the full pytest suite — domain models, XML mappers, ClickHouse ingest, and the
+LEAR smoke test in \texttt{tests/price\_forecasting/test\_smoke.py} — against
+every pull request targeting \texttt{main}. \texttt{pr\_ruff-lint.yaml}
+enforces \texttt{ruff check} for linting and import hygiene. \texttt{pr\_smoke.yml}
+builds the \texttt{algo-repo:latest} image, starts a Compose stack with
+ClickHouse and a Prefect server and worker, and executes an end-to-end
+daily-forecast and reconciliation run against synthetic data; a path-filter
+step introduced on the current branch skips the expensive smoke steps
+entirely when a push touches only files outside the gated paths, so
+docs-only commits pass the required check without waiting for a multi-minute
+Docker build. The deploy gate, \texttt{cd\_deploy.yml}, fires on every merge
+to \texttt{main} and serves a different purpose: it joins the production host
+over the Tailscale network, pulls the merged code, runs ClickHouse migrations,
+rebuilds \texttt{algo-repo:latest} with \texttt{GIT\_SHA} baked in via
+\texttt{--build-arg GIT\_SHA=\$(git rev-parse HEAD)}, reruns both
+\texttt{deploy\_ingestion.py} and \texttt{deploy\_forecast.py} to register
+updated Prefect deployments, and finally triggers \texttt{daily-forecast-dk1\_lear}
+and polls until the flow run completes, confirming that the freshly deployed
+image can produce a valid forecast on the live host. The PR gate enforces
+correctness; the deploy gate enforces delivery.
 
 \subsection{Tailscale-mediated deploy without exposing the host}
-% fill in Task 17
+
+The deploy host accepts inbound connections only over the Tailscale mesh
+network, which means the public internet sees no open SSH port on it at all.
+The alternative approaches — a publicly accessible SSH endpoint, a bastion
+host, or a VPN appliance — each require either that the host exposes a
+port reachable by an attacker who can guess or enumerate addresses, or that a
+separate jump host be maintained and kept patched. Tailscale replaces both
+with a WireGuard mesh where every device authenticates via the Tailscale
+coordination server before a packet is accepted; the deploy host's firewall
+drops everything not originating on the tailnet, and the GitHub Actions step
+that needs to SSH in runs \texttt{tailscale/github-action@v4} to join the
+same network for the duration of the workflow run. The \texttt{TS\_AUTHKEY}
+secret is an ephemeral pre-authenticated key scoped to the CI device tag, so
+a leaked key cannot create a persistent backdoor. \texttt{cd\_deploy.yml}
+joins the tailnet once per job, executes the SSH commands, and the connection
+is torn down when the runner exits; no permanent network path to the host is
+ever open to the public internet.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{../figures/system_implementation/f3-cicd}
+  \caption{CI/CD pipeline. GitHub Actions runs the PR gate and the deploy gate; the deploy gate reaches the production host across the Tailscale link, rebuilds the image, redeploys Prefect, and triggers a smoke forecast.}
+  \label{fig:f3-cicd}
+\end{figure}
 
 \subsection{GIT\_SHA propagation as the reproducibility–monitoring link}
-% fill in Task 17
+
+Every row that \texttt{cd\_deploy.yml} produces in \texttt{algo.experiment\_runs}
+carries the same \texttt{git\_sha} that was baked into the image during the
+deploy-gate build step: the SHA of the exact commit that was merged to
+\texttt{main}. The Grafana Operational dashboard queries the Loki log stream
+filtered by \texttt{job=algo-repo} and presents structured log events that
+include the same SHA in their fields, because every flow container is built
+from that same image. This means that if the Model Performance dashboard
+shows an unexpected MAE spike beginning on a particular day, the Operational
+dashboard will show the Loki events from the same period alongside the
+\texttt{git\_sha} of the image that produced them — making it possible to
+\texttt{git log} back to the exact commit that introduced the regression. This
+closes the loop between P3 (reproducibility) and P8 (continuous monitoring):
+the audit trail for a production anomaly runs from the Grafana panel, through
+the \texttt{algo.experiment\_runs} row, to a specific, checkable commit in the
+Git history without any gap in the chain.
 
 \subsection{Why a single-host deploy is the right MVP scope}
-% fill in Task 17
+
+Running the entire stack — ClickHouse, Prefect server, Prefect worker, Loki,
+Grafana, and the ephemeral flow containers — on a single Docker Compose host
+means there is exactly one failure domain to reason about: if the host goes
+down, all services go down together and are restored together by restarting
+the Compose stack, which is the correct blast radius for a single-operator
+MVP. Kubernetes, as observed by Zarour et al.\ with respect to containerisation
+maturity levels \cite{zarour2025}, becomes the appropriate choice when
+workloads must be distributed across multiple hosts and when the overhead of
+a control plane and an etcd cluster is justified by the availability
+requirements of the system; neither condition holds here. Multi-host
+deployment would introduce the need for a service mesh or a shared storage
+layer for ClickHouse, a distributed Prefect work pool, and cross-host log
+aggregation — complexity that would slow down iteration without improving the
+platform's ability to deliver daily forecasts reliably. The single-host scope
+also simplifies rollback: reverting to a previous image tag is a single
+\texttt{docker build} followed by a \texttt{docker compose restart}, with no
+pod drain, replica set update, or rolling-deployment coordination required.
+The right adoption trigger for Kubernetes is the appearance of a second deploy
+host, not a target architecture chosen speculatively.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Maturity Assessment and Limitations}
