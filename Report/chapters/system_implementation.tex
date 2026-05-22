@@ -57,19 +57,129 @@ justification.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{System at a Glance}
-% fill in Task 7
+
+Before examining each Zarour practice in detail, this section presents the
+platform as a whole: its host-level topology, the end-to-end data plane, the
+complete inventory of scheduled deployments, and the technology choices that
+underpin every layer.
 
 \subsection{Host-level architecture}
-% fill in Task 7
+
+The platform runs entirely within a single Docker Compose stack on one
+dedicated host, keeping operational complexity proportionate to the MVP scope.
+Five long-lived services form the persistent backbone of that stack:
+ClickHouse, which stores all time-series data and ML artifacts; the Prefect
+server, which exposes the orchestration API and web UI; the Prefect worker,
+which polls for scheduled runs and manages a Docker work pool; Loki, which
+receives structured log streams from Python via \texttt{python-logging-loki};
+and Grafana, which visualises both ClickHouse metrics and the Loki log stream
+through file-provisioned dashboards. When the Prefect worker dispatches a
+scheduled flow run it spawns an ephemeral container from the \texttt{algo-repo:latest}
+image; that container reads from and writes to ClickHouse, calls the ENTSO-E
+Transparency Platform API, and emits structured logs back to Loki before
+being automatically removed on completion.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{../figures/system_implementation/f1-architecture}
+  \caption{Host-level architecture. A single Docker Compose host runs ClickHouse, the Prefect server and worker, Loki, and Grafana. Flow runs spawn ephemeral \texttt{algo-repo:latest} containers that read ClickHouse, call ENTSO-E, and emit logs back to Loki.}
+  \label{fig:f1-architecture}
+\end{figure}
 
 \subsection{Data plane}
-% fill in Task 7
+
+Data enters the platform through the ENTSO-E Transparency Platform API, where
+four fetch functions retrieve energy prices, total-load forecasts, generation
+forecasts, and wind and solar forecasts for each configured bidding area.
+The raw XML responses are parsed by typed mapper functions that produce
+\texttt{Observations} and \texttt{Forecast} domain objects, which are then
+ingested into ClickHouse tables \texttt{algo.timeseries} and
+\texttt{algo.forecasts} via Arrow-batch inserts. Both tables use
+\texttt{ReplacingMergeTree} engines, which deduplicate lazily on merge;
+read paths therefore either append the \texttt{FINAL} keyword to their
+queries or call \texttt{drop\_duplicates} on the loaded DataFrame to ensure
+correctness. A \texttt{DataPreprocessor} loads this data, pivots it to a
+daily-wide feature matrix through a configurable sequence of
+\texttt{FeatureTransformer} objects, and feeds it to either
+\texttt{BacktestEngine} for offline evaluation or \texttt{LiveRunner} for
+day-ahead production forecasting. Predictions and trained model artifacts
+are persisted to \texttt{algo.experiment\_runs}, \texttt{algo.experiment\_predictions},
+and \texttt{algo.model\_artifacts}, from where the reconciliation flow
+back-fills actuals the following day and the drift-detection flow compares
+the recent price distribution against a ninety-day reference window,
+triggering a Slack alert and an optional automatic retraining run when
+significant drift is detected.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{../figures/system_implementation/f2-data-plane}
+  \caption{Data plane. ENTSO-E data flows through typed mappers into ClickHouse, where the forecasting pipeline reads it, trains and evaluates models, and writes predictions and artifacts back. Reconciliation and drift detection close the loop on a daily cadence.}
+  \label{fig:f2-data-plane}
+\end{figure}
 
 \subsection{Operational inventory}
-% fill in Task 7
+
+Table~\ref{tab:inventory} lists every Prefect deployment currently registered
+in the system, together with its schedule, the flow it executes, and the
+Zarour practice it realises.
+
+\begin{table}[h]
+  \centering
+  \caption{Operational inventory of Prefect deployments. Cron strings are UTC.}
+  \label{tab:inventory}
+  \begin{tabular}{l l l l p{4.5cm} l}
+    \toprule
+    \textbf{Deployment} & \textbf{Area / scope} & \textbf{Cron (UTC)} & \textbf{Flow module} & \textbf{Purpose} & \textbf{Closes Z. P\#} \\
+    \midrule
+    entsoe-ingestion-DK1 & DK1 & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-ingestion-DK2 & DK2 & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-ingestion-NL  & NL  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-ingestion-BE  & BE  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-ingestion-DE  & DE  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-ingestion-FR  & FR  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    entsoe-ingestion-PL  & PL  & 0 * * * * & schedules.ingestion.entsoe\_backfill\_flow & Hourly ENTSO-E ingest & P1, P2 \\
+    \midrule
+    daily-forecast-dk1\_lear & DK1 / LEAR & 0 6 * * *  & schedules.forecast.daily\_forecast\_flow & Daily refit and day-ahead forecast & P6 \\
+    daily-forecast-de\_lear  & DE  / LEAR & 0 6 * * *  & schedules.forecast.daily\_forecast\_flow & Daily refit and day-ahead forecast & P6 \\
+    \midrule
+    reconcile-predictions & all & 0 18 * * * & schedules.reconciliation.reconcile\_predictions\_flow & Day-after reconciliation against published actuals & P7, P8 \\
+    \midrule
+    drift-detection-dk1 & DK1 & 0 19 * * * & schedules.drift.drift\_detection\_flow & 90-day reference vs 7-day current, KS test & P8, P9 \\
+    drift-detection-de  & DE  & 0 19 * * * & schedules.drift.drift\_detection\_flow & 90-day reference vs 7-day current, KS test & P8, P9 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Technology stack}
-% fill in Task 7
+
+The table below records each tool's role, whether it was already present at
+the start of the MLOps build-out or was added during it, and the one-line
+rationale for the choice.
+
+\begin{table}[h]
+  \centering
+  \caption{Technology stack and rationale.}
+  \label{tab:tech-stack}
+  \begin{tabular}{l l l p{6cm}}
+    \toprule
+    \textbf{Tool} & \textbf{Role} & \textbf{Status} & \textbf{Why this choice} \\
+    \midrule
+    Prefect          & Orchestration                       & Kept     & Sufficient for single-host flows; lighter than Airflow or Dagster \\
+    ClickHouse       & OLAP store + model artifact blob    & Kept     & Columnar performance, ReplacingMergeTree dedup, native Polars / Arrow path \\
+    Docker Compose   & Container runtime + infra-as-code   & Kept     & Single-host scope; YAML matches the deploy mental model \\
+    Loki             & Log aggregation                     & Added    & Direct \texttt{python-logging-loki} push, no Promtail sidecar \\
+    Grafana          & Dashboards and file-based alerts    & Added    & File-provisioned configs survive container restarts \\
+    Evidently AI     & In-process drift detection          & Added    & Mode 1 reports; no separate Evidently service \\
+    W\&B             & Research + production tracking      & Added    & Two projects (\texttt{algo-research}, \texttt{algo-prod}); \texttt{WANDB\_MODE=disabled} in CI \\
+    GitHub Actions   & CI/CD                               & Kept     & Native to the GitHub-hosted repo, no self-hosted runner yet \\
+    Tailscale        & Deploy host network access          & Added    & SSH to deploy host without exposing it to the public internet \\
+    Optuna           & Hyperparameter search (TPE)         & Added    & Persisted to ClickHouse; revisited per-config rather than per-run \\
+    MLflow           & Experiment registry                 & Deferred & Until experiment-config count exceeds ten \\
+    Kubernetes       & Container orchestration             & Deferred & Until multi-host deployment is justified \\
+    DVC              & Data versioning                     & Deferred & ENTSO-E data is replayable from source; ClickHouse + \texttt{GIT\_SHA} suffice \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Zarour's Nine MLOps Practices — Implementation}
