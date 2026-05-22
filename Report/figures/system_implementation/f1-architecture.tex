@@ -1,0 +1,86 @@
+% F1 — Host-level architecture
+% Standalone TikZ figure: compile with lualatex or pdflatex.
+% The enclosing chapter supplies \caption{}; no caption text lives here.
+\documentclass[tikz,border=5pt]{standalone}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, backgrounds, fit}
+
+\begin{document}
+\begin{tikzpicture}[
+  % --- node styles ---
+  service/.style={
+    draw, rectangle,
+    minimum width=2.8cm, minimum height=1.0cm,
+    align=center, font=\small
+  },
+  db/.style={
+    draw, cylinder,
+    shape border rotate=90,
+    minimum width=2.6cm, minimum height=1.0cm,
+    align=center, font=\small,
+    aspect=0.25
+  },
+  ephemeral/.style={
+    draw, rectangle, dashed,
+    minimum width=3.0cm, minimum height=1.0cm,
+    align=center, font=\small
+  },
+  hostbox/.style={
+    draw, rectangle,
+    inner sep=20pt
+  },
+  % --- arrow styles ---
+  solid/.style={-{Stealth[length=6pt]}, thick},
+  dashed_arr/.style={-{Stealth[length=6pt]}, thick, dashed},
+  spawns/.style={-{Stealth[length=6pt]}, thick, densely dotted}
+]
+
+% ---- long-lived services (top row) ----
+\node[db]      (ch)      {ClickHouse\\(algo DB)};
+\node[service] (server)  [right=1.8cm of ch]    {Prefect Server\\(API + UI)};
+\node[service] (worker)  [right=1.8cm of server]{Prefect Worker\\(docker-pool)};
+
+% ---- ephemeral container (below worker) ----
+\node[ephemeral] (algo)  [below=2.0cm of worker]
+    {algo-repo:latest\\(ephemeral)};
+
+% ---- observability row (below ClickHouse and Prefect Server) ----
+\node[service] (loki)    [below=4.0cm of ch]    {Loki\\(logs)};
+\node[service] (grafana) [right=1.8cm of loki]  {Grafana\\(dashboards)};
+
+% ---- host bounding box ----
+\begin{pgfonlayer}{background}
+  \node[hostbox,
+        fit=(ch)(server)(worker)(algo)(loki)(grafana),
+        label={[font=\footnotesize, anchor=north west]north west:
+               docker compose (always running on host)}]
+    (host) {};
+\end{pgfonlayer}
+
+% ---- arrows ----
+
+% Prefect Worker polls Prefect Server (solid)
+\draw[solid] (worker.west) -- (server.east)
+    node[midway, above, font=\scriptsize] {polls};
+
+% Prefect Worker spawns ephemeral container (dotted, labelled)
+\draw[spawns] (worker.south) -- (algo.north)
+    node[midway, right, font=\scriptsize] {spawns per flow run};
+
+% Ephemeral container reads/writes ClickHouse (solid)
+\draw[solid] (algo.west) -- ++(-0.5,0) |- (ch.south)
+    node[pos=0.25, below, font=\scriptsize] {reads/writes CH};
+
+% Ephemeral container pushes logs to Loki (dashed)
+\draw[dashed_arr] (algo.south) -- ++(0,-0.6) -| (loki.north)
+    node[pos=0.25, right, font=\scriptsize] {log push};
+
+% Grafana queries Loki (solid)
+\draw[solid] (grafana.west) -- (loki.east)
+    node[midway, above, font=\scriptsize] {queries};
+
+% Grafana queries ClickHouse (solid, upward via right side)
+\draw[solid] (grafana.north) -- ++(0,0.4) -| (ch.south east)
+    node[pos=0.25, right, font=\scriptsize] {queries};
+
+\end{tikzpicture}
+\end{document}
