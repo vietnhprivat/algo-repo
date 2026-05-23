@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -160,11 +161,133 @@ def collect_reproducibility(client, window_days: int) -> dict[str, Any]:
 
 
 def collect_feedback_loop(client, window_days: int) -> dict[str, Any]:
-    raise NotImplementedError
+    """Drift events, retrain trigger rate, drift-to-completed latency."""
+    drift_row = client.query(
+        """
+        SELECT
+            count() AS reports,
+            countIf(drift_detected = 1) AS detections
+        FROM algo.drift_reports FINAL
+        WHERE created_utc >= now() - INTERVAL %(d)s DAY
+        """,
+        parameters={"d": window_days},
+    ).result_rows[0]
+
+    # Drift-to-retrain-completed latency, in minutes, joining
+    # drift_reports to retrain_events via drift_report_id.
+    # Note: ClickHouse 25.x does not support table aliases directly after
+    # FINAL (e.g. "FROM t FINAL alias" is rejected). Use fully-qualified
+    # column references instead.
+    latency_row = client.query(
+        """
+        SELECT
+            count() AS n,
+            quantile(0.50)(latency_s) / 60.0 AS p50_min,
+            quantile(0.95)(latency_s) / 60.0 AS p95_min
+        FROM (
+            SELECT
+                dateDiff('second', algo.drift_reports.created_utc, algo.retrain_events.completed_utc) AS latency_s
+            FROM algo.drift_reports FINAL
+            INNER JOIN algo.retrain_events FINAL
+              ON algo.retrain_events.drift_report_id = algo.drift_reports.report_id
+            WHERE algo.drift_reports.created_utc >= now() - toIntervalDay(%(d)s)
+              AND algo.drift_reports.drift_detected = 1
+              AND algo.retrain_events.status = 'completed'
+              AND algo.retrain_events.completed_utc IS NOT NULL
+        )
+        """,
+        parameters={"d": window_days},
+    ).result_rows[0]
+
+    return {
+        "drift_reports": int(drift_row[0]),
+        "drift_detections": int(drift_row[1]),
+        "retrain_latency": {
+            "n_completed": int(latency_row[0]),
+            "p50_minutes": round(float(latency_row[1]), 1) if latency_row[0] else None,
+            "p95_minutes": round(float(latency_row[2]), 1) if latency_row[0] else None,
+        },
+    }
 
 
 def collect_dora(window_days: int) -> dict[str, Any]:
-    raise NotImplementedError
+    """DORA: deployment frequency, lead time, change failure rate.
+
+    Source of truth is the GitHub Actions cd_deploy.yml workflow history,
+    treated as one deploy per successful run. Lead time approximated as
+    the wall time between the PR merge commit and the cd_deploy run start.
+    """
+    # Definitions: a "deployment" here is a cd_deploy.yml workflow run with
+    # a terminal conclusion of either 'success' or 'failure'. Workflow runs
+    # with conclusions 'cancelled', 'timed_out', 'skipped', 'startup_failure',
+    # etc. are excluded from the denominator on the grounds that they did
+    # not constitute an attempted production deploy. deploy_frequency counts
+    # successes only (DORA convention); change_failure_rate has a
+    # success+failure denominator.
+    since = (datetime.now(timezone.utc) - timedelta(days=window_days)).strftime("%Y-%m-%d")
+    raw = subprocess.run(
+        [
+            "gh", "run", "list",
+            "--workflow", "cd_deploy.yml",
+            "--branch", "main",
+            "--limit", "200",
+            "--created", f">={since}",
+            "--json", "conclusion,startedAt,createdAt,headSha",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    runs = json.loads(raw.stdout)
+    if len(runs) == 200:
+        print(
+            "WARNING: gh run list returned exactly 200 rows — the limit may "
+            "have been hit. DORA numbers below may be truncated.",
+            file=sys.stderr,
+        )
+    successes = [r for r in runs if r["conclusion"] == "success"]
+    failures = [r for r in runs if r["conclusion"] == "failure"]
+
+    deploy_freq_per_week = round(7 * len(successes) / window_days, 2) if window_days else None
+
+    # Lead time: for each successful deploy, dateDiff between the merge
+    # commit timestamp and the workflow run start.
+    lead_times_minutes: list[float] = []
+    for r in successes:
+        sha = r["headSha"]
+        try:
+            ts = subprocess.run(
+                ["git", "show", "-s", "--format=%cI", sha],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+        except subprocess.CalledProcessError:
+            continue
+        if not ts:
+            continue
+        commit_dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        run_dt = datetime.fromisoformat(r["startedAt"].replace("Z", "+00:00"))
+        lead_times_minutes.append((run_dt - commit_dt).total_seconds() / 60.0)
+    lead_times_minutes.sort()
+
+    def pct(xs: list[float], q: float) -> float | None:
+        if not xs:
+            return None
+        idx = max(0, min(len(xs) - 1, int(round(q * (len(xs) - 1)))))
+        return round(xs[idx], 1)
+
+    total = len(successes) + len(failures)
+    change_failure_rate_pct = round(100.0 * len(failures) / total, 1) if total else None
+
+    return {
+        "window_days": window_days,
+        "deployments_total": total,
+        "deployments_success": len(successes),
+        "deployments_failed": len(failures),
+        "deploy_frequency_per_week": deploy_freq_per_week,
+        "lead_time_minutes_p50": pct(lead_times_minutes, 0.5),
+        "lead_time_minutes_p95": pct(lead_times_minutes, 0.95),
+        "change_failure_rate_pct": change_failure_rate_pct,
+    }
 
 
 def render_markdown(report: MetricsReport) -> str:
