@@ -291,7 +291,58 @@ def collect_dora(window_days: int) -> dict[str, Any]:
 
 
 def render_markdown(report: MetricsReport) -> str:
-    raise NotImplementedError
+    out: list[str] = []
+    out.append(f"# Quantitative System Metrics\n")
+    out.append(f"_Window: last {report.window_days} days. Generated: {report.generated_at_utc}._\n")
+
+    out.append("\n## Operational metrics\n")
+    out.append("\n### Per-config training duration and run counts\n")
+    out.append("\n| Area | Model | Runs | p50 train (s) | p95 train (s) |")
+    out.append("\n|---|---|---|---|---|")
+    for c in report.operational.get("by_config", []):
+        out.append(
+            f"\n| {c['area']} | {c['model_type']} | {c['n_runs']} | "
+            f"{c['p50_train_seconds']} | {c['p95_train_seconds']} |"
+        )
+    rec = report.operational.get("reconciliation", {})
+    out.append("\n\n### Reconciliation completeness\n")
+    out.append(
+        f"\n- Eligible runs (forecast day already in the past by ≥2 days): **{rec.get('eligible_runs')}**"
+    )
+    out.append(f"\n- Reconciled (at least one actual logged): **{rec.get('reconciled_runs')}**")
+    out.append(f"\n- Reconciliation rate: **{rec.get('reconciliation_rate_pct')}%**")
+
+    out.append("\n\n## Reproducibility coverage\n")
+    r = report.reproducibility
+    out.append(f"\n- Total live runs in window: **{r.get('total_runs')}**")
+    out.append(f"\n- With non-empty `git_sha`: **{r.get('with_git_sha_pct')}%**")
+    out.append(f"\n- With `data_start_utc` populated: **{r.get('with_data_start_pct')}%**")
+    out.append(f"\n- With `data_end_utc` populated: **{r.get('with_data_end_pct')}%**")
+    out.append(f"\n- With `model_artifact_id` populated: **{r.get('with_artifact_pct')}%**")
+    out.append(f"\n- With the full provenance triple: **{r.get('with_full_triple_pct')}%**")
+
+    out.append("\n\n## Feedback loop\n")
+    f = report.feedback_loop
+    out.append(f"\n- Drift reports written: **{f.get('drift_reports')}**")
+    out.append(f"\n- Drift detections (`drift_detected = 1`): **{f.get('drift_detections')}**")
+    lat = f.get("retrain_latency", {})
+    out.append(f"\n- Completed drift→retrain pairs: **{lat.get('n_completed')}**")
+    p50_lat = lat.get("p50_minutes")
+    p95_lat = lat.get("p95_minutes")
+    out.append(f"\n- p50 drift-to-completed latency: **{p50_lat if p50_lat is not None else 'N/A'} min**")
+    out.append(f"\n- p95 drift-to-completed latency: **{p95_lat if p95_lat is not None else 'N/A'} min**")
+
+    out.append("\n\n## DORA metrics\n")
+    d = report.dora
+    out.append(f"\n- Deployments in window: **{d.get('deployments_total')}** "
+               f"({d.get('deployments_success')} success / {d.get('deployments_failed')} failed)")
+    out.append(f"\n- Deploy frequency: **{d.get('deploy_frequency_per_week')}/week**")
+    out.append(f"\n- Lead time PR-merge → cd_deploy start (p50): **{d.get('lead_time_minutes_p50')} min**")
+    out.append(f"\n- Lead time (p95): **{d.get('lead_time_minutes_p95')} min**")
+    out.append(f"\n- Change failure rate: **{d.get('change_failure_rate_pct')}%**")
+
+    out.append("\n")
+    return "".join(out)
 
 
 if __name__ == "__main__":
