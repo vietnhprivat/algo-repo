@@ -8,6 +8,7 @@ from price_forecasting.data.preprocessor import pivot_to_daily
 from price_forecasting.data.transformers import (
     CalendarDummyTransformer,
     CyclicalTimeTransformer,
+    DayAheadExogTransformer,
     ExogenousLagTransformer,
     MeanWeeklyForecastTransformer,
     PastPriceSequenceTransformer,
@@ -446,3 +447,42 @@ class TestPastPriceSequenceTransformer:
     def test_rejects_non_positive_sequence_length(self):
         with pytest.raises(ValueError):
             PastPriceSequenceTransformer(sequence_length_days=0)
+
+
+# ---------------------------------------------------------------------------
+# DayAheadExogTransformer
+# ---------------------------------------------------------------------------
+
+
+class TestDayAheadExogTransformer:
+    def test_outputs_one_block_per_exog_column(self):
+        hourly = make_hourly_dataframe(
+            start_date="2019-01-01",
+            end_date="2019-01-06",
+            exogenous_columns=["load_forecast", "gen_forecast"],
+        )
+        daily_prices = pivot_to_daily(hourly, "price")
+
+        transformer = DayAheadExogTransformer(
+            exogenous_columns=["load_forecast", "gen_forecast"]
+        )
+        out = transformer.transform(hourly, daily_prices)
+
+        assert out.shape[1] == 2 * N_PERIODS
+        expected_cols = (
+            [f"exog_load_forecast_p{p}" for p in range(N_PERIODS)]
+            + [f"exog_gen_forecast_p{p}" for p in range(N_PERIODS)]
+        )
+        assert list(out.columns) == expected_cols
+
+        # The exog block equals the day-of pivot (lag 0) — the D+1 forecast
+        # that is known at prediction time.
+        load_daily = pivot_to_daily(hourly, "load_forecast")
+        np.testing.assert_allclose(
+            out[[f"exog_load_forecast_p{p}" for p in range(N_PERIODS)]].values,
+            load_daily.values,
+        )
+
+    def test_rejects_empty_exogenous_columns(self):
+        with pytest.raises(ValueError):
+            DayAheadExogTransformer(exogenous_columns=[])

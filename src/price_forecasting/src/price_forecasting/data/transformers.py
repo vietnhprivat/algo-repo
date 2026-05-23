@@ -205,6 +205,41 @@ class MeanWeeklyForecastTransformer(FeatureTransformer):
 
 
 @dataclass
+class DayAheadExogTransformer(FeatureTransformer):
+    """Day-ahead exogenous forecast for D+1, one block of `n_periods` columns per variable.
+
+    Output columns, in order:
+        exog_{col_1}_p0..exog_{col_1}_p{N-1},
+        exog_{col_2}_p0..,
+        ...
+
+    For TransformerModel consumption: a row of length `n_exog * N` that the
+    model reshapes to `(n_exog, N)`.
+    """
+
+    exogenous_columns: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.exogenous_columns:
+            raise ValueError("exogenous_columns must contain at least one entry")
+
+    def transform(
+        self,
+        hourly_dataframe: pd.DataFrame,
+        daily_prices: pd.DataFrame,
+    ) -> pd.DataFrame:
+        blocks: list[pd.DataFrame] = []
+        for column in self.exogenous_columns:
+            if column not in hourly_dataframe.columns:
+                raise KeyError(f"Exogenous column {column!r} not found in input data")
+            daily_col = pivot_to_daily(hourly_dataframe, column)
+            n_periods = daily_col.shape[1]
+            daily_col.columns = [f"exog_{column}_p{p}" for p in range(n_periods)]
+            blocks.append(daily_col)
+        return pd.concat(blocks, axis=1)
+
+
+@dataclass
 class PastPriceSequenceTransformer(FeatureTransformer):
     """Past `m` days of hourly prices, arranged oldest-day-first.
 
