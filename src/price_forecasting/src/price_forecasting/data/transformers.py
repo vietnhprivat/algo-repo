@@ -204,11 +204,12 @@ class MeanWeeklyForecastTransformer(FeatureTransformer):
         return pd.concat(parts, axis=1)
 
 
+@dataclass
 class PastPriceSequenceTransformer(FeatureTransformer):
     """Past `m` days of hourly prices, arranged oldest-day-first.
 
     Output columns, in order:
-        seq_d{m}_p0..seq_d{m}_p{N-1},  # m days before D+1 (oldest)
+        seq_d{m}_p0..seq_d{m}_p{N-1},  # m days back, oldest
         seq_d{m-1}_p0..,
         ...
         seq_d1_p0..seq_d1_p{N-1}       # yesterday
@@ -217,18 +218,21 @@ class PastPriceSequenceTransformer(FeatureTransformer):
     reshapes to `(m, N)` with row 0 = oldest day.
     """
 
-    def __init__(self, sequence_length_days: int) -> None:
-        if sequence_length_days < 1:
+    sequence_length_days: int = 14
+
+    def __post_init__(self) -> None:
+        if self.sequence_length_days < 1:
             raise ValueError("sequence_length_days must be >= 1")
-        self.sequence_length_days = sequence_length_days
 
     def transform(
-        self, hourly_df: pd.DataFrame, daily_prices: pd.DataFrame
+        self,
+        hourly_dataframe: pd.DataFrame,
+        daily_prices: pd.DataFrame,
     ) -> pd.DataFrame:
         n_periods = daily_prices.shape[1]
         blocks: list[pd.DataFrame] = []
         for k in range(self.sequence_length_days, 0, -1):
-            shifted = daily_prices.shift(k).copy()
+            shifted = daily_prices.shift(k)
             shifted.columns = [f"seq_d{k}_p{p}" for p in range(n_periods)]
             blocks.append(shifted)
         return pd.concat(blocks, axis=1)

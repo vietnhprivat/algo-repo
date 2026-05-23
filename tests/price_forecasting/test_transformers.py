@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from price_forecasting.data.preprocessor import pivot_to_daily
 from price_forecasting.data.transformers import (
@@ -9,6 +10,7 @@ from price_forecasting.data.transformers import (
     CyclicalTimeTransformer,
     ExogenousLagTransformer,
     MeanWeeklyForecastTransformer,
+    PastPriceSequenceTransformer,
     PriceLagTransformer,
     default_transformers_for_model,
 )
@@ -414,8 +416,6 @@ class TestPreprocessorRegressionIdentity:
 
 class TestPastPriceSequenceTransformer:
     def test_outputs_m_days_of_n_periods_in_oldest_first_order(self):
-        from price_forecasting.data.transformers import PastPriceSequenceTransformer
-
         # 10 days of hourly price data (start inclusive, end exclusive via freq="h")
         hourly = make_hourly_dataframe(start_date="2019-01-01", end_date="2019-01-11")
         daily_prices = pivot_to_daily(hourly, "price")
@@ -425,11 +425,11 @@ class TestPastPriceSequenceTransformer:
         out = transformer.transform(hourly, daily_prices)
 
         # Column count = m * n_periods
-        assert out.shape[1] == m * 24
+        assert out.shape[1] == m * N_PERIODS
 
         # Column ordering: oldest day (d{m}) first, yesterday (d1) last.
         expected_cols = (
-            [f"seq_d{k}_p{p}" for k in range(m, 0, -1) for p in range(24)]
+            [f"seq_d{k}_p{p}" for k in range(m, 0, -1) for p in range(N_PERIODS)]
         )
         assert list(out.columns) == expected_cols
 
@@ -437,15 +437,12 @@ class TestPastPriceSequenceTransformer:
         # The "d{m}" block on row i equals daily_prices on row i-m.
         # Skip rows where shift produces NaN.
         first_valid = m
-        d1_block = out.iloc[first_valid][[f"seq_d1_p{p}" for p in range(24)]].values
+        d1_block = out.iloc[first_valid][[f"seq_d1_p{p}" for p in range(N_PERIODS)]].values
         np.testing.assert_array_equal(d1_block, daily_prices.iloc[first_valid - 1].values)
 
-        dm_block = out.iloc[first_valid][[f"seq_d{m}_p{p}" for p in range(24)]].values
+        dm_block = out.iloc[first_valid][[f"seq_d{m}_p{p}" for p in range(N_PERIODS)]].values
         np.testing.assert_array_equal(dm_block, daily_prices.iloc[first_valid - m].values)
 
     def test_rejects_non_positive_sequence_length(self):
-        import pytest
-        from price_forecasting.data.transformers import PastPriceSequenceTransformer
-
         with pytest.raises(ValueError):
             PastPriceSequenceTransformer(sequence_length_days=0)

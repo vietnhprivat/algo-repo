@@ -10,6 +10,7 @@ from price_forecasting.data.transformers import (
     ExogenousLagTransformer as ExogenousLagTransformer,
     FeatureTransformer as FeatureTransformer,
     MeanWeeklyForecastTransformer as MeanWeeklyForecastTransformer,
+    PastPriceSequenceTransformer as PastPriceSequenceTransformer,
     PriceLagTransformer as PriceLagTransformer,
     default_transformers_for_model as default_transformers_for_model,
 )
