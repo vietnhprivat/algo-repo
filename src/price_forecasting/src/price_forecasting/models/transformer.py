@@ -27,6 +27,8 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+from price_forecasting.models.lightning_base import LightningModel
+
 
 class TransformerNetwork(nn.Module):
     def __init__(
@@ -102,3 +104,93 @@ class TransformerNetwork(nn.Module):
 
         combined = torch.cat([price_repr, exog_repr], dim=-1)
         return self.mlp(combined)
+
+
+class TransformerModel(LightningModel):
+    """Pure-Transformer EPF model wrapper.
+
+    Plugs `TransformerNetwork` into the project's `LightningModel` base, which
+    owns the Trainer loop, early stopping, in-memory best-weight restoration,
+    and the seed-varied ensemble path used by `LiveRunner`.
+
+    Feature-layout contract: the wide feature vector passed to `fit`/`predict_day`
+    must be `[past_prices (seq_length_days * n_periods), exogenous (n_exog * n_periods)]`.
+    Use `default_transformers_for_transformer(...)` on the ExperimentConfig.
+    """
+
+    def __init__(
+        self,
+        seq_length_days: int = 14,
+        n_exog: int = 2,
+        embedding_dim: int = 128,
+        n_heads: int = 8,
+        n_encoder_layers: int = 6,
+        ff_dim: int = 1024,
+        dropout: float = 0.2,
+        mlp_hidden: int = 128,
+        gradient_clip_val: float | None = None,
+        lr_scheduler_step: int | None = None,
+        lr_scheduler_gamma: float | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.seq_length_days = seq_length_days
+        self.n_exog = n_exog
+        self.embedding_dim = embedding_dim
+        self.n_heads = n_heads
+        self.n_encoder_layers = n_encoder_layers
+        self.ff_dim = ff_dim
+        self.dropout = dropout
+        self.mlp_hidden = mlp_hidden
+        self.gradient_clip_val = gradient_clip_val
+        self.lr_scheduler_step = lr_scheduler_step
+        self.lr_scheduler_gamma = lr_scheduler_gamma
+        self.net: nn.Module | None = None
+
+    def _build_network(self, n_features: int, n_periods: int) -> None:
+        expected = self.seq_length_days * n_periods + self.n_exog * n_periods
+        if n_features != expected:
+            raise ValueError(
+                f"TransformerModel expects {expected} features "
+                f"({self.seq_length_days} days x {n_periods} periods + "
+                f"{self.n_exog} exog x {n_periods} periods), got {n_features}. "
+                "Use default_transformers_for_transformer(...) on the "
+                "ExperimentConfig to produce the correct layout."
+            )
+        self.net = TransformerNetwork(
+            seq_length_days=self.seq_length_days,
+            n_exog=self.n_exog,
+            n_periods=n_periods,
+            embedding_dim=self.embedding_dim,
+            n_heads=self.n_heads,
+            n_encoder_layers=self.n_encoder_layers,
+            ff_dim=self.ff_dim,
+            dropout=self.dropout,
+            mlp_hidden=self.mlp_hidden,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        assert self.net is not None, "_build_network must be called before forward()"
+        # TransformerNetwork requires a batch dimension; add one if missing (inference path).
+        unbatched = x.dim() == 1
+        if unbatched:
+            x = x.unsqueeze(0)
+        out = self.net(x)
+        if unbatched:
+            out = out.squeeze(0)
+        return out
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        if self.lr_scheduler_step is not None and self.lr_scheduler_gamma is not None:
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer,
+                step_size=self.lr_scheduler_step,
+                gamma=self.lr_scheduler_gamma,
+            )
+            return [optimizer], [scheduler]
+        return optimizer
+
+    def on_before_optimizer_step(self, optimizer) -> None:
+        if self.gradient_clip_val is not None and self.gradient_clip_val > 0:
+            torch.nn.utils.clip_grad_norm_(self.parameters(), self.gradient_clip_val)

@@ -1,5 +1,6 @@
 """Tests for the Transformer EPF model (Llorente & Portela, 2025)."""
 
+import numpy as np
 import pytest
 import torch
 
@@ -68,3 +69,63 @@ class TestTransformerNetwork:
                 n_heads=4,
                 n_encoder_layers=1, ff_dim=32, dropout=0.0, mlp_hidden=16,
             )
+
+
+class TestTransformerModel:
+    @staticmethod
+    def _make_features_and_targets(
+        n_samples: int, seq_length_days: int, n_exog: int, n_periods: int = 24
+    ):
+        rng = np.random.default_rng(0)
+        n_features = seq_length_days * n_periods + n_exog * n_periods
+        features = rng.normal(size=(n_samples, n_features)).astype(np.float32)
+        targets = rng.normal(size=(n_samples, n_periods)).astype(np.float32)
+        return features, targets
+
+    def test_fit_then_predict_day_returns_n_periods_vector(self):
+        from price_forecasting.models.transformer import TransformerModel
+
+        seq_length_days = 4
+        n_exog = 2
+        n_periods = 24
+
+        model = TransformerModel(
+            seq_length_days=seq_length_days,
+            n_exog=n_exog,
+            embedding_dim=16,
+            n_heads=2,
+            n_encoder_layers=1,
+            ff_dim=32,
+            dropout=0.0,
+            mlp_hidden=16,
+            epochs=2,
+            batch_size=4,
+            validation_fraction=0.25,
+            early_stopping_patience=100,
+            random_seed=0,
+        )
+
+        features, targets = self._make_features_and_targets(
+            n_samples=32, seq_length_days=seq_length_days, n_exog=n_exog,
+            n_periods=n_periods,
+        )
+        model.fit(features, targets)
+
+        single_day = features[0]
+        prediction = model.predict_day(single_day)
+        assert prediction.shape == (n_periods,)
+        assert np.isfinite(prediction).all()
+
+    def test_rejects_wrong_feature_count(self):
+        from price_forecasting.models.transformer import TransformerModel
+
+        model = TransformerModel(
+            seq_length_days=4, n_exog=2,
+            embedding_dim=16, n_heads=2, n_encoder_layers=1,
+            ff_dim=32, dropout=0.0, mlp_hidden=16,
+            epochs=1, batch_size=4, validation_fraction=0.25,
+        )
+        bad_features = np.zeros((8, 4 * 24 + 2 * 24 + 1), dtype=np.float32)
+        bad_targets = np.zeros((8, 24), dtype=np.float32)
+        with pytest.raises(ValueError, match="TransformerModel expects"):
+            model.fit(bad_features, bad_targets)
