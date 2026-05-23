@@ -290,3 +290,20 @@ def default_transformers_for_model(
         ExogenousLagTransformer(exogenous_columns=exogenous_columns),
         CalendarDummyTransformer(),
     ]
+
+
+def default_transformers_for_transformer(
+    exogenous_columns: list[str],
+    sequence_length_days: int = 14,
+) -> list[FeatureTransformer]:
+    """Feature pipeline for the Llorente & Portela (2025) Transformer EPF model.
+
+    The order is load-bearing: `TransformerModel` reshapes the wide feature
+    matrix by *position*, expecting `sequence_length_days * n_periods`
+    past-price columns first, then `len(exogenous_columns) * n_periods`
+    day-ahead exogenous columns.
+    """
+    return [
+        PastPriceSequenceTransformer(sequence_length_days=sequence_length_days),
+        DayAheadExogTransformer(exogenous_columns=list(exogenous_columns)),
+    ]

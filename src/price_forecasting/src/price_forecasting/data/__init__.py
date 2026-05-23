@@ -14,4 +14,5 @@ from price_forecasting.data.transformers import (
     PastPriceSequenceTransformer as PastPriceSequenceTransformer,
     PriceLagTransformer as PriceLagTransformer,
     default_transformers_for_model as default_transformers_for_model,
+    default_transformers_for_transformer as default_transformers_for_transformer,
 )

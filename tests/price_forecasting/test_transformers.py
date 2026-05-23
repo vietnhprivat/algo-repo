@@ -14,6 +14,7 @@ from price_forecasting.data.transformers import (
     PastPriceSequenceTransformer,
     PriceLagTransformer,
     default_transformers_for_model,
+    default_transformers_for_transformer,
 )
 
 from tests.price_forecasting.conftest import make_hourly_dataframe
@@ -486,3 +487,24 @@ class TestDayAheadExogTransformer:
     def test_rejects_empty_exogenous_columns(self):
         with pytest.raises(ValueError):
             DayAheadExogTransformer(exogenous_columns=[])
+
+
+# ---------------------------------------------------------------------------
+# default_transformers_for_transformer
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultTransformersForTransformer:
+    def test_returns_sequence_then_exog_in_that_order(self):
+        ts = default_transformers_for_transformer(
+            exogenous_columns=["load_forecast"], sequence_length_days=7
+        )
+        assert len(ts) == 2
+        assert isinstance(ts[0], PastPriceSequenceTransformer)
+        assert ts[0].sequence_length_days == 7
+        assert isinstance(ts[1], DayAheadExogTransformer)
+        assert ts[1].exogenous_columns == ["load_forecast"]
+
+    def test_default_sequence_length_is_14_days(self):
+        ts = default_transformers_for_transformer(exogenous_columns=["load_forecast"])
+        assert ts[0].sequence_length_days == 14
