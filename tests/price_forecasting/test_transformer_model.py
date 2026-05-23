@@ -129,3 +129,106 @@ class TestTransformerModel:
         bad_targets = np.zeros((8, 24), dtype=np.float32)
         with pytest.raises(ValueError, match="TransformerModel expects"):
             model.fit(bad_features, bad_targets)
+
+
+class TestTransformerSmoke:
+    """End-to-end smoke test: feature transformers -> DataPreprocessor -> BacktestEngine.
+
+    Verifies that the wide-feature-vector layout contract is honoured across
+    the entire pipeline and that BacktestEngine can drive TransformerModel
+    through fit + predict for a small test window.
+
+    Dataset: ~200 days of hourly synthetic data (large enough that the
+    calibration window of 100 days fits comfortably before the 3-day test
+    window).  Model is deliberately tiny (embedding_dim=16, n_heads=2,
+    n_encoder_layers=1, ff_dim=32, epochs=2) to complete in a few seconds.
+    """
+
+    SEQ_LEN = 7
+    N_EXOG_COLS = ["load_forecast", "gen_forecast"]
+    N_TEST_DAYS = 3
+    CALIBRATION_WINDOW = 100  # days of training data per window
+
+    def test_engine_drives_transformer_end_to_end(self) -> None:
+        import pandas as pd
+
+        from price_forecasting.backtesting.engine import BacktestEngine
+        from price_forecasting.configs import ExperimentConfig
+        from price_forecasting.data.preprocessor import DataPreprocessor
+        from price_forecasting.data.transformers import default_transformers_for_transformer
+        from price_forecasting.models.transformer import TransformerModel
+        from tests.price_forecasting.conftest import make_hourly_dataframe
+
+        # ~200 days of hourly data (enough room for calibration_window=100 + 3 test days)
+        hourly_df = make_hourly_dataframe(
+            start_date="2023-01-01",
+            end_date="2023-07-20",
+            exogenous_columns=self.N_EXOG_COLS,
+            seed=7,
+        )
+
+        seq_len = self.SEQ_LEN
+        n_exog = len(self.N_EXOG_COLS)
+
+        config = ExperimentConfig(
+            experiment_name="transformer_smoke",
+            area="DK1",
+            results_dir="/tmp/transformer_smoke",
+            model_type="transformer",
+            calibration_windows=[self.CALIBRATION_WINDOW],
+            refit_interval_days=self.N_TEST_DAYS,  # refit once for all 3 test days
+            feature_transformers=default_transformers_for_transformer(
+                exogenous_columns=self.N_EXOG_COLS,
+                sequence_length_days=seq_len,
+            ),
+            model_params={
+                "seq_length_days": seq_len,
+                "n_exog": n_exog,
+                "embedding_dim": 16,
+                "n_heads": 2,
+                "n_encoder_layers": 1,
+                "ff_dim": 32,
+                "mlp_hidden": 16,
+                "dropout": 0.0,
+                "epochs": 2,
+                "batch_size": 16,
+                "validation_fraction": 0.2,
+                "early_stopping_patience": 100,
+                "random_seed": 0,
+            },
+        )
+
+        preprocessor = DataPreprocessor(config)
+        features, targets = preprocessor.build_dataset(dataframe=hourly_df)
+
+        # Sanity-check the feature width contract:
+        #   seq_length_days * n_periods  +  n_exog * n_periods
+        n_periods = targets.shape[1]
+        expected_n_features = seq_len * n_periods + n_exog * n_periods
+        assert features.shape[1] == expected_n_features, (
+            f"Feature layout mismatch: got {features.shape[1]}, "
+            f"expected {expected_n_features}"
+        )
+
+        # Last 3 valid days as test dates
+        test_dates = pd.DatetimeIndex(targets.index[-self.N_TEST_DAYS :])
+
+        engine = BacktestEngine(config)
+        model_factory = lambda: TransformerModel(**config.model_params)  # noqa: E731
+
+        forecast_df, actuals_df = engine.run(
+            model_factory=model_factory,
+            features=features,
+            targets=targets,
+            test_dates=test_dates,
+        )
+
+        assert len(forecast_df) == self.N_TEST_DAYS, (
+            f"Expected {self.N_TEST_DAYS} forecast rows, got {len(forecast_df)}"
+        )
+        assert forecast_df.shape[1] == n_periods, (
+            f"Expected {n_periods} forecast columns (hours), got {forecast_df.shape[1]}"
+        )
+        assert np.isfinite(forecast_df.values).all(), (
+            "Forecast contains non-finite values (NaN or Inf)"
+        )
