@@ -12,6 +12,7 @@ services:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-password}
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/config.d:/etc/clickhouse-server/config.d:ro
     restart: always
 
   # Prefect Server (API + UI) — always running
