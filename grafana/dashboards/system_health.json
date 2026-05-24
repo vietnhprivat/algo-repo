@@ -1,0 +1,90 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "ClickHouse uptime (window)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 0},
+      "targets": [
+        {"refId": "A", "expr": "avg_over_time(up{job=\"clickhouse\"}[$__range]) * 100", "instant": true}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "decimals": 3, "min": 0, "max": 100}}
+    },
+    {
+      "type": "stat",
+      "title": "Grafana uptime (window)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 0},
+      "targets": [
+        {"refId": "A", "expr": "avg_over_time(up{job=\"grafana\"}[$__range]) * 100", "instant": true}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "decimals": 3, "min": 0, "max": 100}}
+    },
+    {
+      "type": "stat",
+      "title": "Prometheus self-uptime (window)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 0},
+      "targets": [
+        {"refId": "A", "expr": "avg_over_time(up{job=\"prometheus\"}[$__range]) * 100", "instant": true}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "decimals": 3, "min": 0, "max": 100}}
+    },
+    {
+      "type": "table",
+      "title": "Scrape target status",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 5},
+      "targets": [
+        {"refId": "A", "expr": "up", "instant": true, "format": "table"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "ClickHouse query rate (5m)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 11},
+      "targets": [
+        {"refId": "A", "expr": "rate(ClickHouseProfileEvents_Query[5m])", "legendFormat": "queries/sec"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "qps"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "ClickHouse resident memory",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 11},
+      "targets": [
+        {"refId": "A", "expr": "ClickHouseAsyncMetrics_MemoryResident", "legendFormat": "resident bytes"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "bytes"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Merge backlog (active parts + pending merges)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 19},
+      "targets": [
+        {"refId": "A", "expr": "ClickHouseMetrics_PartsActive", "legendFormat": "active parts"},
+        {"refId": "B", "expr": "ClickHouseMetrics_BackgroundMergesAndMutationsPoolTask", "legendFormat": "background merges"}
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["system", "prometheus"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "System Health",
+  "uid": "system-health",
+  "version": 1,
+  "weekStart": ""
+}
