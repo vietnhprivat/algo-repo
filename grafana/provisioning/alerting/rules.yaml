@@ -10,6 +10,9 @@ groups:
         condition: A
         data:
           - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
             datasourceUid: clickhouse
             model:
               rawSql: |
@@ -27,6 +30,9 @@ groups:
         condition: A
         data:
           - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
             datasourceUid: clickhouse
             model:
               rawSql: |
@@ -45,6 +51,9 @@ groups:
         condition: A
         data:
           - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
             datasourceUid: clickhouse
             model:
               rawSql: |
