@@ -318,7 +318,11 @@ from \texttt{Dockerfile} (the application image) and the Prefect worker from
 configuration live in \texttt{grafana/provisioning/}, and alert rules are
 declared in \texttt{grafana/provisioning/alerting/rules.yaml}. All of these
 files are tracked in Git and applied by restarting the stack — no manual
-UI operations are required or permitted.
+UI operations are required or permitted. The Prometheus scrape configuration
+lives at \texttt{prometheus/prometheus.yml} and is mounted read-only into the
+Prometheus container; the same file-provisioning discipline that applies to
+Grafana dashboards and alert rules applies here --- the scrape policy is
+reviewed in Git and never edited at runtime.
 
 Docker Compose was chosen over Kubernetes for this deployment. The
 single-host scope makes the added complexity of Kubernetes — a control plane,
