@@ -808,10 +808,54 @@ sequence). Excluding the pre-stabilisation period, the steady-state
 failure rate is materially lower; this is documented in \S5.3 as a
 known limitation rather than a static property of the system.
 
-Taken together, these four axes turn the chapter's qualitative ``Realised''
+\subsubsection{System availability}
+
+The drift-detection, daily-forecast, and reconciliation flows above all
+assume the platform's infrastructure tier is healthy. The Prometheus
+deployment scrapes the \texttt{up\{\}} metric from ClickHouse, Grafana,
+and itself every fifteen seconds; over a window, the time-average of
+\texttt{up\{\}} is the fraction of scrape cycles during which the target
+responded successfully. Table~\ref{tab:quant-availability} reports the
+five system-availability figures over the last ninety days. Mean query
+rate and peak resident memory are reported alongside the three uptime
+percentages because they characterise the ClickHouse instance's
+operating regime: an availability of 100\,\% means little if the
+instance was idle the entire window.
+
+\begin{table}[h]
+  \centering
+  \caption{System availability over the last 90 days.}
+  \label{tab:quant-availability}
+  \begin{tabularx}{\linewidth}{@{}X r@{}}
+    \toprule
+    \textbf{Metric} & \textbf{Value} \\
+    \midrule
+    ClickHouse uptime                              & 100.0\,\% \\
+    Grafana uptime                                 & 80.702\,\% \\
+    Prometheus self-uptime                         & 100.0\,\% \\
+    ClickHouse mean queries per second             & 0.02 \\
+    ClickHouse peak resident memory                & $1.28 \times 10^{9}$\,bytes \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Availability is measured from the day Prometheus was deployed
+(2026-05-24); for windows that pre-date that deployment, the figures
+reflect the partial overlap and will narrow toward steady-state as the
+window fills. The Grafana figure of 80.702\,\% reflects an alert-rule
+provisioning incident on the deployment day itself, where the existing
+file-provisioned alert rules failed to validate against a stricter
+schema in Grafana 12 and the container entered a restart loop; the
+incident was resolved by adding explicit \texttt{relativeTimeRange}
+fields to each rule. The episode is itself a worked example of why
+infrastructure monitoring belongs alongside business-data monitoring:
+the failure was invisible to Loki and to \texttt{algo.experiment\_runs},
+visible only through \texttt{up\{job="grafana"\}}.
+
+Taken together, these five axes turn the chapter's qualitative ``Realised''
 labels into measurements: every claim about reliability, reproducibility,
-or delivery in this chapter can be checked against the numbers above, and
-re-checked at any later date by re-running
+delivery, or system availability in this chapter can be checked against
+the numbers above, and re-checked at any later date by re-running
 \texttt{scripts/report/extract\_metrics.py} against the live ClickHouse and
 GitHub Actions histories.
 
