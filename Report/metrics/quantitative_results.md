@@ -1,5 +1,5 @@
 # Quantitative System Metrics
-_Window: last 90 days. Generated: 2026-05-23T02:06:51+00:00._
+_Window: last 90 days. Generated: 2026-05-24T12:48:49+00:00._
 
 ## Operational metrics
 
@@ -26,8 +26,8 @@ _Window: last 90 days. Generated: 2026-05-23T02:06:51+00:00._
 
 ## Feedback loop
 
-- Drift reports written: **25**
-- Drift detections (`drift_detected = 1`): **25**
+- Drift reports written: **27**
+- Drift detections (`drift_detected = 1`): **27**
 - Completed drift→retrain pairs: **0**
 - p50 drift-to-completed latency: **N/A min**
 - p95 drift-to-completed latency: **N/A min**
@@ -39,3 +39,11 @@ _Window: last 90 days. Generated: 2026-05-23T02:06:51+00:00._
 - Lead time PR-merge → cd_deploy start (p50): **0.1 min**
 - Lead time (p95): **0.1 min**
 - Change failure rate: **30.0%**
+
+## System availability (Prometheus)
+
+- ClickHouse uptime: **100.0%**
+- Grafana uptime: **80.702%**
+- Prometheus self-uptime: **100.0%**
+- ClickHouse mean queries/sec: **0.02**
+- ClickHouse peak resident memory: **1276919808.0 bytes**

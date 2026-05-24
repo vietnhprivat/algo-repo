@@ -5,6 +5,7 @@ Reads from:
     algo.drift_reports, algo.retrain_events, algo.timeseries)
   - Local git history
   - GitHub Actions run history via `gh` CLI
+  - Prometheus (availability / uptime)
 
 Writes a markdown summary to Report/metrics/quantitative_results.md
 that the LaTeX chapter transcribes by hand.
@@ -13,12 +14,15 @@ that the LaTeX chapter transcribes by hand.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from infrastructure_clickhouse.client_factory import create_client
 
@@ -35,6 +39,7 @@ class MetricsReport:
     reproducibility: dict[str, Any] = field(default_factory=dict)
     feedback_loop: dict[str, Any] = field(default_factory=dict)
     dora: dict[str, Any] = field(default_factory=dict)
+    availability: dict[str, Any] = field(default_factory=dict)
 
 
 def main() -> None:
@@ -50,6 +55,7 @@ def main() -> None:
     finally:
         client.close()
     report.dora = collect_dora(WINDOW_DAYS)
+    report.availability = collect_availability(WINDOW_DAYS)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(render_markdown(report))
     print(f"Wrote {OUTPUT_PATH}")
@@ -290,6 +296,57 @@ def collect_dora(window_days: int) -> dict[str, Any]:
     }
 
 
+def collect_availability(window_days: int) -> dict[str, Any]:
+    """Service uptime over the window, queried from Prometheus.
+
+    Returns None for any metric whose target was never scraped within the
+    window, or whose name has drifted across ClickHouse versions. Returns
+    a partial dict if Prometheus itself is unreachable — the script still
+    completes and the renderer emits 'None' for every cell.
+
+    Expected ClickHouse version: 25.6. If ClickHouse is upgraded and the
+    async-metric names change, the affected queries return None and the
+    chapter will show 'n/a' until this function is updated.
+    """
+    base = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
+    window = f"{window_days}d"
+
+    def query(promql: str) -> float | None:
+        try:
+            r = httpx.get(
+                f"{base}/api/v1/query",
+                params={"query": promql},
+                timeout=10.0,
+            )
+            r.raise_for_status()
+        except httpx.HTTPError as e:
+            print(f"prometheus query failed for {promql!r}: {e}", file=sys.stderr)
+            return None
+        result = r.json()["data"]["result"]
+        return float(result[0]["value"][1]) if result else None
+
+    def uptime_pct(job: str) -> float | None:
+        v = query(f'avg_over_time(up{{job="{job}"}}[{window}])')
+        return round(100.0 * v, 3) if v is not None else None
+
+    def metric(promql: str) -> float | None:
+        v = query(promql)
+        return round(v, 2) if v is not None else None
+
+    return {
+        "window_days": window_days,
+        "clickhouse_uptime_pct": uptime_pct("clickhouse"),
+        "grafana_uptime_pct": uptime_pct("grafana"),
+        "prometheus_self_uptime_pct": uptime_pct("prometheus"),
+        "clickhouse_mean_qps": metric(
+            f'avg_over_time(rate(ClickHouseProfileEvents_Query[5m])[{window}:5m])'
+        ),
+        "clickhouse_peak_memory_bytes": metric(
+            f'max_over_time(ClickHouseAsyncMetrics_MemoryResident[{window}])'
+        ),
+    }
+
+
 def render_markdown(report: MetricsReport) -> str:
     out: list[str] = []
     out.append(f"# Quantitative System Metrics\n")
@@ -340,6 +397,14 @@ def render_markdown(report: MetricsReport) -> str:
     out.append(f"\n- Lead time PR-merge → cd_deploy start (p50): **{d.get('lead_time_minutes_p50')} min**")
     out.append(f"\n- Lead time (p95): **{d.get('lead_time_minutes_p95')} min**")
     out.append(f"\n- Change failure rate: **{d.get('change_failure_rate_pct')}%**")
+
+    out.append("\n\n## System availability (Prometheus)\n")
+    a = report.availability
+    out.append(f"\n- ClickHouse uptime: **{a.get('clickhouse_uptime_pct')}%**")
+    out.append(f"\n- Grafana uptime: **{a.get('grafana_uptime_pct')}%**")
+    out.append(f"\n- Prometheus self-uptime: **{a.get('prometheus_self_uptime_pct')}%**")
+    out.append(f"\n- ClickHouse mean queries/sec: **{a.get('clickhouse_mean_qps')}**")
+    out.append(f"\n- ClickHouse peak resident memory: **{a.get('clickhouse_peak_memory_bytes')} bytes**")
 
     out.append("\n")
     return "".join(out)
