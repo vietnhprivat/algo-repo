@@ -488,6 +488,7 @@ addition, \texttt{schedules.reconciliation.\allowbreak{}\_maybe\_alert\allowbrea
 fires a Slack notification whenever today's MAE exceeds
 1.5\,$\times$ the 30-day median, computed from \texttt{algo.experiment\_runs}
 via \texttt{queries.get\_recent\_accuracy}.
+A fourth dashboard, \emph{System Health}, is backed by Prometheus, which scrapes ClickHouse's native \texttt{/metrics} endpoint, Grafana's \texttt{/metrics} endpoint, and itself on a 15-second cadence and retains 120 days of time-series data. The \texttt{up\{\}} metric exposed by every scrape target is the platform's primary liveness signal: it drives the new \texttt{clickhouse-down} alert rule and the system-availability table in \S5.2.
 
 Loki was chosen over the ELK stack (Elasticsearch, Logstash, Kibana) because
 it is a single binary with substantially lower memory and operational
@@ -495,6 +496,7 @@ overhead, which is proportionate to the single-host deployment. Promtail was
 rejected in favour of direct Python push, which removes a moving part from
 the logging pipeline and means no log events are silently dropped due to a
 misconfigured sidecar.
+Prometheus sits alongside Loki rather than replacing it: Loki is the logs tier, Prometheus the metrics tier. They are complementary, and Grafana remains the single dashboard and alerting surface above both.
 
 Three axes of monitoring — data, model, and system — match the decomposition
 in Zarour's P8 framing and ensure that an alert is generated at whichever
