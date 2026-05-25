@@ -298,3 +298,113 @@ class TestLogArtifact:
         assert artifact.type == "model"
         assert artifact.metadata == {"area": "DK1", "model_type": "lear"}
         assert b"fake-joblib" in next(iter(artifact.files.values()))
+
+
+class TestLogDriftEvent:
+    def test_first_call_inits_drift_run_in_algo_prod_project(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_drift_event(
+            area="DK1",
+            curve_name="ENTSOE DK1 EnergyPrice",
+            target_date="2026-05-21",
+            drift_score=0.12,
+            drift_threshold=0.05,
+            stat_test="ks",
+            drift_detected=True,
+        )
+
+        call = fake_wandb.init_calls[0]
+        assert call["project"] == "algo-prod"
+        assert call["id"] == "prod-drift-dk1"
+        assert call["resume"] == "allow"
+        assert call["job_type"] == "prod-drift"
+        assert "DK1" in call["tags"]
+        assert "drift" in call["tags"]
+
+        run = fake_wandb.runs[0]
+        assert run.finished is False  # continuous, do not finish
+        payload = run.logged[0][0]
+        assert payload == {
+            "target_date": "2026-05-21",
+            "curve_name": "ENTSOE DK1 EnergyPrice",
+            "drift_score": 0.12,
+            "drift_threshold": 0.05,
+            "stat_test": "ks",
+            "drift_detected": 1,
+        }
+
+    def test_second_call_same_area_reuses_run(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_drift_event(
+            area="DK1", curve_name="ENTSOE DK1 EnergyPrice",
+            target_date="2026-05-20", drift_score=0.10,
+            drift_threshold=0.05, stat_test="ks", drift_detected=True,
+        )
+        tracker.log_drift_event(
+            area="DK1", curve_name="ENTSOE DK1 EnergyPrice",
+            target_date="2026-05-21", drift_score=0.11,
+            drift_threshold=0.05, stat_test="ks", drift_detected=True,
+        )
+
+        assert len(fake_wandb.init_calls) == 1
+        assert len(fake_wandb.runs[0].logged) == 2
+
+    def test_drift_and_reconciled_runs_are_independent(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        """Drift and reconciliation share a tracker but live in separate runs."""
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_prod_reconciled(
+            area="DK1", config_name="dk1_lear",
+            target_date="2026-05-21", metrics={"mae": 4.5},
+        )
+        tracker.log_drift_event(
+            area="DK1", curve_name="ENTSOE DK1 EnergyPrice",
+            target_date="2026-05-21", drift_score=0.12,
+            drift_threshold=0.05, stat_test="ks", drift_detected=True,
+        )
+
+        assert len(fake_wandb.init_calls) == 2
+        ids = {c["id"] for c in fake_wandb.init_calls}
+        assert ids == {"prod-dk1-dk1_lear", "prod-drift-dk1"}
+
+    def test_distinct_drift_runs_per_area(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_drift_event(
+            area="DK1", curve_name="ENTSOE DK1 EnergyPrice",
+            target_date="2026-05-21", drift_score=0.10,
+            drift_threshold=0.05, stat_test="ks", drift_detected=False,
+        )
+        tracker.log_drift_event(
+            area="DE", curve_name="ENTSOE DE EnergyPrice",
+            target_date="2026-05-21", drift_score=0.08,
+            drift_threshold=0.05, stat_test="ks", drift_detected=True,
+        )
+
+        assert len(fake_wandb.init_calls) == 2
+        ids = {c["id"] for c in fake_wandb.init_calls}
+        assert ids == {"prod-drift-dk1", "prod-drift-de"}
+
+    def test_noop_when_disabled(
+        self, monkeypatch: pytest.MonkeyPatch, fake_wandb: FakeWandb
+    ) -> None:
+        monkeypatch.setenv("WANDB_MODE", "disabled")
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_drift_event(
+            area="DK1", curve_name="ENTSOE DK1 EnergyPrice",
+            target_date="2026-05-21", drift_score=0.10,
+            drift_threshold=0.05, stat_test="ks", drift_detected=False,
+        )
+
+        assert fake_wandb.init_calls == []
