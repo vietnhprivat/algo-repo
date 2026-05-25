@@ -1,5 +1,5 @@
 from price_forecasting.models.base import BaseModel as BaseModel
-from price_forecasting.models.lightning_base import LightningModel as LightningModel
+from price_forecasting.models.base import LightningModel as LightningModel
 from price_forecasting.models.lear import LearModel as LearModel
 from price_forecasting.models.dnn import DNNModel as DNNModel
 from price_forecasting.models.transformer import TransformerModel as TransformerModel

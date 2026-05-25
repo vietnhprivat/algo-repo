@@ -27,7 +27,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from price_forecasting.models.lightning_base import LightningModel
+from price_forecasting.models.base import LightningModel
 
 
 class TransformerNetwork(nn.Module):
