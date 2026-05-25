@@ -35,6 +35,22 @@ class TestModelRegistry:
         assert model.alpha == 0.5
         assert model.maximum_iterations == 100
 
+    def test_get_transformer_model(self):
+        from price_forecasting.models.transformer import TransformerModel
+
+        model = get_model(
+            "transformer",
+            seq_length_days=4,
+            n_exog=1,
+            embedding_dim=16,
+            n_heads=2,
+            n_encoder_layers=1,
+            ff_dim=32,
+            dropout=0.0,
+            mlp_hidden=16,
+        )
+        assert isinstance(model, TransformerModel)
+
 
 class TestBaseModelInterface:
     def test_stub_model_implements_interface(self):

@@ -204,6 +204,75 @@ class MeanWeeklyForecastTransformer(FeatureTransformer):
         return pd.concat(parts, axis=1)
 
 
+@dataclass
+class DayAheadExogTransformer(FeatureTransformer):
+    """Day-ahead exogenous forecast for D+1, one block of `n_periods` columns per variable.
+
+    Output columns, in order:
+        exog_{col_1}_p0..exog_{col_1}_p{N-1},
+        exog_{col_2}_p0..,
+        ...
+
+    For TransformerModel consumption: a row of length `n_exog * N` that the
+    model reshapes to `(n_exog, N)`.
+    """
+
+    exogenous_columns: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.exogenous_columns:
+            raise ValueError("exogenous_columns must contain at least one entry")
+
+    def transform(
+        self,
+        hourly_dataframe: pd.DataFrame,
+        daily_prices: pd.DataFrame,
+    ) -> pd.DataFrame:
+        blocks: list[pd.DataFrame] = []
+        for column in self.exogenous_columns:
+            if column not in hourly_dataframe.columns:
+                raise KeyError(f"Exogenous column {column!r} not found in input data")
+            daily_col = pivot_to_daily(hourly_dataframe, column)
+            n_periods = daily_col.shape[1]
+            daily_col.columns = [f"exog_{column}_p{p}" for p in range(n_periods)]
+            blocks.append(daily_col)
+        return pd.concat(blocks, axis=1)
+
+
+@dataclass
+class PastPriceSequenceTransformer(FeatureTransformer):
+    """Past `m` days of hourly prices, arranged oldest-day-first.
+
+    Output columns, in order:
+        seq_d{m}_p0..seq_d{m}_p{N-1},  # m days back, oldest
+        seq_d{m-1}_p0..,
+        ...
+        seq_d1_p0..seq_d1_p{N-1}       # yesterday
+
+    For TransformerModel consumption: a row of length `m * N` that the model
+    reshapes to `(m, N)` with row 0 = oldest day.
+    """
+
+    sequence_length_days: int = 14
+
+    def __post_init__(self) -> None:
+        if self.sequence_length_days < 1:
+            raise ValueError("sequence_length_days must be >= 1")
+
+    def transform(
+        self,
+        hourly_dataframe: pd.DataFrame,
+        daily_prices: pd.DataFrame,
+    ) -> pd.DataFrame:
+        n_periods = daily_prices.shape[1]
+        blocks: list[pd.DataFrame] = []
+        for k in range(self.sequence_length_days, 0, -1):
+            shifted = daily_prices.shift(k)
+            shifted.columns = [f"seq_d{k}_p{p}" for p in range(n_periods)]
+            blocks.append(shifted)
+        return pd.concat(blocks, axis=1)
+
+
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
@@ -220,4 +289,21 @@ def default_transformers_for_model(
         PriceLagTransformer(lags=[1, 2, 3, 7]),
         ExogenousLagTransformer(exogenous_columns=exogenous_columns),
         CalendarDummyTransformer(),
+    ]
+
+
+def default_transformers_for_transformer(
+    exogenous_columns: list[str],
+    sequence_length_days: int = 14,
+) -> list[FeatureTransformer]:
+    """Feature pipeline for the Llorente & Portela (2025) Transformer EPF model.
+
+    The order is load-bearing: `TransformerModel` reshapes the wide feature
+    matrix by *position*, expecting `sequence_length_days * n_periods`
+    past-price columns first, then `len(exogenous_columns) * n_periods`
+    day-ahead exogenous columns.
+    """
+    return [
+        PastPriceSequenceTransformer(sequence_length_days=sequence_length_days),
+        DayAheadExogTransformer(exogenous_columns=list(exogenous_columns)),
     ]

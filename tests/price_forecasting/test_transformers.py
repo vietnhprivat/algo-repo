@@ -2,15 +2,19 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from price_forecasting.data.preprocessor import pivot_to_daily
 from price_forecasting.data.transformers import (
     CalendarDummyTransformer,
     CyclicalTimeTransformer,
+    DayAheadExogTransformer,
     ExogenousLagTransformer,
     MeanWeeklyForecastTransformer,
+    PastPriceSequenceTransformer,
     PriceLagTransformer,
     default_transformers_for_model,
+    default_transformers_for_transformer,
 )
 
 from tests.price_forecasting.conftest import make_hourly_dataframe
@@ -405,3 +409,102 @@ class TestPreprocessorRegressionIdentity:
                 f"Expected {expected} columns for {len(exog)} exogenous, "
                 f"got {features.shape[1]}"
             )
+
+
+# ---------------------------------------------------------------------------
+# PastPriceSequenceTransformer
+# ---------------------------------------------------------------------------
+
+
+class TestPastPriceSequenceTransformer:
+    def test_outputs_m_days_of_n_periods_in_oldest_first_order(self):
+        # 10 days of hourly price data (start inclusive, end exclusive via freq="h")
+        hourly = make_hourly_dataframe(start_date="2019-01-01", end_date="2019-01-11")
+        daily_prices = pivot_to_daily(hourly, "price")
+
+        m = 3
+        transformer = PastPriceSequenceTransformer(sequence_length_days=m)
+        out = transformer.transform(hourly, daily_prices)
+
+        # Column count = m * n_periods
+        assert out.shape[1] == m * N_PERIODS
+
+        # Column ordering: oldest day (d{m}) first, yesterday (d1) last.
+        expected_cols = (
+            [f"seq_d{k}_p{p}" for k in range(m, 0, -1) for p in range(N_PERIODS)]
+        )
+        assert list(out.columns) == expected_cols
+
+        # The "d1" block on row i equals daily_prices on row i-1 (yesterday).
+        # The "d{m}" block on row i equals daily_prices on row i-m.
+        # Skip rows where shift produces NaN.
+        first_valid = m
+        d1_block = out.iloc[first_valid][[f"seq_d1_p{p}" for p in range(N_PERIODS)]].values
+        np.testing.assert_array_equal(d1_block, daily_prices.iloc[first_valid - 1].values)
+
+        dm_block = out.iloc[first_valid][[f"seq_d{m}_p{p}" for p in range(N_PERIODS)]].values
+        np.testing.assert_array_equal(dm_block, daily_prices.iloc[first_valid - m].values)
+
+    def test_rejects_non_positive_sequence_length(self):
+        with pytest.raises(ValueError):
+            PastPriceSequenceTransformer(sequence_length_days=0)
+
+
+# ---------------------------------------------------------------------------
+# DayAheadExogTransformer
+# ---------------------------------------------------------------------------
+
+
+class TestDayAheadExogTransformer:
+    def test_outputs_one_block_per_exog_column(self):
+        hourly = make_hourly_dataframe(
+            start_date="2019-01-01",
+            end_date="2019-01-06",
+            exogenous_columns=["load_forecast", "gen_forecast"],
+        )
+        daily_prices = pivot_to_daily(hourly, "price")
+
+        transformer = DayAheadExogTransformer(
+            exogenous_columns=["load_forecast", "gen_forecast"]
+        )
+        out = transformer.transform(hourly, daily_prices)
+
+        assert out.shape[1] == 2 * N_PERIODS
+        expected_cols = (
+            [f"exog_load_forecast_p{p}" for p in range(N_PERIODS)]
+            + [f"exog_gen_forecast_p{p}" for p in range(N_PERIODS)]
+        )
+        assert list(out.columns) == expected_cols
+
+        # The exog block equals the day-of pivot (lag 0) — the D+1 forecast
+        # that is known at prediction time.
+        load_daily = pivot_to_daily(hourly, "load_forecast")
+        np.testing.assert_allclose(
+            out[[f"exog_load_forecast_p{p}" for p in range(N_PERIODS)]].values,
+            load_daily.values,
+        )
+
+    def test_rejects_empty_exogenous_columns(self):
+        with pytest.raises(ValueError):
+            DayAheadExogTransformer(exogenous_columns=[])
+
+
+# ---------------------------------------------------------------------------
+# default_transformers_for_transformer
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultTransformersForTransformer:
+    def test_returns_sequence_then_exog_in_that_order(self):
+        ts = default_transformers_for_transformer(
+            exogenous_columns=["load_forecast"], sequence_length_days=7
+        )
+        assert len(ts) == 2
+        assert isinstance(ts[0], PastPriceSequenceTransformer)
+        assert ts[0].sequence_length_days == 7
+        assert isinstance(ts[1], DayAheadExogTransformer)
+        assert ts[1].exogenous_columns == ["load_forecast"]
+
+    def test_default_sequence_length_is_14_days(self):
+        ts = default_transformers_for_transformer(exogenous_columns=["load_forecast"])
+        assert ts[0].sequence_length_days == 14
