@@ -474,10 +474,17 @@ pushed directly to Loki via the \texttt{python-logging-loki} handler
 configured in \texttt{infrastructure\_clickhouse.logging\_setup}. No Promtail
 sidecar is used. Three Grafana dashboards auto-provision from
 \texttt{grafana/dashboards/}: the Data Quality dashboard covers coverage and
-freshness of \texttt{algo.timeseries} and \texttt{algo.forecasts}; the Model
-Performance dashboard surfaces MAE, RMSE, and sMAPE per run from
-\texttt{algo.experiment\_runs}; and the Operational dashboard presents the
-Loki log stream filtered by \texttt{job=algo-repo}. File-based alert rules in
+freshness of \texttt{algo.timeseries} and \texttt{algo.forecasts}; the
+Operational dashboard presents the Loki log stream filtered by
+\texttt{job=algo-repo}; and the System Health dashboard (introduced in §3.8.x
+above) covers ClickHouse and Grafana liveness via Prometheus. Model-quality
+metrics --- MAE, RMSE, and sMAPE per reconciled day, per area, per config ---
+do not live in Grafana; they are owned by the W\&B \texttt{algo-prod} project,
+which the dual-write tracker in \texttt{observability\_wandb} updates from
+\texttt{schedules.reconciliation}. The split reflects a deliberate boundary:
+Grafana hosts platform-and-money concerns, W\&B hosts model-quality concerns,
+and the two surfaces read from the same ClickHouse tables for the facts they
+care about. File-based alert rules in
 \texttt{grafana/provisioning/alerting/rules.yaml} define three conditions:
 \texttt{data-staleness} fires when \texttt{algo.timeseries} has not received
 a new row in twelve hours; \texttt{drift-detected-today} fires when any row
@@ -626,10 +633,11 @@ deploy-gate build step: the SHA of the exact commit that was merged to
 \texttt{main}. The Grafana Operational dashboard queries the Loki log stream
 filtered by \texttt{job=algo-repo} and presents structured log events that
 include the same SHA in their fields, because every flow container is built
-from that same image. This means that if the Model Performance dashboard
-shows an unexpected MAE spike beginning on a particular day, the Operational
-dashboard will show the Loki events from the same period alongside the
-\texttt{git\_sha} of the image that produced them — making it possible to
+from that same image. This means that if the W\&B \texttt{algo-prod} run for
+a given \texttt{(area, config\_name)} shows an unexpected MAE spike beginning
+on a particular day, the Grafana Operational dashboard will show the Loki
+events from the same period alongside the \texttt{git\_sha} of the image that
+produced them — making it possible to
 \texttt{git log} back to the exact commit that introduced the regression. This
 closes the loop between P3 (reproducibility) and P8 (continuous monitoring):
 the audit trail for a production anomaly runs from the Grafana panel, through
@@ -686,7 +694,7 @@ trigger.
     P5 --- Collaboration                & Realised & 1 & \texttt{CLAUDE.md}, \texttt{REPO\_OVERVIEW.md}, \texttt{RUNBOOK.md}, \texttt{CONTRIBUTING.md}, plus Slack alerts \\
     P6 --- Continuous training          & Realised & 1 & \texttt{daily-forecast} deployments refit at 06:00 UTC \\
     P7 --- Experiment tracking          & Realised & 1 & \texttt{algo.experiment\_runs} plus W\&B research surface \\
-    P8 --- Continuous monitoring        & Realised & 2 & Loki plus three Grafana dashboards plus file-based alert rules \\
+    P8 --- Continuous monitoring        & Realised & 2 & Loki plus three Grafana dashboards (Data Quality, Operational, System Health) plus file-based alert rules; model-quality metrics in W\&B \texttt{algo-prod} \\
     P9 --- Feedback loop and retraining & Minimal  & 1 & Drift-triggered retrain behind a config flag, two areas only \\
     \bottomrule
   \end{tabularx}
