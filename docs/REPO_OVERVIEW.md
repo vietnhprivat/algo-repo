@@ -862,61 +862,59 @@ only), `LOKI_URL`, `SLACK_WEBHOOK_URL` (optional — alerts no-op if unset).
 
 ## 11. Observability
 
+The observability stack splits cleanly along one axis:
+
+> **Grafana** answers *"is the platform working and how much money did we make?"*
+> **W&B** answers *"are the models good and how do they compare?"*
+> **ClickHouse** is the single source of truth that both surfaces read from.
+
+### Split of responsibilities
+
+| Tool | Owns | Primary question |
+|---|---|---|
+| **Grafana** | Infra metrics (Prometheus), data quality, logs (Loki), file-provisioned alert rules, PnL (future) | Is the platform working and how much money did we make? |
+| **W&B** | Experimentation (backtests, ablations, sweeps, tune), training curves, artifacts + lineage, prod model-quality time-series, ad-hoc Reports | Are the models good and how do they compare? |
+| **ClickHouse** | All raw data + predictions + actuals + drift reports + retrain events + experiment runs | Single source of truth |
+
+The contested seam in the ML lifecycle is **reconciled production accuracy**: W&B owns it. The accuracy-degradation Slack alert in `schedules/reconciliation.py` stays Python-side. Drift is dual-surfaced: Grafana fires the threshold alert (`drift-detected-today`), W&B hosts the investigation view (per-area `prod-drift-{area}` run).
+
 ### Grafana
 
 Three auto-provisioned dashboards (`grafana/dashboards/*.json`):
 
 1. **Data Quality** — coverage and freshness of `algo.timeseries` and `algo.forecasts`.
-2. **Model Performance** — MAE / RMSE / sMAPE per run from `algo.experiment_runs`.
-3. **Operational** — Loki log stream filtered by `job=algo-repo`.
+2. **Operational** — Loki log stream filtered by `job=algo-repo`.
+3. **System Health** — Prometheus-backed uptime and ClickHouse internals (`up{}`, query rate, resident memory, merge backlog).
 
-> **Always edit dashboards as JSON** in `grafana/dashboards/`. UI edits are
-> overwritten on container restart.
+> **Always edit dashboards as JSON** in `grafana/dashboards/`. UI edits are overwritten on container restart.
 
 ### Loki
 
-Logs are pushed directly from Python via `python-logging-loki`. Labels are
-the values in `extra=` (filtered through `build_log_extra`). Default
-service tags: `job="algo-repo"`, `application="algo-repo"`. Each module's
-logger is created with a `service=` name (e.g. `prefect-ingestion`,
-`prefect-forecast`, `prefect-reconciliation`, `prefect-drift`,
-`entsoe-client`, `clickhouse-ingest`).
+Logs are pushed directly from Python via `python-logging-loki`. Labels are the values in `extra=` (filtered through `build_log_extra`). Default service tags: `job="algo-repo"`, `application="algo-repo"`. Each module's logger is created with a `service=` name (e.g. `prefect-ingestion`, `prefect-forecast`, `prefect-reconciliation`, `prefect-drift`, `entsoe-client`, `clickhouse-ingest`).
 
 ### Drift & operational alerts
 
 Two layers:
 
-1. **Slack via `schedules.alerting.notify`** — fired in-process by the
-   reconciliation flow (accuracy degradation) and the drift flow (drift
-   detected, retrain triggered/completed/failed). Safe no-op when
-   `SLACK_WEBHOOK_URL` is unset, so local dev never fails.
-2. **Grafana file-provisioned alert rules** at
-   `grafana/provisioning/alerting/rules.yaml` — three rules:
-   - `data-staleness`: fires when `max(timestamp_utc)` in `algo.timeseries`
-     is more than 12 hours stale.
-   - `drift-detected-today`: fires when any row in `algo.drift_reports`
-     for today has `drift_detected = 1`.
-   - `reconciliation-missed`: fires when no `reconcile-predictions` run
-     has completed in the last 25 hours.
+1. **Slack via `schedules.alerting.notify`** — fired in-process by the reconciliation flow (accuracy degradation) and the drift flow (drift detected, retrain triggered/completed/failed). Safe no-op when `SLACK_WEBHOOK_URL` is unset.
+2. **Grafana file-provisioned alert rules** at `grafana/provisioning/alerting/rules.yaml` — four rules:
+   - `data-staleness`: fires when `max(timestamp_utc)` in `algo.timeseries` is more than 12 hours stale.
+   - `drift-detected-today`: fires when any row in `algo.drift_reports` for today has `drift_detected = 1`.
+   - `reconciliation-missed`: fires when no `reconcile-predictions` run has completed in the last 25 hours.
+   - `clickhouse-down`: fires when `up{job="clickhouse"}` has been 0 for five minutes.
 
-> **Always edit alert rules as YAML** in `grafana/provisioning/alerting/`.
-> UI edits are overwritten on container restart, same as dashboards.
+> **Always edit alert rules as YAML** in `grafana/provisioning/alerting/`. UI edits are overwritten on container restart, same as dashboards.
 
-### W&B (research)
+### W&B
 
-`observability_wandb.tracker.WandbTracker` is the single owner of W&B-side
-schema. Dual-write call sites: `forecast_cli.tracking.track_backtest_run /
-track_prediction`, `price_forecasting.models.lightning_base.LightningModel`
-(via `WandbLogger`), `price_forecasting.tuning.optuna_storage`, and
-`schedules.reconciliation`. Production system is unaffected when the
-tracker is disabled.
+`observability_wandb.tracker.WandbTracker` is the single owner of W&B-side schema. Dual-write call sites: `forecast_cli.tracking.track_backtest_run / track_prediction`, `price_forecasting.models.lightning_base.LightningModel` (via `WandbLogger`), `price_forecasting.tuning.optuna_storage`, `schedules.reconciliation`, and `schedules.drift`. Production system is unaffected when the tracker is disabled.
 
-- `algo-research` project — backtests, predict runs, DNN training, sweeps,
-  ablations.
-- `algo-prod` project — one continuous run per `(area, config_name)`,
-  one step per reconciled day. Run ID format: `prod-{area_lower}-{config}`.
+- `algo-research` project — backtests, predict runs, DNN training, sweeps, ablations.
+- `algo-prod` project — two run families:
+  - `prod-{area_lower}-{config_name}` — one continuous run per `(area, config_name)`, one step per reconciled day. Step payload: `mae`, `rmse`, `smape`, `target_date`, and `model_artifact_id` (lineage back to `algo.model_artifacts`).
+  - `prod-drift-{area_lower}` — one continuous run per area, one step per drift check (per `(area, curve_name)` pair). Step payload: `target_date`, `curve_name`, `drift_score`, `drift_threshold`, `stat_test`, `drift_detected`.
 - Disabled-mode: set `WANDB_MODE=disabled` or unset `WANDB_API_KEY`.
-- New CLI: `forecast-cli ablate <config> --vary <field> --over <json>`.
+- Ablation CLI: `forecast-cli ablate <config> --vary <field> --over <json>`.
 
 ---
 

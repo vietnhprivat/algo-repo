@@ -93,6 +93,7 @@ class WandbTracker:
         config_name: str,
         target_date: str,
         metrics: Mapping[str, float],
+        model_artifact_id: str | None = None,
     ) -> None:
         if not self._enabled:
             return None
@@ -109,8 +110,10 @@ class WandbTracker:
                 config={"area": area, "config_name": config_name},
             )
             self._prod_runs[key] = run
-        payload = dict(metrics)
+        payload: dict[str, Any] = dict(metrics)
         payload["target_date"] = target_date
+        if model_artifact_id is not None:
+            payload["model_artifact_id"] = model_artifact_id
         run.log(payload)
 
     def log_artifact(
@@ -170,3 +173,40 @@ class WandbTracker:
                 )
         finally:
             run.finish()
+
+    def log_drift_event(
+        self,
+        *,
+        area: str,
+        curve_name: str,
+        target_date: str,
+        drift_score: float,
+        drift_threshold: float,
+        stat_test: str,
+        drift_detected: bool,
+    ) -> None:
+        if not self._enabled:
+            return None
+        key = ("__drift__", area)
+        run = self._prod_runs.get(key)
+        if run is None:
+            run = self._wandb.init(
+                project=_PROD_PROJECT,
+                entity=self._settings.entity,
+                id=f"prod-drift-{area.lower()}",
+                resume="allow",
+                job_type="prod-drift",
+                tags=[area, "drift"],
+                config={"area": area},
+            )
+            self._prod_runs[key] = run
+        run.log(
+            {
+                "target_date": target_date,
+                "curve_name": curve_name,
+                "drift_score": drift_score,
+                "drift_threshold": drift_threshold,
+                "stat_test": stat_test,
+                "drift_detected": int(drift_detected),
+            }
+        )

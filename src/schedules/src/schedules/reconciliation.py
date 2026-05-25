@@ -53,12 +53,17 @@ def _log_run_to_wandb(
     config_name: str,
     target_date: str,
     metrics: dict[str, float],
+    model_artifact_id: str | None = None,
 ) -> None:
+    # ClickHouse stores model_artifact_id as a non-nullable String; old rows have
+    # the empty string. Treat blanks as absent so the W&B payload stays clean.
+    cleaned = model_artifact_id if model_artifact_id else None
     tracker.log_prod_reconciled(
         area=area,
         config_name=config_name,
         target_date=target_date,
         metrics=metrics,
+        model_artifact_id=cleaned,
     )
 
 
@@ -228,6 +233,7 @@ def reconcile_area_task(area: str, runs: list[dict]) -> dict:
                     config_name=config_name,
                     target_date=target_date,
                     metrics=metrics,
+                    model_artifact_id=run.get("model_artifact_id"),
                 )
             except Exception as exc:
                 LOGGER.warning(
