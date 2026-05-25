@@ -61,3 +61,6 @@ results/
 
 # W&B local cache
 wandb/
+
+# PyTorch Lightning default CSVLogger output (we use WandbLogger instead)
+lightning_logs/
