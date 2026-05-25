@@ -93,6 +93,7 @@ class WandbTracker:
         config_name: str,
         target_date: str,
         metrics: Mapping[str, float],
+        model_artifact_id: str | None = None,
     ) -> None:
         if not self._enabled:
             return None
@@ -109,8 +110,10 @@ class WandbTracker:
                 config={"area": area, "config_name": config_name},
             )
             self._prod_runs[key] = run
-        payload = dict(metrics)
+        payload: dict[str, Any] = dict(metrics)
         payload["target_date"] = target_date
+        if model_artifact_id is not None:
+            payload["model_artifact_id"] = model_artifact_id
         run.log(payload)
 
     def log_artifact(

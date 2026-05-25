@@ -165,6 +165,37 @@ class TestLogProdReconciled:
         ids = {c["id"] for c in fake_wandb.init_calls}
         assert ids == {"prod-dk1-dk1_lear", "prod-de-de_lear"}
 
+    def test_model_artifact_id_is_logged_when_present(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_prod_reconciled(
+            area="DK1",
+            config_name="dk1_lear",
+            target_date="2026-05-21",
+            metrics={"mae": 4.5},
+            model_artifact_id="art-uuid-9",
+        )
+
+        payload = fake_wandb.runs[0].logged[0][0]
+        assert payload["model_artifact_id"] == "art-uuid-9"
+
+    def test_model_artifact_id_omitted_when_none(
+        self, enabled_env: None, fake_wandb: FakeWandb
+    ) -> None:
+        tracker = WandbTracker(wandb_module=fake_wandb)
+
+        tracker.log_prod_reconciled(
+            area="DK1",
+            config_name="dk1_lear",
+            target_date="2026-05-21",
+            metrics={"mae": 4.5},
+        )
+
+        payload = fake_wandb.runs[0].logged[0][0]
+        assert "model_artifact_id" not in payload
+
 
 class TestLogPredictRunWithArtifact:
     def test_init_predict_job_type_rows_artifact_and_finish(
