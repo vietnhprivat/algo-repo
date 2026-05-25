@@ -27,6 +27,7 @@ from infrastructure_clickhouse.client_factory import create_client
 from infrastructure_clickhouse.ingest import insert_drift_report
 from infrastructure_clickhouse.logging_setup import build_log_extra, get_logger
 from infrastructure_clickhouse.queries import get_actual_prices_for_period
+from observability_wandb.tracker import WandbTracker
 from schedules.retrain import triggered_retrain_flow
 
 LOGGER = get_logger(__name__, service="prefect-drift")
@@ -112,6 +113,34 @@ def _compute_drift(
     return drift_score, drift_threshold, stat_test, drifted_count > 0
 
 
+def _log_drift_to_wandb(
+    *,
+    tracker: WandbTracker,
+    area: str,
+    curve_name: str,
+    target_date: str,
+    drift_score: float,
+    drift_threshold: float,
+    stat_test: str,
+    drift_detected: bool,
+) -> None:
+    try:
+        tracker.log_drift_event(
+            area=area,
+            curve_name=curve_name,
+            target_date=target_date,
+            drift_score=drift_score,
+            drift_threshold=drift_threshold,
+            stat_test=stat_test,
+            drift_detected=drift_detected,
+        )
+    except Exception as exc:  # noqa: BLE001 — never crash the drift flow over W&B
+        LOGGER.warning(
+            "W&B drift-event sync failed; continuing",
+            extra=build_log_extra(area=area, curve_name=curve_name, error=str(exc)),
+        )
+
+
 @task(retries=2, retry_delay_seconds=60, log_prints=True)
 def detect_drift_for_area_task(area: str) -> dict:
     """Fetch both windows, compute drift via Evidently, persist, and log."""
@@ -189,6 +218,16 @@ def detect_drift_for_area_task(area: str) -> dict:
             drift_detected=drift_detected,
             reference_n=len(reference_prices),
             current_n=len(current_prices),
+        )
+        _log_drift_to_wandb(
+            tracker=WandbTracker(),
+            area=area,
+            curve_name=curve_name,
+            target_date=windows.current_end.date().isoformat(),
+            drift_score=drift_score,
+            drift_threshold=drift_threshold,
+            stat_test=stat_test,
+            drift_detected=drift_detected,
         )
     finally:
         client.close()
