@@ -19,14 +19,16 @@ def enabled_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_drift_logs_to_prod_drift_run(
     enabled_env: None,
     fake_wandb: FakeWandb,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The drift module's _log_drift_to_wandb helper posts one step to W&B."""
     from schedules import drift
 
-    tracker = WandbTracker(wandb_module=fake_wandb)
+    monkeypatch.setattr(
+        drift, "WandbTracker", lambda: WandbTracker(wandb_module=fake_wandb)
+    )
 
     drift._log_drift_to_wandb(
-        tracker=tracker,
         area="DK1",
         curve_name="ENTSOE DK1 EnergyPrice",
         target_date="2026-05-21",
@@ -48,17 +50,17 @@ def test_drift_logs_to_prod_drift_run(
 
 def test_drift_helper_swallows_tracker_errors(
     monkeypatch: pytest.MonkeyPatch,
-    fake_wandb: FakeWandb,
 ) -> None:
-    """A tracker exception must not abort the drift flow."""
+    """A tracker exception inside the helper must not abort the drift flow."""
     from schedules import drift
 
     class BoomTracker:
         def log_drift_event(self, **_: object) -> None:
             raise RuntimeError("boom")
 
+    monkeypatch.setattr(drift, "WandbTracker", BoomTracker)
+
     drift._log_drift_to_wandb(
-        tracker=BoomTracker(),
         area="DK1",
         curve_name="ENTSOE DK1 EnergyPrice",
         target_date="2026-05-21",
@@ -68,3 +70,26 @@ def test_drift_helper_swallows_tracker_errors(
         drift_detected=True,
     )
     # No exception bubbled. Nothing else to assert.
+
+
+def test_drift_helper_swallows_tracker_ctor_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A WandbTracker constructor exception must not abort the drift flow."""
+    from schedules import drift
+
+    def _raise() -> None:
+        raise ImportError("simulated broken wandb install")
+
+    monkeypatch.setattr(drift, "WandbTracker", _raise)
+
+    drift._log_drift_to_wandb(
+        area="DK1",
+        curve_name="ENTSOE DK1 EnergyPrice",
+        target_date="2026-05-21",
+        drift_score=0.12,
+        drift_threshold=0.05,
+        stat_test="ks",
+        drift_detected=True,
+    )
+    # No exception bubbled — the ctor exception was swallowed inside the helper.

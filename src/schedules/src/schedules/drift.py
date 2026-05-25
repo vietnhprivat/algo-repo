@@ -115,7 +115,6 @@ def _compute_drift(
 
 def _log_drift_to_wandb(
     *,
-    tracker: WandbTracker,
     area: str,
     curve_name: str,
     target_date: str,
@@ -125,7 +124,7 @@ def _log_drift_to_wandb(
     drift_detected: bool,
 ) -> None:
     try:
-        tracker.log_drift_event(
+        WandbTracker().log_drift_event(
             area=area,
             curve_name=curve_name,
             target_date=target_date,
@@ -220,7 +219,6 @@ def detect_drift_for_area_task(area: str) -> dict:
             current_n=len(current_prices),
         )
         _log_drift_to_wandb(
-            tracker=WandbTracker(),
             area=area,
             curve_name=curve_name,
             target_date=windows.current_end.date().isoformat(),
