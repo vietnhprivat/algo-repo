@@ -349,7 +349,7 @@ def collect_availability(window_days: int) -> dict[str, Any]:
 
 def render_markdown(report: MetricsReport) -> str:
     out: list[str] = []
-    out.append(f"# Quantitative System Metrics\n")
+    out.append("# Quantitative System Metrics\n")
     out.append(f"_Window: last {report.window_days} days. Generated: {report.generated_at_utc}._\n")
 
     out.append("\n## Operational metrics\n")
