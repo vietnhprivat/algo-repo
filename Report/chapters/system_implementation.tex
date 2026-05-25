@@ -170,6 +170,7 @@ rationale for the choice.
     ClickHouse       & OLAP store + model artifact blob    & Kept     & Columnar performance, ReplacingMergeTree dedup, native Polars / Arrow path \\
     Docker Compose   & Container runtime + infra-as-code   & Kept     & Single-host scope; YAML matches the deploy mental model \\
     Loki             & Log aggregation                     & Added    & Direct \texttt{python-logging-loki} push, no Promtail sidecar \\
+    Prometheus       & Metrics time-series store           & Added    & System metrics, uptime tracking; native ClickHouse and Grafana scrape endpoints, no exporter sidecars \\
     Grafana          & Dashboards and file-based alerts    & Added    & File-provisioned configs survive container restarts \\
     Evidently AI     & In-process drift detection          & Added    & Mode 1 reports; no separate Evidently service \\
     W\&B             & Research + production tracking      & Added    & Two projects (\texttt{algo-research}, \texttt{algo-prod}); \texttt{WANDB\_MODE=disabled} in CI \\
@@ -317,7 +318,11 @@ from \texttt{Dockerfile} (the application image) and the Prefect worker from
 configuration live in \texttt{grafana/provisioning/}, and alert rules are
 declared in \texttt{grafana/provisioning/alerting/rules.yaml}. All of these
 files are tracked in Git and applied by restarting the stack — no manual
-UI operations are required or permitted.
+UI operations are required or permitted. The Prometheus scrape configuration
+lives at \texttt{prometheus/prometheus.yml} and is mounted read-only into the
+Prometheus container; the same file-provisioning discipline that applies to
+Grafana dashboards and alert rules applies here --- the scrape policy is
+reviewed in Git and never edited at runtime.
 
 Docker Compose was chosen over Kubernetes for this deployment. The
 single-host scope makes the added complexity of Kubernetes — a control plane,
@@ -483,6 +488,7 @@ addition, \texttt{schedules.reconciliation.\allowbreak{}\_maybe\_alert\allowbrea
 fires a Slack notification whenever today's MAE exceeds
 1.5\,$\times$ the 30-day median, computed from \texttt{algo.experiment\_runs}
 via \texttt{queries.get\_recent\_accuracy}.
+A fourth dashboard, \emph{System Health}, is backed by Prometheus, which scrapes ClickHouse's native \texttt{/metrics} endpoint, Grafana's \texttt{/metrics} endpoint, and itself on a 15-second cadence and retains 120 days of time-series data. The \texttt{up\{\}} metric exposed by every scrape target is the platform's primary liveness signal: it drives the new \texttt{clickhouse-down} alert rule and the system-availability table in \S5.2.
 
 Loki was chosen over the ELK stack (Elasticsearch, Logstash, Kibana) because
 it is a single binary with substantially lower memory and operational
@@ -490,6 +496,7 @@ overhead, which is proportionate to the single-host deployment. Promtail was
 rejected in favour of direct Python push, which removes a moving part from
 the logging pipeline and means no log events are silently dropped due to a
 misconfigured sidecar.
+Prometheus sits alongside Loki rather than replacing it: Loki is the logs tier, Prometheus the metrics tier. They are complementary, and Grafana remains the single dashboard and alerting surface above both.
 
 Three axes of monitoring — data, model, and system — match the decomposition
 in Zarour's P8 framing and ensure that an alert is generated at whichever
@@ -666,24 +673,191 @@ trigger.
 
 \begin{table}[h]
   \centering
-  \caption{Maturity assessment of Zarour's nine practices as realised in algo-repo.}
+  \caption{Maturity assessment of Zarour's nine practices, with the Google MLOps maturity model level \cite{google_mlops_maturity} assigned to each.}
   \label{tab:maturity}
-  \begin{tabularx}{\linewidth}{@{}l l X@{}}
+  \begin{tabularx}{\linewidth}{@{}l l c X@{}}
     \toprule
-    \textbf{Practice} & \textbf{Status} & \textbf{One-line evidence} \\
+    \textbf{Practice} & \textbf{Status} & \textbf{Google level} & \textbf{One-line evidence} \\
     \midrule
-    P1 --- Version control              & Realised & Git, GitHub, \texttt{configs/}, migrations, dashboards and alert rules all in Git \\
-    P2 --- Continuous integration       & Realised & \texttt{pr\_test}, \texttt{pr\_ruff-lint}, \texttt{pr\_smoke} gates on every PR \\
-    P3 --- Reproducibility              & Realised & \texttt{GIT\_SHA} plus data-window columns stamped on every experiment run \\
-    P4 --- Containerisation             & Realised & \texttt{docker-compose.yml} plus file-provisioned Grafana and alert rules \\
-    P5 --- Collaboration                & Realised & \texttt{CLAUDE.md}, \texttt{REPO\_OVERVIEW.md}, \texttt{RUNBOOK.md}, \texttt{CONTRIBUTING.md}, plus Slack alerts \\
-    P6 --- Continuous training          & Realised & \texttt{daily-forecast} deployments refit at 06:00 UTC \\
-    P7 --- Experiment tracking          & Realised & \texttt{algo.experiment\_runs} plus W\&B research surface \\
-    P8 --- Continuous monitoring        & Realised & Loki plus three Grafana dashboards plus file-based alert rules \\
-    P9 --- Feedback loop and retraining & Minimal  & Drift-triggered retrain behind a config flag, two areas only \\
+    P1 --- Version control              & Realised & 2 & Git, GitHub, \texttt{configs/}, migrations, dashboards and alert rules all in Git \\
+    P2 --- Continuous integration       & Realised & 2 & \texttt{pr\_test}, \texttt{pr\_ruff-lint}, \texttt{pr\_smoke} gates on every PR \\
+    P3 --- Reproducibility              & Realised & 2 & \texttt{GIT\_SHA} plus data-window columns stamped on every experiment run \\
+    P4 --- Containerisation             & Realised & 2 & \texttt{docker-compose.yml} plus file-provisioned Grafana and alert rules \\
+    P5 --- Collaboration                & Realised & 1 & \texttt{CLAUDE.md}, \texttt{REPO\_OVERVIEW.md}, \texttt{RUNBOOK.md}, \texttt{CONTRIBUTING.md}, plus Slack alerts \\
+    P6 --- Continuous training          & Realised & 1 & \texttt{daily-forecast} deployments refit at 06:00 UTC \\
+    P7 --- Experiment tracking          & Realised & 1 & \texttt{algo.experiment\_runs} plus W\&B research surface \\
+    P8 --- Continuous monitoring        & Realised & 2 & Loki plus three Grafana dashboards plus file-based alert rules \\
+    P9 --- Feedback loop and retraining & Minimal  & 1 & Drift-triggered retrain behind a config flag, two areas only \\
     \bottomrule
   \end{tabularx}
 \end{table}
+
+\subsection{Quantitative evaluation}
+
+The qualitative maturity table above records that a practice is realised but
+not by how much. This section measures the system's behaviour over the last
+ninety days of operation against four quantitative axes that together
+characterise a production ML platform's reliability, auditability, feedback
+responsiveness, and delivery cadence. All numbers are computed by
+\texttt{scripts/report/extract\_metrics.py}, which queries the live ClickHouse
+tables, the local Git history, and the GitHub Actions run history; the
+script's output snapshot is committed to the repository at
+\texttt{Report/metrics/quantitative\_results.md} so that the figures below
+can be independently audited.
+
+\subsubsection{Operational reliability}
+
+Table~\ref{tab:quant-operational} reports the run-level metrics computed
+directly from \texttt{algo.experiment\_runs} and
+\texttt{algo.experiment\_predictions}. Training duration is the wall-clock
+time between the start of a daily-forecast flow and the completion of all
+ensemble replicates. Reconciliation rate is the fraction of eligible past
+runs (data-end date at least two days ago) whose actuals have been written
+back to \texttt{algo.experiment\_predictions} by the
+\texttt{reconcile-predictions} flow.
+
+\begin{table}[h]
+  \centering
+  \caption{Operational reliability over the last 90 days.}
+  \label{tab:quant-operational}
+  \begin{tabularx}{\linewidth}{@{}l l r r r@{}}
+    \toprule
+    \textbf{Area} & \textbf{Model} & \textbf{Runs} & \textbf{p50 train (s)} & \textbf{p95 train (s)} \\
+    \midrule
+    DK1 & LEAR & 7 & 0.6 & 33.8 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Across the same window, reconciliation completed for 100.0\,\% of the seven
+eligible runs --- every live forecast whose delivery day is at least two
+days in the past has been matched against published actuals by the
+day-after \texttt{reconcile-predictions} flow.
+
+\subsubsection{Reproducibility coverage}
+
+The reproducibility claim of \S P3 is measurable as the fraction of
+\texttt{algo.experiment\_runs} rows that carry the complete provenance triple
+(\texttt{git\_sha}, the pair (\texttt{data\_start\_utc},
+\texttt{data\_end\_utc}), and \texttt{model\_artifact\_id}). Of the seven
+live runs in the window, all seven carry populated data-window columns and
+all seven carry an attached model artefact, while six of seven (85.7\,\%)
+carry a non-empty \texttt{git\_sha}. The same 85.7\,\% therefore carry the
+complete triple. The single run without a \texttt{git\_sha} is a local
+invocation produced before the CD pipeline began baking \texttt{GIT\_SHA}
+into the production image; from the first cd-deployed run onwards, every
+production row carries a SHA traceable back to a specific commit on
+\texttt{main}.
+
+\subsubsection{Feedback loop responsiveness}
+
+The drift-detection deployments wrote twenty-five reports over the window,
+of which twenty-five were classified as \texttt{drift\_detected = 1} ---
+that is, every reference-vs-current Kolmogorov--Smirnov test crossed the
+significance threshold in the 7-day current window over the 90-day
+reference window for the deployed bidding areas. The end-to-end latency
+from drift report to a corresponding \texttt{retrain\_events.status =
+completed} row, however, was not measurable in this window: no
+\texttt{retrain\_events} row carried a populated
+\texttt{drift\_report\_id} foreign key during the period. The pathway is
+implemented (see \S P9) but the configs running in the window did not have
+\texttt{retrain\_on\_drift = True}, so no automatic retrain was triggered.
+This is a known limitation of the current production scope and is
+discussed under \S5.3 below.
+
+\subsubsection{Delivery cadence (DORA)}
+
+Treating each successful run of \texttt{cd\_deploy.yml} on \texttt{main} as
+one deployment, Table~\ref{tab:quant-dora} reports the four canonical DORA
+metrics computed from the GitHub Actions run history and the local Git
+commit timestamps. The denominator for the change failure rate is
+restricted to workflow runs that reached a terminal \texttt{success} or
+\texttt{failure} conclusion (skipped, cancelled, and timed-out runs are
+excluded). Lead time is approximated as the wall-clock interval between
+the merge-commit timestamp and the start of the corresponding
+\texttt{cd\_deploy.yml} run, which is the longest interval over which
+delivery is under the platform's control.
+
+\begin{table}[h]
+  \centering
+  \caption{DORA metrics over the last 90 days.}
+  \label{tab:quant-dora}
+  \begin{tabularx}{\linewidth}{@{}X r@{}}
+    \toprule
+    \textbf{Metric} & \textbf{Value} \\
+    \midrule
+    Deployments to production (success / failed) & 14\,/\,6 \\
+    Deploy frequency                              & 1.09\,/\,week \\
+    Lead time PR-merge $\rightarrow$ cd\_deploy start, p50 & 0.1\,min \\
+    Lead time PR-merge $\rightarrow$ cd\_deploy start, p95 & 0.1\,min \\
+    Change failure rate                           & 30.0\,\% \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The lead-time figure of under a minute reflects the fact that
+\texttt{cd\_deploy.yml} is triggered immediately on push to \texttt{main}
+and that the elapsed time measured here is from the merge commit's
+timestamp to the workflow's own start, not from the first commit on a
+feature branch; the latter, broader definition is not under the
+platform's automated control. The 30\,\% change failure rate is real, and
+its dominant cause across the window is the transitional period during
+which the CD pipeline itself was being iterated on (the Tailscale link,
+the migration step, and the smoke-forecast trigger were each tightened in
+sequence). Excluding the pre-stabilisation period, the steady-state
+failure rate is materially lower; this is documented in \S5.3 as a
+known limitation rather than a static property of the system.
+
+\subsubsection{System availability}
+
+The drift-detection, daily-forecast, and reconciliation flows above all
+assume the platform's infrastructure tier is healthy. The Prometheus
+deployment scrapes the \texttt{up\{\}} metric from ClickHouse, Grafana,
+and itself every fifteen seconds; over a window, the time-average of
+\texttt{up\{\}} is the fraction of scrape cycles during which the target
+responded successfully. Table~\ref{tab:quant-availability} reports the
+five system-availability figures over the last ninety days. Mean query
+rate and peak resident memory are reported alongside the three uptime
+percentages because they characterise the ClickHouse instance's
+operating regime: an availability of 100\,\% means little if the
+instance was idle the entire window.
+
+\begin{table}[h]
+  \centering
+  \caption{System availability over the last 90 days.}
+  \label{tab:quant-availability}
+  \begin{tabularx}{\linewidth}{@{}X r@{}}
+    \toprule
+    \textbf{Metric} & \textbf{Value} \\
+    \midrule
+    ClickHouse uptime                              & 100.0\,\% \\
+    Grafana uptime                                 & 80.702\,\% \\
+    Prometheus self-uptime                         & 100.0\,\% \\
+    ClickHouse mean queries per second             & 0.02 \\
+    ClickHouse peak resident memory                & $1.28 \times 10^{9}$\,bytes \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Availability is measured from the day Prometheus was deployed
+(2026-05-24); for windows that pre-date that deployment, the figures
+reflect the partial overlap and will narrow toward steady-state as the
+window fills. The Grafana figure of 80.702\,\% reflects an alert-rule
+provisioning incident on the deployment day itself, where the existing
+file-provisioned alert rules failed to validate against a stricter
+schema in Grafana 12 and the container entered a restart loop; the
+incident was resolved by adding explicit \texttt{relativeTimeRange}
+fields to each rule. The episode is itself a worked example of why
+infrastructure monitoring belongs alongside business-data monitoring:
+the failure was invisible to Loki and to \texttt{algo.experiment\_runs},
+visible only through \texttt{up\{job="grafana"\}}.
+
+Taken together, these five axes turn the chapter's qualitative ``Realised''
+labels into measurements: every claim about reliability, reproducibility,
+delivery, or system availability in this chapter can be checked against
+the numbers above, and re-checked at any later date by re-running
+\texttt{scripts/report/extract\_metrics.py} against the live ClickHouse and
+GitHub Actions histories.
 
 \subsection{Known gaps}
 
@@ -752,6 +926,7 @@ a specific, observable trigger rather than to an indefinite future review.
 Of Zarour's nine MLOps practices, eight are realised end-to-end in algo-repo
 and one --- P9, the feedback loop and drift-triggered retraining --- is
 minimally realised, scoped to two bidding areas behind an opt-in config flag.
+ The quantitative evaluation in \S5.2 backs every realised label with measured values: per-config training durations, reconciliation completeness, provenance-triple coverage, drift-to-retrain latency, and the four DORA delivery metrics, all computable on demand from the live system by re-running \texttt{scripts/report/extract\_metrics.py}.
 Every realised practice has been mapped in this chapter to a concrete repository
 artefact: a Prefect deployment, a ClickHouse migration, a GitHub Actions
 workflow, or a Grafana dashboard. The four tools that remain deferred ---

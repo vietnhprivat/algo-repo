@@ -10,6 +10,9 @@ groups:
         condition: A
         data:
           - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
             datasourceUid: clickhouse
             model:
               rawSql: |
@@ -27,6 +30,9 @@ groups:
         condition: A
         data:
           - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
             datasourceUid: clickhouse
             model:
               rawSql: |
@@ -45,6 +51,9 @@ groups:
         condition: A
         data:
           - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
             datasourceUid: clickhouse
             model:
               rawSql: |
@@ -57,3 +66,22 @@ groups:
           summary: No reconciled run in the last 36 hours (no_recent_reconciliation=1)
         labels:
           severity: error
+
+      - uid: clickhouse-down
+        title: ClickHouse unreachable
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: up{job="clickhouse"} == 0
+              instant: true
+              refId: A
+        for: 5m
+        annotations:
+          summary: ClickHouse has been unreachable for 5 minutes (up{job=clickhouse}=0).
+        labels:
+          severity: critical

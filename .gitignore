@@ -54,6 +54,8 @@ poetry.lock
 # data files
 *.csv
 *.json
+# but track Grafana dashboard definitions
+!grafana/dashboards/*.json
 
 results/
 

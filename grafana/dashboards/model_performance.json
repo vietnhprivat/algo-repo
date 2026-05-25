@@ -1,0 +1,321 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT toDate(created_utc) AS time, 'MAE' AS metric, avg(JSONExtractFloat(metrics_json, 'mae')) AS value\nFROM algo.experiment_runs FINAL\nWHERE area = '${area}'\n  AND metrics_json != '{}'\n  AND created_utc >= now() - INTERVAL 30 DAY\nGROUP BY time\nUNION ALL\nSELECT toDate(created_utc) AS time, 'RMSE' AS metric, avg(JSONExtractFloat(metrics_json, 'rmse')) AS value\nFROM algo.experiment_runs FINAL\nWHERE area = '${area}'\n  AND metrics_json != '{}'\n  AND created_utc >= now() - INTERVAL 30 DAY\nGROUP BY time\nUNION ALL\nSELECT toDate(created_utc) AS time, 'sMAPE' AS metric, avg(JSONExtractFloat(metrics_json, 'smape')) AS value\nFROM algo.experiment_runs FINAL\nWHERE area = '${area}'\n  AND metrics_json != '{}'\n  AND created_utc >= now() - INTERVAL 30 DAY\nGROUP BY time\nORDER BY time, metric",
+          "refId": "A"
+        }
+      ],
+      "title": "Daily Accuracy Metrics",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT ep.timestamp_utc AS time, 'Actual' AS metric, any(ep.actual) AS value\nFROM algo.experiment_predictions AS ep FINAL\nINNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id\nWHERE er.area = '${area}'\n  AND toDate(ep.timestamp_utc) = toDate('${forecast_date}')\nGROUP BY time\nUNION ALL\nSELECT ep.timestamp_utc AS time, 'Predicted' AS metric, any(ep.predicted) AS value\nFROM algo.experiment_predictions AS ep FINAL\nINNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id\nWHERE er.area = '${area}'\n  AND toDate(ep.timestamp_utc) = toDate('${forecast_date}')\nGROUP BY time\nORDER BY time, metric",
+          "refId": "A"
+        }
+      ],
+      "title": "Predicted Vs Actual Overlay",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT toDate(created_utc) AS time, count() AS daily_runs\nFROM algo.experiment_runs FINAL\nWHERE area = '${area}'\n  AND created_utc >= now() - INTERVAL 30 DAY\nGROUP BY time\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Prediction Coverage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "always",
+            "pointSize": 5
+          },
+          "min": 0,
+          "max": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "drift_threshold"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [10, 10],
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT created_utc AS time, drift_score, drift_threshold\nFROM algo.drift_reports FINAL\nWHERE area = '${area}'\n  AND created_utc >= now() - INTERVAL 30 DAY\nORDER BY created_utc",
+          "refId": "A"
+        }
+      ],
+      "title": "Price Drift Score (last 30 days)",
+      "description": "Daily drift score comparing the last 7 days of day-ahead prices to the prior 90 days, via Evidently's DataDriftPreset. The statistical test (K-S p-value for small samples, Wasserstein distance for large) is auto-selected by Evidently — see the stat_test column in algo.drift_reports. Drift is flagged when drift_detected=1; the dashed red line marks the test's own threshold.",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "algo-repo",
+    "model-performance"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "DK1",
+          "value": "DK1"
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "definition": "SELECT DISTINCT area FROM algo.experiment_runs FINAL ORDER BY area",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Area",
+        "multi": false,
+        "name": "area",
+        "options": [],
+        "query": "SELECT DISTINCT area FROM algo.experiment_runs FINAL ORDER BY area",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "2026-04-10",
+          "value": "2026-04-10"
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "definition": "SELECT DISTINCT toDate(timestamp_utc) AS forecast_date FROM algo.experiment_predictions AS ep FINAL INNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id WHERE er.area = '${area}' ORDER BY forecast_date DESC",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Forecast Date",
+        "multi": false,
+        "name": "forecast_date",
+        "options": [],
+        "query": "SELECT DISTINCT toDate(timestamp_utc) AS forecast_date FROM algo.experiment_predictions AS ep FINAL INNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id WHERE er.area = '${area}' ORDER BY forecast_date DESC",
+        "refresh": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Model Performance",
+  "uid": "algo-model-performance",
+  "version": 1,
+  "weekStart": ""
+}

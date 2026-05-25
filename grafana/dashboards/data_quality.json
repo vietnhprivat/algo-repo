@@ -1,0 +1,269 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT toStartOfHour(max(timestamp_utc)) AS time, curve_name AS metric, dateDiff('hour', max(timestamp_utc), now()) AS freshness_hours\nFROM algo.timeseries FINAL\nWHERE area = '${area}'\nGROUP BY curve_name\nORDER BY curve_name",
+          "refId": "A"
+        }
+      ],
+      "title": "Freshness By Curve",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT day AS time, table_name AS metric, row_count AS value\nFROM (\n  SELECT toDate(timestamp_utc) AS day, 'timeseries' AS table_name, count() AS row_count\n  FROM algo.timeseries FINAL\n  WHERE area = '${area}' AND timestamp_utc >= now() - INTERVAL 30 DAY\n  GROUP BY day\n  UNION ALL\n  SELECT toDate(timestamp_utc) AS day, 'forecasts' AS table_name, count() AS row_count\n  FROM algo.forecasts FINAL\n  WHERE area = '${area}' AND timestamp_utc >= now() - INTERVAL 30 DAY\n  GROUP BY day\n  UNION ALL\n  SELECT toDate(timestamp_utc) AS day, 'experiment_predictions' AS table_name, count() AS row_count\n  FROM algo.experiment_predictions AS ep FINAL\n  INNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id\n  WHERE er.area = '${area}' AND timestamp_utc >= now() - INTERVAL 30 DAY\n  GROUP BY day\n)\nORDER BY time, metric",
+          "refId": "A"
+        }
+      ],
+      "title": "Daily Row Counts",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "showPoints": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT toDate(timestamp_utc) AS time, countIf(value = 0) AS zero_values\nFROM algo.timeseries FINAL\nWHERE area = '${area}'\n  AND curve_name LIKE 'ENTSOE ${area} EnergyPrice %'\n  AND timestamp_utc >= now() - INTERVAL 30 DAY\nGROUP BY time\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Zero Value Counts",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT day AS time, greatest(24 - observed_hours, 0) AS missing_hours\nFROM (\n  SELECT toDate(timestamp_utc) AS day, countDistinct(toHour(timestamp_utc)) AS observed_hours\n  FROM algo.timeseries FINAL\n  WHERE area = '${area}'\n    AND curve_name LIKE 'ENTSOE ${area} EnergyPrice %'\n    AND timestamp_utc >= now() - INTERVAL 30 DAY\n  GROUP BY day\n)\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Missing Energy Price Hours",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "algo-repo",
+    "data-quality"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "DK1",
+          "value": "DK1"
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "definition": "SELECT DISTINCT area FROM algo.timeseries FINAL ORDER BY area",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Area",
+        "multi": false,
+        "name": "area",
+        "options": [],
+        "query": "SELECT DISTINCT area FROM algo.timeseries FINAL ORDER BY area",
+        "refresh": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Data Quality",
+  "uid": "algo-data-quality",
+  "version": 1,
+  "weekStart": ""
+}
