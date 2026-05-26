@@ -47,6 +47,38 @@ class TestBacktestEngineSliceData:
         with pytest.raises(ValueError, match="Not enough training data"):
             self.engine._slice_data(self.features, self.targets, target_date, 30)
 
+    def test_slice_data_skips_calendar_gaps(self):
+        """When some calendar days are missing, slice returns the last window_size
+        available rows regardless of the calendar span they cover."""
+        # Construct a feature frame with a 5-day gap in the middle:
+        # 2024-01-01 .. 2024-01-10 (10 days), 2024-01-16 .. 2024-01-25 (10 days),
+        # 2024-01-26 = target. Total available pre-target rows: 20.
+        dates = pd.date_range("2024-01-01", "2024-01-10", freq="D").union(
+            pd.date_range("2024-01-16", "2024-01-26", freq="D")
+        )
+        features = pd.DataFrame(
+            {"f1": range(len(dates))}, index=dates
+        )
+        targets = pd.DataFrame(
+            {"t1": range(len(dates))}, index=dates
+        )
+        target_date = pd.Timestamp("2024-01-26")
+        engine = BacktestEngine(self.config)
+
+        # window_size = 15: 15 most recent available rows before 2024-01-26
+        feat_train, tgt_train, feat_test = engine._slice_data(
+            features, targets, target_date, window_size=15
+        )
+        assert feat_train.shape[0] == 15
+        assert tgt_train.shape[0] == 15
+        assert feat_test.shape[0] == 1
+        # The 15 rows should be the 15 most recent — i.e. all 10 rows from the
+        # second contiguous block (2024-01-16..2024-01-25) plus the last 5 rows
+        # of the first block (2024-01-06..2024-01-10). Verify by checking the
+        # first row of the slice corresponds to 2024-01-06's `f1` value.
+        # 2024-01-06 is index 5 in the original dates (0..9 = first 10 days).
+        assert feat_train[0, 0] == 5  # f1 value at 2024-01-06
+
 
 class TestBacktestEngineRun:
     def test_run_returns_forecasts_and_actuals(self, tmp_path):
