@@ -13,14 +13,15 @@ config = ExperimentConfig(
     refit_interval_days=1,
     exogenous_curve_types=["TotalLoad"],
     target_scaler="asinh",
-    # Replace with `forecast-cli tune de_dnn` best_params.
+    # Tuned via `forecast-cli tune de_dnn -n 20 --study-name de_dnn_tune_v3`
+    # (val MAE 20.50 on trial 18). See algo.hyperparam_trials for the full study.
     model_params={
-        "hidden_units": 256,
-        "activation": "relu",
-        "dropout": 0.1,
-        "learning_rate": 1e-3,
+        "hidden_units": 58,
+        "activation": "elu",
+        "dropout": 0.13216185974066028,
+        "learning_rate": 0.004855834388063902,
         "batch_norm": False,
-        "l1_reg": 1e-4,
+        "l1_reg": 0.0005710947096868873,
         "epochs": 200,
         "early_stopping_patience": 20,
     },

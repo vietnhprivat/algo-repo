@@ -14,14 +14,15 @@ config = ExperimentConfig(
     refit_interval_days=1,
     exogenous_curve_types=["TotalLoad"],
     target_scaler="asinh",
-    # Replace with `forecast-cli tune dk1_dnn` best_params.
+    # Tuned via `forecast-cli tune dk1_dnn -n 35 --study-name dk1_dnn_tune_v2`
+    # (val MAE 21.24 on trial 26). See algo.hyperparam_trials for the full study.
     model_params={
-        "hidden_units": 256,
-        "activation": "relu",
-        "dropout": 0.1,
-        "learning_rate": 1e-3,
+        "hidden_units": 198,
+        "activation": "tanh",
+        "dropout": 0.02680613227742755,
+        "learning_rate": 0.000627980254004135,
         "batch_norm": False,
-        "l1_reg": 1e-4,
+        "l1_reg": 0.0006727849421606088,
         "epochs": 200,
         "early_stopping_patience": 20,
     },
