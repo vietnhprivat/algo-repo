@@ -18,7 +18,11 @@ config = ExperimentConfig(
     results_dir="results",
     test_start_date="2026-01-01",
     test_end_date="2026-03-22",
-    calibration_windows=[1092],
+    # DE's 15-min resolution + DST gaps cascade through the sequence-based
+    # Transformer preprocessing, leaving only ~481 usable rows (vs DK1's
+    # 1226). 365d is the largest window that fits. Asymmetric vs
+    # dk1_transformer's 1092 — documented data-sparsity footnote in thesis.
+    calibration_windows=[365],
     refit_interval_days=7,
     exogenous_curve_types=_EXOG,
     target_scaler="asinh",
