@@ -1,5 +1,5 @@
 # Quantitative System Metrics
-_Window: last 90 days. Generated: 2026-05-24T12:48:49+00:00._
+_Window: last 90 days. Generated: 2026-05-27T22:33:36+00:00._
 
 ## Operational metrics
 
@@ -7,43 +7,36 @@ _Window: last 90 days. Generated: 2026-05-24T12:48:49+00:00._
 
 | Area | Model | Runs | p50 train (s) | p95 train (s) |
 |---|---|---|---|---|
-| DK1 | lear | 7 | 0.6 | 33.8 |
+| DE | dnn | 1 | 4.4 | 4.4 |
+| DE | transformer | 1 | 9.1 | 9.1 |
+| DK1 | dnn | 1 | 5.6 | 5.6 |
+| DK1 | lear | 11 | 32.5 | 35.1 |
+| DK1 | transformer | 1 | 11.3 | 11.3 |
 
 ### Reconciliation completeness
 
-- Eligible runs (forecast day already in the past by ≥2 days): **7**
-- Reconciled (at least one actual logged): **7**
+- Eligible runs (forecast day already in the past by ≥2 days): **10**
+- Reconciled (at least one actual logged): **10**
 - Reconciliation rate: **100.0%**
 
 ## Reproducibility coverage
 
-- Total live runs in window: **7**
-- With non-empty `git_sha`: **85.7%**
+- Total live runs in window: **15**
+- With non-empty `git_sha`: **66.7%**
 - With `data_start_utc` populated: **100.0%**
 - With `data_end_utc` populated: **100.0%**
 - With `model_artifact_id` populated: **100.0%**
-- With the full provenance triple: **85.7%**
+- With the full provenance triple: **66.7%**
 
-## Feedback loop
+## Drift monitoring
 
-- Drift reports written: **27**
-- Drift detections (`drift_detected = 1`): **27**
-- Completed drift→retrain pairs: **0**
-- p50 drift-to-completed latency: **N/A min**
-- p95 drift-to-completed latency: **N/A min**
+- Drift reports written: **35**
+- Drift detections (`drift_detected = 1`): **35**
 
-## DORA metrics
+## DORA delivery throughput
 
-- Deployments in window: **20** (14 success / 6 failed)
-- Deploy frequency: **1.09/week**
+- Successful deployments in window: **19**
+- Deploy frequency: **1.48/week**
 - Lead time PR-merge → cd_deploy start (p50): **0.1 min**
 - Lead time (p95): **0.1 min**
-- Change failure rate: **30.0%**
-
-## System availability (Prometheus)
-
-- ClickHouse uptime: **100.0%**
-- Grafana uptime: **80.702%**
-- Prometheus self-uptime: **100.0%**
-- ClickHouse mean queries/sec: **0.02**
-- ClickHouse peak resident memory: **1276919808.0 bytes**
+- Change failure rate / MTTR: **not reported** (no incident corpus in window)
