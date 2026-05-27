@@ -14,8 +14,10 @@ config = ExperimentConfig(
     refit_interval_days=1,
     exogenous_curve_types=["TotalLoad"],
     target_scaler="asinh",
-    # Tuned via `forecast-cli tune dk1_dnn -n 35 --study-name dk1_dnn_tune_v2`
-    # (val MAE 21.24 on trial 26). See algo.hyperparam_trials for the full study.
+    # Tuned via `forecast-cli tune dk1_dnn -n 50 --study-name dk1_dnn_tune_v3`
+    # (val MAE 21.24 on trial 26). Optimum found early and stable: a 50-trial
+    # TPE search did not improve on the value first located at trial 26.
+    # See algo.hyperparam_trials for the full study.
     model_params={
         "hidden_units": 198,
         "activation": "tanh",
