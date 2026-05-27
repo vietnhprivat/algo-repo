@@ -495,7 +495,7 @@ addition, \texttt{schedules.reconciliation.\allowbreak{}\_maybe\_alert\allowbrea
 fires a Slack notification whenever today's MAE exceeds
 1.5\,$\times$ the 30-day median, computed from \texttt{algo.experiment\_runs}
 via \texttt{queries.get\_recent\_accuracy}.
-A fourth dashboard, \emph{System Health}, is backed by Prometheus, which scrapes ClickHouse's native \texttt{/metrics} endpoint, Grafana's \texttt{/metrics} endpoint, and itself on a 15-second cadence and retains 120 days of time-series data. The \texttt{up\{\}} metric exposed by every scrape target is the platform's primary liveness signal: it drives the new \texttt{clickhouse-down} alert rule and the system-availability table in \S5.2.
+A fourth dashboard, \emph{System Health}, is backed by Prometheus, which scrapes ClickHouse's native \texttt{/metrics} endpoint, Grafana's \texttt{/metrics} endpoint, and itself on a 15-second cadence and retains 120 days of time-series data. The \texttt{up\{\}} metric exposed by every scrape target is the platform's primary liveness signal: it drives the new \texttt{clickhouse-down} alert rule.
 
 Loki was chosen over the ELK stack (Elasticsearch, Logstash, Kibana) because
 it is a single binary with substantially lower memory and operational
@@ -871,7 +871,7 @@ a specific, observable trigger rather than to an indefinite future review.
 Of Zarour's nine MLOps practices, eight are realised end-to-end in algo-repo
 and one --- P9, the feedback loop and drift-triggered retraining --- is
 minimally realised, scoped to two bidding areas behind an opt-in config flag.
- The quantitative evaluation in \S5.2 backs every realised label with measured values: per-config training durations, reconciliation completeness, provenance-triple coverage, drift-to-retrain latency, and the four DORA delivery metrics, all computable on demand from the live system by re-running \texttt{scripts/report/extract\_metrics.py}.
+ The quantitative evaluation in \S5.2 backs every realised label with measured values: an ML Test Score with a per-section breakdown, provenance-triple coverage validated by a live re-run, drift-detection counts, and DORA delivery throughput (deployment frequency and lead time), all computable on demand from the live system by re-running \texttt{scripts/report/extract\_metrics.py}.
 Every realised practice has been mapped in this chapter to a concrete repository
 artefact: a Prefect deployment, a ClickHouse migration, a GitHub Actions
 workflow, or a Grafana dashboard. The four tools that remain deferred ---

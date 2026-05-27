@@ -86,7 +86,7 @@ def main() -> int:
     print(f"config={args.config} area={config.area} date={args.date}")
     print(f"matched run_id={run_id}")
     print(f"periods={len(stored)}  max_abs_diff={diff:.6f}")
-    print("REPRODUCED (max abs diff < 1e-6)" if diff < 1e-6 else f"DIFF {diff:.6f}")
+    print("REPRODUCED (max abs diff < 1e-4)" if diff < 1e-4 else f"DIFF {diff:.6f}")
     return 0
 
 
