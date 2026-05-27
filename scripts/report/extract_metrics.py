@@ -161,7 +161,7 @@ def collect_reproducibility(client, window_days: int) -> dict[str, Any]:
 
 
 def collect_feedback_loop(client, window_days: int) -> dict[str, Any]:
-    """Drift events, retrain trigger rate, drift-to-completed latency."""
+    """Drift event counts over the window (reports written + detections)."""
     drift_row = client.query(
         """
         SELECT
@@ -179,7 +179,7 @@ def collect_feedback_loop(client, window_days: int) -> dict[str, Any]:
 
 
 def collect_dora(window_days: int) -> dict[str, Any]:
-    """DORA: deployment frequency, lead time, change failure rate.
+    """DORA delivery throughput: deployment frequency and lead time.
 
     Source of truth is the GitHub Actions cd_deploy.yml workflow history,
     treated as one deploy per successful run. Lead time approximated as
