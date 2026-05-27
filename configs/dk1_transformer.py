@@ -1,13 +1,7 @@
 """DK1 day-ahead forecasting config — pure-Transformer model
 (Llorente & Portela, 2025).
 
-NOT a production deployment: this config is not present in
-src/schedules/src/schedules/deploy_forecast.py:FORECAST_CONFIGS. It exists so
-the Transformer implementation can be exercised via:
-
-    uv run python -m forecast_cli.main backtest dk1_transformer
-    uv run python -m forecast_cli.main predict  dk1_transformer -d <YYYY-MM-DD>
-
+Production deployment defined in src/schedules/src/schedules/deploy_forecast.py:FORECAST_CONFIGS.
 Defaults below follow the paper's Nord Pool / EPEX search ranges.
 """
 

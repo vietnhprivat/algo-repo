@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from price_forecasting.models.lightning_base import LightningModel
+from price_forecasting.models.base import LightningModel
 
 _ACTIVATIONS: dict[str, type[nn.Module]] = {
     "relu": nn.ReLU,

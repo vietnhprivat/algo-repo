@@ -6,9 +6,6 @@ import numpy as np
 from price_forecasting.models import get_model, BaseModel
 from price_forecasting.models.lear import LearModel
 from price_forecasting.models.dnn import DNNModel
-from price_forecasting.models.random_forest import RandomForestModel
-from price_forecasting.models.xgboost_model import XGBoostModel
-
 from tests.price_forecasting.conftest import StubModel
 
 
@@ -123,56 +120,6 @@ class TestDNNModelInterface:
         X, y = self._make_data(n_samples=20, n_features=6)
         with pytest.raises(ValueError, match="Unknown activation"):
             model.fit(X, y)
-
-
-class TestRandomForestModelInterface:
-    def _make_data(self, n_samples: int = 50, n_features: int = 10, n_periods: int = 24):
-        rng = np.random.default_rng(1)
-        return rng.standard_normal((n_samples, n_features)), rng.standard_normal((n_samples, n_periods))
-
-    def test_predict_before_fit_raises(self):
-        model = RandomForestModel()
-        with pytest.raises(RuntimeError, match="must be fit"):
-            model.predict_day(np.random.randn(1, 10))
-
-    def test_fit_and_predict_shape(self):
-        model = RandomForestModel(n_estimators=5)
-        X, y = self._make_data()
-        model.fit(X, y)
-        pred = model.predict_day(X[:1])
-        assert pred.shape == (24,)
-
-    def test_registry(self):
-        model = get_model("rf", n_estimators=5)
-        assert isinstance(model, RandomForestModel)
-
-
-class TestXGBoostModelInterface:
-    def _make_data(self, n_samples: int = 50, n_features: int = 10, n_periods: int = 24):
-        rng = np.random.default_rng(2)
-        return rng.standard_normal((n_samples, n_features)), rng.standard_normal((n_samples, n_periods))
-
-    def test_predict_before_fit_raises(self):
-        model = XGBoostModel()
-        with pytest.raises(RuntimeError, match="must be fit"):
-            model.predict_day(np.random.randn(1, 10))
-
-    def test_fit_and_predict_shape(self):
-        model = XGBoostModel(n_estimators=10, early_stopping_rounds=3)
-        X, y = self._make_data()
-        model.fit(X, y)
-        pred = model.predict_day(X[:1])
-        assert pred.shape == (24,)
-
-    def test_resolution_aware_96_periods(self):
-        model = XGBoostModel(n_estimators=10, early_stopping_rounds=3)
-        X, y = self._make_data(n_periods=96)
-        model.fit(X, y)
-        assert model.predict_day(X[:1]).shape == (96,)
-
-    def test_registry(self):
-        model = get_model("xgboost", n_estimators=5)
-        assert isinstance(model, XGBoostModel)
 
 
 class TestLearModelInterface:

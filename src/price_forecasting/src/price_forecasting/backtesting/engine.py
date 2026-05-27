@@ -37,12 +37,9 @@ class BacktestEngine:
                 f"Target date {target_date.date()} not found in feature index."
             )
 
-        start_date = target_date - pd.Timedelta(days=window_size)
-        end_date = target_date - pd.Timedelta(days=1)
-
-        train_mask = (features.index >= start_date) & (features.index <= end_date)
-        features_train_frame = features.loc[train_mask]
-        targets_train_frame = targets.loc[train_mask]
+        pre_target = features.index < target_date
+        features_train_frame = features.loc[pre_target].tail(window_size)
+        targets_train_frame = targets.loc[pre_target].tail(window_size)
         features_test_frame = features.loc[[target_date]]
 
         if len(features_train_frame) < window_size:

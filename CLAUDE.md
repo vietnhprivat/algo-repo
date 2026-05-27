@@ -17,7 +17,7 @@ src/
   price_forecasting/         # Electricity price forecasting models and evaluation
     backtesting/             # BacktestEngine, BacktestRunner, splitting logic
     evaluation/              # Metrics (MAE, RMSE, sMAPE, rMAE) and summary functions
-    models/                  # LEAR, DNN, BaseModel, model registry
+    models/                  # LEAR, DNN, Transformer + base/ (BaseModel, LightningModel) + registry
     configs/                 # ExperimentConfig dataclass
     data/                    # ClickHouse loader and preprocessor
     live_runner.py           # LiveRunner for single-date predictions
@@ -107,7 +107,7 @@ tests/                       # Mirrors src/ structure
 ### Feature Engineering (price_forecasting/data/)
 - **FeatureTransformer pipeline**: `DataPreprocessor` applies a list of `FeatureTransformer` objects in order. Each transformer gets `(hourly_df, daily_prices_df) -> pd.DataFrame`. Results are `pd.concat`'d column-wise. Override via `ExperimentConfig.feature_transformers`.
 - **LEAR defaults**: `default_transformers_for_model(exogenous_columns)` returns `[PriceLagTransformer, ExogenousLagTransformer, CalendarDummyTransformer]` — bit-identical to the research paper. Never change these defaults; add new transformers alongside them.
-- **Transformer model**: A pure-Transformer EPF model (Llorente & Portela, 2025) is available as `model_type="transformer"` via `TransformerModel`. It requires `default_transformers_for_transformer(exogenous_columns, sequence_length_days)` as the feature pipeline (wide feature vector layout is positional, not name-based). The model is intentionally not registered in `FORECAST_CONFIGS` — run via `uv run python -m forecast_cli.main backtest dk1_transformer`.
+- **Transformer model**: A pure-Transformer EPF model (Llorente & Portela, 2025) is available as `model_type="transformer"` via `TransformerModel`. It requires `default_transformers_for_transformer(exogenous_columns, sequence_length_days)` as the feature pipeline (wide feature vector layout is positional, not name-based). Both `dk1_transformer` and `de_transformer` are deployed in `FORECAST_CONFIGS`. `de_transformer` uses a 365-day calibration window (vs DK1's 1092) because DE's 15-min sequence preprocessing leaves far fewer usable rows.
 - **Feature explosion**: adding an exogenous curve adds `3 × n_periods` columns (d0, d-1, d-7 lags). Formula: `4×24 + n_exog×3×24 + 7 = 103 + 72k` for hourly. This is by design for LEAR (Lasso handles the explosion). For deep models, use `MeanWeeklyForecastTransformer` or `CyclicalTimeTransformer` instead to keep dimensionality low.
 - **Cyclical encoding**: `CyclicalTimeTransformer` encodes annual seasonality as `sin/cos(2π × dayofyear / 365.25)` — 2 columns instead of 365. Use for models that benefit from smooth temporal features. Not in LEAR defaults (calendar dummies are sufficient for Lasso).
 - **Circular import between transformers and preprocessor**: `transformers.py` imports `pivot_to_daily` from `preprocessor.py`. `preprocessor.py` must import `default_transformers_for_model` as a **lazy local import** inside `__init__` to avoid the circular dependency.

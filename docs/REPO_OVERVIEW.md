@@ -10,7 +10,9 @@
 > conventions / hard rules) or `DEPLOYMENT.md` (ops runbook). It is a deep
 > **reference** about *what exists and how it fits together*.
 >
-> Last refreshed against PR #78 (May 2026 — W&B research observability layer).
+> Last refreshed May 2026 — model cleanup (dropped XGBoost/RandomForest),
+> `models/base/` subpackage, DNN + Transformer deployed (6 forecast flows),
+> engine `_slice_data` switched to "last N available rows".
 
 ---
 
@@ -107,7 +109,7 @@ them up on next run.
 | Orchestrator | Prefect 3.x | Docker work pool, ephemeral flow containers |
 | ML — baseline | scikit-learn (`Lasso`, `LassoCV`) | One Lasso per period (24 or 96) |
 | ML — DNN | PyTorch + Lightning | `LightningModel` base for DNN/Transformer work; seed-varied ensemble averaging in `LiveRunner` |
-| ML — boosted | XGBoost | Wrapped via `GBTModel` |
+| ML — Transformer | PyTorch + Lightning | Pure-Transformer EPF model (Llorente & Portela 2025), subclasses `LightningModel` |
 | ML — tuning | Optuna 4.x (TPE multivariate) | `forecast-cli tune`; trials persisted to `algo.hyperparam_trials` |
 | ML — scaling | sklearn `StandardScaler` + custom `AsinhScaler` | Target scaler selected by `ExperimentConfig.target_scaler` |
 | DataFrames | Polars (ingest path) + pandas (forecast path) | Domain models use Polars; preprocessor/engine use pandas |
@@ -169,7 +171,7 @@ algo-repo/
 │   │   └── src/price_forecasting/
 │   │       ├── configs/experiment.py        # ExperimentConfig dataclass (+ val dates, target_scaler, n_dnn_ensemble, retrain_on_drift)
 │   │       ├── data/{clickhouse_loader,preprocessor,transformers,asinh_scaler}.py
-│   │       ├── models/                      # base / lear / dnn / gbt_* / rf / sklearn_base / lightning_base
+│   │       ├── models/                      # base/ (abstract.py, lightning.py) + lear / dnn / transformer
 │   │       ├── backtesting/{engine,runner,splitting}.py   # splitting.py adds three-way date splitter
 │   │       ├── evaluation/{metrics,summary,statistical_tests}.py   # DM + multivariate GW + DM/GW matrix
 │   │       ├── tuning/{dnn_search,objective,optuna_storage}.py     # Optuna TPE + ClickHouse persistence
@@ -552,27 +554,35 @@ Bit-identical to the LEAR paper. Override via `ExperimentConfig.feature_transfor
 
 ### 8.4 Models
 
-Common base + three mid-level abstractions:
+Common base classes live in the `models/base/` subpackage; concrete models
+sit alongside it:
 
 ```
-BaseModel(ABC)                  # base.py — fit(features, targets) / predict_day(features) → np.ndarray of length n_periods
-  ├── SklearnModel(ABC)         # sklearn_base.py — for native multi-output sklearn estimators
-  │     └── RandomForestModel
-  ├── GBTModel(ABC)             # gbt_base.py — trains one estimator per period; eval_set hook
-  │     └── XGBoostModel
-  ├── LightningModel(ABC)       # lightning_base.py — handles full Lightning Trainer loop
-  │     └── DNNModel            # dnn.py — feedforward (256, 256) by default
-  └── LearModel                 # lear.py — direct; one Lasso(per period); supports LassoCV when alpha is None/"auto"
+models/base/                    # framework abstractions
+  ├── abstract.py → BaseModel(ABC)   # fit(features, targets) / predict_day(features) → np.ndarray of length n_periods
+  └── lightning.py → LightningModel(ABC)  # full Lightning Trainer loop
+models/
+  ├── LearModel        # lear.py — direct; one Lasso(per period); supports LassoCV when alpha is None/"auto"
+  ├── DNNModel         # dnn.py — feedforward, subclasses LightningModel
+  └── TransformerModel # transformer.py — pure-Transformer EPF (Llorente & Portela 2025), subclasses LightningModel
 ```
+
+Both `BaseModel` and `LightningModel` are re-exported from
+`price_forecasting.models.base`, so callers import them from that path
+regardless of which module they physically live in.
+
+> **History.** XGBoost (`GBTModel`/`gbt_base.py`) and RandomForest
+> (`SklearnModel`/`sklearn_base.py`) were removed — they were never wired into
+> `FORECAST_CONFIGS` and were not part of the thesis evaluation. The registry
+> now holds only the three deployed families.
 
 Model registry & factory (`models/__init__.py`):
 
 ```python
 MODEL_REGISTRY = {
-    "lear":     LearModel,
-    "dnn":      DNNModel,
-    "rf":       RandomForestModel,
-    "xgboost":  XGBoostModel,
+    "lear":        LearModel,
+    "dnn":         DNNModel,
+    "transformer": TransformerModel,
 }
 
 def get_model(name: str, **kwargs) -> BaseModel: ...   # case-insensitive
@@ -586,19 +596,13 @@ def get_model(name: str, **kwargs) -> BaseModel: ...   # case-insensitive
 - If `alpha in (None, "auto")`, swaps in `LassoCV(cv=TimeSeriesSplit(n_splits=cross_validation_folds))`; best alpha is recorded in `self.best_alphas`.
 - `max_iter = maximum_iterations` (default `5000`) — increase if Lasso warns about non-convergence.
 
-**LightningModel detail** (`lightning_base.py`):
+**LightningModel detail** (`models/base/lightning.py`):
 
 - Constructor knobs: `epochs=500, batch_size=64, learning_rate=1e-3, l1_reg=0.0, validation_fraction=0.2, early_stopping_patience=25, random_seed=42`.
 - Loss: L1 (MAE).
 - Optimizer: Adam (override `configure_optimizers` to change).
 - Includes an in-memory **best-weight callback** (no disk checkpoint) + `EarlyStopping(monitor="val_loss", patience=25)`.
-- `trainer = L.Trainer(enable_progress_bar=False, enable_model_summary=False, enable_checkpointing=False, logger=False)` — silent by design; Lightning warnings are suppressed at module import.
-
-**GBTModel detail** (`gbt_base.py`):
-
-- Splits training set into the last `validation_fraction` rows for `eval_set`.
-- Subclasses override `_fit_period(estimator, X_train, y_train, X_val, y_val)` to wire native early stopping.
-- Per-period estimators in `self._period_models`.
+- `trainer = L.Trainer(accelerator="auto", devices="auto", enable_progress_bar=False, enable_model_summary=False, enable_checkpointing=False, logger=False)` — silent by design; uses the GPU when one is available (CUDA auto-detected). Lightning warnings are suppressed at module import.
 
 ### 8.5 Backtesting (`backtesting/`)
 
@@ -622,7 +626,13 @@ that needs a held-out validation window separate from the test set.
 
 For each test date and each calibration window:
 
-1. Slice training data: `[target_date - window_size, target_date - 1]`.
+1. Slice training data: the **last `window_size` available rows before
+   `target_date`** (`_slice_data` takes `features[index < target_date].tail(window_size)`).
+   This is row-count based, not calendar based — so markets with gaps (e.g.
+   DE's 15-min series loses days to DST transitions where the daily pivot
+   isn't exactly 96 periods) still get a full `window_size` training set
+   rather than failing a calendar-span check. Raises only if fewer than
+   `window_size` rows exist before the target date.
 2. If we haven't fit yet for this window, or `days_since_last_fit ≥ refit_interval_days`:
    - Fit a fresh `DataPreprocessor` (scaling refit on the window slice).
    - Build a new model via `model_factory()`.
@@ -843,7 +853,7 @@ single area-task to avoid N+1 ClickHouse queries.
 - All on `cron="0 * * * *"`.
 
 `deploy_forecast.py`:
-- `FORECAST_CONFIGS = ["dk1_lear", "de_lear"]` → one `daily-forecast-<config>` per LEAR config at `0 6 * * *`. **DNN configs (`dk1_dnn.py`, `de_dnn.py`) are intentionally excluded** — they ship with placeholder hyperparameters and only join the list once `forecast-cli tune` has produced validated `model_params`.
+- `FORECAST_CONFIGS = ["dk1_lear", "de_lear", "dk1_dnn", "de_dnn", "dk1_transformer", "de_transformer"]` → one `daily-forecast-<config>` per config at `0 6 * * *` (6 flows). The DNN configs carry tuned `model_params` (Optuna TPE, 50 trials/market — see `algo.hyperparam_trials`); the Transformer configs use the paper's published HPs. `de_transformer` uses a 365-day calibration window (vs `dk1_transformer`'s 1092) because DE's 15-min sequence preprocessing leaves far fewer usable rows.
 - One `reconcile-predictions` deployment at `0 18 * * *`.
 - `DRIFT_AREAS = ["DK1", "DE"]` → one `drift-detection-<lower(area)>` per area at `0 19 * * *`.
 - Mounts `configs/` from the host into `/app/configs` of each ephemeral container.
@@ -907,7 +917,7 @@ Two layers:
 
 ### W&B
 
-`observability_wandb.tracker.WandbTracker` is the single owner of W&B-side schema. Dual-write call sites: `forecast_cli.tracking.track_backtest_run / track_prediction`, `price_forecasting.models.lightning_base.LightningModel` (via `WandbLogger`), `price_forecasting.tuning.optuna_storage`, `schedules.reconciliation`, and `schedules.drift`. Production system is unaffected when the tracker is disabled.
+`observability_wandb.tracker.WandbTracker` is the single owner of W&B-side schema. Dual-write call sites: `forecast_cli.tracking.track_backtest_run / track_prediction`, `price_forecasting.models.base.lightning.LightningModel` (via `WandbLogger`), `price_forecasting.tuning.optuna_storage`, `schedules.reconciliation`, and `schedules.drift`. Production system is unaffected when the tracker is disabled.
 
 - `algo-research` project — backtests, predict runs, DNN training, sweeps, ablations.
 - `algo-prod` project — two run families:
