@@ -93,8 +93,12 @@ Each deployment: `entsoe-ingestion/ingestion-hourly-{area}`, cron `0 * * * *`.
 Registers deployments for three flows:
 
 ```python
-FORECAST_CONFIGS = ["dk1_lear"]   # one daily-forecast deployment per config
-DRIFT_AREAS = ["DK1"]              # one drift-detection deployment per area
+FORECAST_CONFIGS = [              # one daily-forecast deployment per config
+    "dk1_lear", "de_lear",
+    "dk1_dnn", "de_dnn",
+    "dk1_transformer", "de_transformer",
+]
+DRIFT_AREAS = ["DK1", "DE"]       # one drift-detection deployment per area
 ```
 
 | Deployment name | Flow | Cron |

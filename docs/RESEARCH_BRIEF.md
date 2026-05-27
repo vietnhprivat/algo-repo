@@ -52,9 +52,10 @@ European day-ahead markets**. Concretely it:
    `algo` database.
 2. **Trains** forecasting models against a rolling multi-window
    ensemble. The baseline is **LEAR** (Lasso Estimated AutoRegressive
-   — Lago et al., 2021). A model registry also exposes DNN
-   (PyTorch/Lightning), Random Forest and XGBoost, but **LEAR is the
-   only one in production today**.
+   — Lago et al., 2021). The model registry also exposes a **DNN**
+   (PyTorch/Lightning, Optuna-tuned) and a pure **Transformer**
+   (Llorente & Portela 2025); all three are deployed to production for
+   both DK1 and DE.
 3. **Predicts** tomorrow's 24-hour price vector daily at 06:00 UTC,
    stores the prediction + the serialized ensemble (base64 joblib in
    ClickHouse), then **reconciles** against published actuals the next
