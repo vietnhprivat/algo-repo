@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from scripts.report.reproduce_run import max_abs_diff

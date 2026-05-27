@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -20,7 +21,7 @@ from infrastructure_clickhouse.client_factory import create_client
 from price_forecasting import LiveRunner
 
 
-def max_abs_diff(a, b) -> float:
+def max_abs_diff(a: Sequence[float], b: Sequence[float]) -> float:
     """Max absolute elementwise difference between two equal-length sequences."""
     arr_a = np.asarray(a, dtype=float)
     arr_b = np.asarray(b, dtype=float)
@@ -29,7 +30,7 @@ def max_abs_diff(a, b) -> float:
     return float(np.max(np.abs(arr_a - arr_b)))
 
 
-def fetch_stored_prediction(client, config_name: str, area: str, target_date: str):
+def fetch_stored_prediction(client, config_name: str, area: str, target_date: str) -> tuple[str | None, list[float] | None]:
     """Return (run_id, [predicted...]) for the most recent run of this config
     that has predictions on target_date, or (None, None)."""
     runs = client.query(
