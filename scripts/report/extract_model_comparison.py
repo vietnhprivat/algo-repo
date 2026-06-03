@@ -184,7 +184,7 @@ def build_market_section(
             for model_name, experiment_name in experiments.items()
         },
         orient="index",
-        columns=["seconds/recalibration-day"],
+        columns=["seconds/test-day (amortised)"],
     )
 
     paper = pd.DataFrame.from_dict(
@@ -202,6 +202,9 @@ def build_market_section(
         "### GW p-values (column better than row)\n",
         gw.round(4).to_markdown() + "\n",
         "### Computation cost\n",
+        "_Wall-clock of the full backtest divided by common test days. "
+        "Refit cadence: LEAR and DNN recalibrate daily; the Transformer "
+        "recalibrates weekly, so its per-refit cost is ~7x the amortised figure._\n",
         cost.round(1).to_markdown() + "\n",
         "### vs published benchmarks (rMAE; periods differ — rankings only)\n",
         paper.round(3).to_markdown() + "\n",

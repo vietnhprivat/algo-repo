@@ -7,6 +7,7 @@ from scripts.report.extract_model_comparison import (
     NAIVE,
     build_gw_inputs,
     build_headline_table,
+    build_market_section,
     common_index,
     errors_matrix,
     to_latex_booktabs,
@@ -61,6 +62,14 @@ class TestBuildHeadlineTable:
         # constant series: naive (shift-7) is exact after warmup
         assert table.loc[NAIVE, "MAE"] == 0.0
 
+    def test_naive_rmae_is_one_and_model_rmae_finite_on_noisy_actuals(self) -> None:
+        rng = np.random.default_rng(7)
+        actuals = _wide(50.0 + rng.normal(scale=5.0, size=(21, 2)))
+        runs = {"LEAR": _wide(50.0 + rng.normal(scale=5.0, size=(21, 2)))}
+        table = build_headline_table(runs, actuals)
+        assert table.loc[NAIVE, "rMAE"] == 1.0
+        assert np.isfinite(table.loc["LEAR", "rMAE"])
+
 
 class TestBuildGwInputs:
     def test_identical_shapes_including_naive(self) -> None:
@@ -83,3 +92,25 @@ class TestToLatexBooktabs:
         out = to_latex_booktabs(df, caption="Cap", label="tab:x")
         assert "\\toprule" in out
         assert "\\label{tab:x}" in out
+
+
+class TestBuildMarketSection:
+    def test_renders_markdown_with_all_tables(self, tmp_path) -> None:
+        rng = np.random.default_rng(0)
+        actuals = _wide(50.0 + rng.normal(scale=5.0, size=(21, 2)))
+        for experiment in ("x_lear", "x_dnn", "x_transformer"):
+            forecasts = _wide(50.0 + rng.normal(scale=5.0, size=(21, 2)))
+            forecasts.to_csv(tmp_path / f"{experiment}_forecasts.csv")
+            actuals.to_csv(tmp_path / f"{experiment}_actuals.csv")
+
+        section = build_market_section(
+            "DK1",
+            {"LEAR": "x_lear", "DNN": "x_dnn", "Transformer": "x_transformer"},
+            durations={"x_lear": 120.0},
+            results_dir=tmp_path,
+        )
+        assert "## DK1" in section
+        assert "### Headline metrics" in section
+        assert "Naive (weekly)" in section
+        assert "\\label{tab:results-dk1-gw}" in section
+        assert "common days used: 21" in section
