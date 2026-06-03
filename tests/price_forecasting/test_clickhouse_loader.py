@@ -3,6 +3,8 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
+import pytest
+
 from price_forecasting.data.clickhouse_loader import (
     load_price_series,
     load_exogenous_series,
@@ -155,3 +157,8 @@ class TestLoadExogenousAggregates:
         assert list(df.columns) == ["TotalLoad", "Wind"]
         assert df["Wind"].tolist() == [140.0]
         assert df["TotalLoad"].tolist() == [45000.0]
+
+    def test_aggregate_with_no_members_raises_clear_error(self) -> None:
+        client = MagicMock()
+        with pytest.raises(ValueError, match="'Wind'.*no member curves"):
+            load_exogenous_series(client, "DK1", [], {"Wind": []})
