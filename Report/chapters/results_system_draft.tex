@@ -27,7 +27,7 @@
   \item Frame as a single-case study~\cite{runeson2009casestudy}: source code, git/CI history, ClickHouse experiment tracker, short targeted experiments.
   \item Honesty boundary: figures are indicative over the study window, not long-run production claims.
   \item Domain precedent: matches how MLOps platforms for electricity-price forecasting are evaluated~\cite{subramanya2022devops2mlops}.
-  \item Explicitly not claimed: DORA tier; MTTR / Change Failure Rate; controlled comparison against another platform.
+  \item Explicitly not claimed: controlled comparison against another platform.
 \end{itemize}
 
 % -----------------------------------------------------------------------------
@@ -35,13 +35,11 @@
 \label{sec:res-instruments}
 
 \begin{itemize}
-  \item Open: Zarour's SLR~\cite{zarour2025} catalogues nine practices but no single quantitative score; we therefore compose four instruments, each addressing a measurable face of the system.
-  \item Map the four instruments to the practices they evidence:
+  \item Open: Zarour's SLR~\cite{zarour2025} catalogues nine practices but no single quantitative score; we therefore compose two instruments, each addressing a measurable face of the system.
+  \item Map the two instruments to the practices they evidence:
   \begin{itemize}
     \item ML Test Score (\S\ref{sec:res-mlts}) $\to$ aggregate evidence for P1, P2, P3, P4, P6, P7, P8 (rubric items cover them).
     \item Reproducibility (\S\ref{sec:res-repro}) $\to$ direct evidence for P3.
-    \item DORA throughput (\S\ref{sec:res-dora}) $\to$ direct evidence for P1, P2 delivery cadence.
-    \item Drift-as-monitoring (\S\ref{sec:res-drift}) $\to$ direct evidence for P8, P9.
   \end{itemize}
   \item One sentence on what is \emph{not} instrumented quantitatively and why: P5 (Collaboration) — qualitative by nature, handled in System Implementation Ch.~\ref{ch:system-implementation}.
 \end{itemize}
@@ -144,86 +142,6 @@
 \end{itemize}
 
 % -----------------------------------------------------------------------------
-\section{Delivery throughput (DORA)}
-\label{sec:res-dora}
-
-\begin{itemize}
-  \item One deploy = one successful \texttt{cd\_deploy.yml} run on \texttt{main}~\cite{forsgren2018accelerate}.
-  \item Report throughput only; defend the omissions in the second paragraph.
-\end{itemize}
-
-\begin{table}[h]
-  \centering
-  \caption{DORA delivery throughput over the study window.}
-  \label{tab:res-dora}
-  \begin{tabularx}{\linewidth}{@{}X r@{}}
-    \toprule
-    \textbf{Metric} & \textbf{Value} \\
-    \midrule
-    Study window                                  & 90 days \\
-    Successful deployments to production          & 19 \\
-    Deploy frequency                              & 1.48 / week \\
-    Lead time PR-merge $\to$ deploy-start, p50    & 0.1\,min \\
-    Lead time, p95                                & 0.1\,min \\
-    \midrule
-    Change Failure Rate                           & \emph{not reported} \\
-    Mean Time to Restore                          & \emph{not reported} \\
-    DORA tier placement                           & \emph{not claimed} \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-\begin{itemize}
-  \item Lead-time framing: interval is merge-commit $\to$ workflow start, not first-feature-commit $\to$ deploy. The latter is not under the platform's automated control.
-  \item Omission justifications: CFR and MTTR require an incident corpus the window does not provide; tier thresholds are re-clustered yearly and unsafe to assign on a short window.
-\end{itemize}
-
-% -----------------------------------------------------------------------------
-\section{Operational supporting metrics}
-\label{sec:res-ops}
-
-\begin{itemize}
-  \item OPTIONAL — include if you want a per-config feasibility table; skip for the leanest version. Data already in \texttt{quantitative\_results.md}.
-\end{itemize}
-
-\begin{table}[h]
-  \centering
-  \caption{Per-config training duration and reconciliation completeness. Supports the cheap-refit argument in \S\ref{sec:res-drift}.}
-  \label{tab:res-ops}
-  \begin{tabularx}{\linewidth}{@{}l l r r r@{}}
-    \toprule
-    \textbf{Area} & \textbf{Model} & \textbf{Runs} & \textbf{p50 (s)} & \textbf{p95 (s)} \\
-    \midrule
-    DK1 & LEAR        & 11 & 32.5 & 35.1 \\
-    DK1 & DNN         &  1 &  5.6 &  5.6 \\
-    DK1 & Transformer &  1 & 11.3 & 11.3 \\
-    DE  & DNN         &  1 &  4.4 &  4.4 \\
-    DE  & Transformer &  1 &  9.1 &  9.1 \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-\begin{itemize}
-  \item Reconciliation completeness: 10 / 10 eligible runs (delivery day $\geq 2$ days past) — 100\,\%.
-  \item Max p95 $\approx 35$\,s leaves the 24-hour daily refit window enormously underused; this is the empirical premise for the drift discussion.
-  \item Small sample sizes for DNN / Transformer (1 run each); flag honestly.
-\end{itemize}
-
-% -----------------------------------------------------------------------------
-\section{Drift detection as monitoring, not a retraining trigger}
-\label{sec:res-drift}
-
-\begin{itemize}
-  \item Premise: refit is daily and cheap (Table~\ref{tab:res-ops}); model is never stale between scheduled refits.
-  \item Argument: in this regime, drift-\emph{triggered} retraining adds no freshness over the scheduled refit.
-  \item Cite~\cite{mahadevan2024costaware} for the cost--benefit ROI showing triggered retraining earns its keep only when retraining is expensive, and that distribution-drift triggers incur unnecessary retrains from false positives.
-  \item Conclusion: drift is retained as a monitoring/alerting signal, not a retraining trigger — hence \texttt{retrain\_on\_drift} defaults to false.
-  \item Boundary condition (state explicitly): conclusion holds while retraining stays cheap and the rolling window short; flips for expensive multi-year transformer retraining.
-  \item Calibration limitation: 35 / 35 reports flagged drift over the window — uninformatively sensitive; listed as future work in \S\ref{sec:res-known-gaps}.
-  \item Connect to Zarour P9 (Implementing Feedback Loops)~\cite{zarour2025}: argue that ``feedback loop'' in this system is the daily refit, not drift-triggered retraining.
-\end{itemize}
-
-% -----------------------------------------------------------------------------
 \section{Maturity-model placement}
 \label{sec:res-maturity}
 
@@ -257,7 +175,7 @@
     \item \textbf{Open and widely cited}: Google's whitepaper is publicly accessible~\cite{google_mlops_maturity} and is the most cited industry maturity reference in the Zarour SLR, giving the assignment an external touchpoint reviewers can check.
   \end{itemize}
   \item Disclose alternatives honestly: a Microsoft, GigaOm, John\,et\,al., or Mateo-Casal\'i scoring is possible and would yield different per-practice numbers; we report Google levels in Table~\ref{tab:maturity} for these reasons and note that none of the five models has empirical validation comparable to a peer-reviewed instrument.
-  \item Limitation: all five models are descriptive, vendor- or academia-defined ordinals — they do not produce a quantitative aggregate; they support \emph{positioning}, not \emph{measurement}. The instruments in \S\ref{sec:res-mlts}--\ref{sec:res-drift} carry the measurement load.
+  \item Limitation: all five models are descriptive, vendor- or academia-defined ordinals — they do not produce a quantitative aggregate; they support \emph{positioning}, not \emph{measurement}. The instruments in \S\ref{sec:res-mlts}--\ref{sec:res-repro} carry the measurement load.
 \end{itemize}
 
 % -----------------------------------------------------------------------------
@@ -267,7 +185,7 @@
 \begin{itemize}
   \item Frame per~\cite{runeson2009casestudy}; one bullet per threat type.
   \item \textbf{Construct}: do the chosen scores measure what we claim? ML Test Score is a self-administered rubric; per-item evidence in \texttt{ml\_test\_score.md} makes claims checkable.
-  \item \textbf{Internal}: are observed properties causally attributable to the platform? Reproducibility and throughput speak directly from artefacts; the drift conclusion is conditional on the cheap-refit regime (stated).
+  \item \textbf{Internal}: are observed properties causally attributable to the platform? Reproducibility speaks directly from artefacts.
   \item \textbf{External}: single-case design, analytic generalisation only — findings are not statistical claims about MLOps platforms in general.
   \item \textbf{Reliability}: would another evaluator score the same? Scoring rules in \S\ref{sec:res-mlts} are explicit; evidence is recorded per item.
   \item Alignment with Zarour's own SLR validity discussion (its §4.5): the threats we name parallel internal/external/construct in their paper~\cite{zarour2025}.
@@ -279,8 +197,6 @@
 
 \begin{itemize}
   \item \textbf{Data tests} — formalise feature-benefit / feature-cost / privacy analyses; add a data-quality CI gate. Drives the binding ML Test Score section.
-  \item \textbf{Drift detector recalibration} — 35 / 35 detection rate is uninformative; revisit window sizes, significance threshold, and detection metric (KS vs PSI).
-  \item \textbf{DORA stability metrics} — track incidents (Slack notifications already exist) so CFR and MTTR become reportable in a future cycle.
   \item \textbf{Reproducibility extension} — DNN / Transformer re-run with controlled seeds; currently only deterministic LEAR is demonstrated.
   \item \textbf{Provenance backfill} — 5 pre-CD runs lack \texttt{git\_sha}; either backfill from log timestamps or document the gap explicitly.
   \item Cross-reference modelling-side future work in Chapter~\ref{ch:results-models}.
@@ -291,7 +207,7 @@
 \label{sec:res-summary}
 
 \begin{itemize}
-  \item One-paragraph summary: the chapter's qualitative ``Realised'' labels are backed by an ML Test Score of 2.5, a provenance-triple coverage of 66.7\,\% supported by a $7\times 10^{-6}$ EUR/MWh re-run, and DORA throughput of 1.48 deploys/week at 0.1-minute lead. Drift detection is reframed as monitoring, not a retraining trigger.
+  \item One-paragraph summary: the chapter's qualitative ``Realised'' labels are backed by an ML Test Score of 2.5 and a provenance-triple coverage of 66.7\,\% supported by a $7\times 10^{-6}$ EUR/MWh re-run.
   \item Maturity position: Google Level 2 across most practices, Level 1 for P5--P7 and P9 (see Ch.~\ref{ch:system-implementation}, Table~\ref{tab:maturity}).
   \item Cross-reference Chapter~\ref{ch:results-models} (model accuracy) and Chapter~\ref{ch:system-implementation} (qualitative practice-by-practice).
 \end{itemize}
