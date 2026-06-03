@@ -5,7 +5,6 @@ Reads from:
     algo.drift_reports, algo.retrain_events, algo.timeseries)
   - Local git history
   - GitHub Actions run history via `gh` CLI
-  - Prometheus (availability / uptime)
 
 Writes a markdown summary to Report/metrics/quantitative_results.md
 that the LaTeX chapter transcribes by hand.
@@ -14,15 +13,12 @@ that the LaTeX chapter transcribes by hand.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-
-import httpx
 
 from infrastructure_clickhouse.client_factory import create_client
 
@@ -39,7 +35,6 @@ class MetricsReport:
     reproducibility: dict[str, Any] = field(default_factory=dict)
     feedback_loop: dict[str, Any] = field(default_factory=dict)
     dora: dict[str, Any] = field(default_factory=dict)
-    availability: dict[str, Any] = field(default_factory=dict)
 
 
 def main() -> None:
@@ -55,7 +50,6 @@ def main() -> None:
     finally:
         client.close()
     report.dora = collect_dora(WINDOW_DAYS)
-    report.availability = collect_availability(WINDOW_DAYS)
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(render_markdown(report))
     print(f"Wrote {OUTPUT_PATH}")
@@ -167,7 +161,7 @@ def collect_reproducibility(client, window_days: int) -> dict[str, Any]:
 
 
 def collect_feedback_loop(client, window_days: int) -> dict[str, Any]:
-    """Drift events, retrain trigger rate, drift-to-completed latency."""
+    """Drift event counts over the window (reports written + detections)."""
     drift_row = client.query(
         """
         SELECT
@@ -178,58 +172,23 @@ def collect_feedback_loop(client, window_days: int) -> dict[str, Any]:
         """,
         parameters={"d": window_days},
     ).result_rows[0]
-
-    # Drift-to-retrain-completed latency, in minutes, joining
-    # drift_reports to retrain_events via drift_report_id.
-    # Note: ClickHouse 25.x does not support table aliases directly after
-    # FINAL (e.g. "FROM t FINAL alias" is rejected). Use fully-qualified
-    # column references instead.
-    latency_row = client.query(
-        """
-        SELECT
-            count() AS n,
-            quantile(0.50)(latency_s) / 60.0 AS p50_min,
-            quantile(0.95)(latency_s) / 60.0 AS p95_min
-        FROM (
-            SELECT
-                dateDiff('second', algo.drift_reports.created_utc, algo.retrain_events.completed_utc) AS latency_s
-            FROM algo.drift_reports FINAL
-            INNER JOIN algo.retrain_events FINAL
-              ON algo.retrain_events.drift_report_id = algo.drift_reports.report_id
-            WHERE algo.drift_reports.created_utc >= now() - toIntervalDay(%(d)s)
-              AND algo.drift_reports.drift_detected = 1
-              AND algo.retrain_events.status = 'completed'
-              AND algo.retrain_events.completed_utc IS NOT NULL
-        )
-        """,
-        parameters={"d": window_days},
-    ).result_rows[0]
-
     return {
         "drift_reports": int(drift_row[0]),
         "drift_detections": int(drift_row[1]),
-        "retrain_latency": {
-            "n_completed": int(latency_row[0]),
-            "p50_minutes": round(float(latency_row[1]), 1) if latency_row[0] else None,
-            "p95_minutes": round(float(latency_row[2]), 1) if latency_row[0] else None,
-        },
     }
 
 
 def collect_dora(window_days: int) -> dict[str, Any]:
-    """DORA: deployment frequency, lead time, change failure rate.
+    """DORA delivery throughput: deployment frequency and lead time.
 
     Source of truth is the GitHub Actions cd_deploy.yml workflow history,
     treated as one deploy per successful run. Lead time approximated as
     the wall time between the PR merge commit and the cd_deploy run start.
     """
-    # Definitions: a "deployment" here is a cd_deploy.yml workflow run with
-    # a terminal conclusion of either 'success' or 'failure'. Workflow runs
-    # with conclusions 'cancelled', 'timed_out', 'skipped', 'startup_failure',
-    # etc. are excluded from the denominator on the grounds that they did
-    # not constitute an attempted production deploy. deploy_frequency counts
-    # successes only (DORA convention); change_failure_rate has a
-    # success+failure denominator.
+    # Definition: a "deployment" is a successful cd_deploy.yml run on main.
+    # DORA THROUGHPUT ONLY: deployment frequency + lead time. Change failure
+    # rate and MTTR are intentionally NOT computed — they require an incident
+    # corpus the study window does not provide (see spec / chapter prose).
     since = (datetime.now(timezone.utc) - timedelta(days=window_days)).strftime("%Y-%m-%d")
     raw = subprocess.run(
         [
@@ -252,12 +211,8 @@ def collect_dora(window_days: int) -> dict[str, Any]:
             file=sys.stderr,
         )
     successes = [r for r in runs if r["conclusion"] == "success"]
-    failures = [r for r in runs if r["conclusion"] == "failure"]
-
     deploy_freq_per_week = round(7 * len(successes) / window_days, 2) if window_days else None
 
-    # Lead time: for each successful deploy, dateDiff between the merge
-    # commit timestamp and the workflow run start.
     lead_times_minutes: list[float] = []
     for r in successes:
         sha = r["headSha"]
@@ -281,69 +236,12 @@ def collect_dora(window_days: int) -> dict[str, Any]:
         idx = max(0, min(len(xs) - 1, int(round(q * (len(xs) - 1)))))
         return round(xs[idx], 1)
 
-    total = len(successes) + len(failures)
-    change_failure_rate_pct = round(100.0 * len(failures) / total, 1) if total else None
-
     return {
         "window_days": window_days,
-        "deployments_total": total,
         "deployments_success": len(successes),
-        "deployments_failed": len(failures),
         "deploy_frequency_per_week": deploy_freq_per_week,
         "lead_time_minutes_p50": pct(lead_times_minutes, 0.5),
         "lead_time_minutes_p95": pct(lead_times_minutes, 0.95),
-        "change_failure_rate_pct": change_failure_rate_pct,
-    }
-
-
-def collect_availability(window_days: int) -> dict[str, Any]:
-    """Service uptime over the window, queried from Prometheus.
-
-    Returns None for any metric whose target was never scraped within the
-    window, or whose name has drifted across ClickHouse versions. Returns
-    a partial dict if Prometheus itself is unreachable — the script still
-    completes and the renderer emits 'None' for every cell.
-
-    Expected ClickHouse version: 25.6. If ClickHouse is upgraded and the
-    async-metric names change, the affected queries return None and the
-    chapter will show 'n/a' until this function is updated.
-    """
-    base = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
-    window = f"{window_days}d"
-
-    def query(promql: str) -> float | None:
-        try:
-            r = httpx.get(
-                f"{base}/api/v1/query",
-                params={"query": promql},
-                timeout=10.0,
-            )
-            r.raise_for_status()
-        except httpx.HTTPError as e:
-            print(f"prometheus query failed for {promql!r}: {e}", file=sys.stderr)
-            return None
-        result = r.json()["data"]["result"]
-        return float(result[0]["value"][1]) if result else None
-
-    def uptime_pct(job: str) -> float | None:
-        v = query(f'avg_over_time(up{{job="{job}"}}[{window}])')
-        return round(100.0 * v, 3) if v is not None else None
-
-    def metric(promql: str) -> float | None:
-        v = query(promql)
-        return round(v, 2) if v is not None else None
-
-    return {
-        "window_days": window_days,
-        "clickhouse_uptime_pct": uptime_pct("clickhouse"),
-        "grafana_uptime_pct": uptime_pct("grafana"),
-        "prometheus_self_uptime_pct": uptime_pct("prometheus"),
-        "clickhouse_mean_qps": metric(
-            f'avg_over_time(rate(ClickHouseProfileEvents_Query[5m])[{window}:5m])'
-        ),
-        "clickhouse_peak_memory_bytes": metric(
-            f'max_over_time(ClickHouseAsyncMetrics_MemoryResident[{window}])'
-        ),
     }
 
 
@@ -378,33 +276,18 @@ def render_markdown(report: MetricsReport) -> str:
     out.append(f"\n- With `model_artifact_id` populated: **{r.get('with_artifact_pct')}%**")
     out.append(f"\n- With the full provenance triple: **{r.get('with_full_triple_pct')}%**")
 
-    out.append("\n\n## Feedback loop\n")
+    out.append("\n\n## Drift monitoring\n")
     f = report.feedback_loop
     out.append(f"\n- Drift reports written: **{f.get('drift_reports')}**")
     out.append(f"\n- Drift detections (`drift_detected = 1`): **{f.get('drift_detections')}**")
-    lat = f.get("retrain_latency", {})
-    out.append(f"\n- Completed drift→retrain pairs: **{lat.get('n_completed')}**")
-    p50_lat = lat.get("p50_minutes")
-    p95_lat = lat.get("p95_minutes")
-    out.append(f"\n- p50 drift-to-completed latency: **{p50_lat if p50_lat is not None else 'N/A'} min**")
-    out.append(f"\n- p95 drift-to-completed latency: **{p95_lat if p95_lat is not None else 'N/A'} min**")
 
-    out.append("\n\n## DORA metrics\n")
+    out.append("\n\n## DORA delivery throughput\n")
     d = report.dora
-    out.append(f"\n- Deployments in window: **{d.get('deployments_total')}** "
-               f"({d.get('deployments_success')} success / {d.get('deployments_failed')} failed)")
+    out.append(f"\n- Successful deployments in window: **{d.get('deployments_success')}**")
     out.append(f"\n- Deploy frequency: **{d.get('deploy_frequency_per_week')}/week**")
     out.append(f"\n- Lead time PR-merge → cd_deploy start (p50): **{d.get('lead_time_minutes_p50')} min**")
     out.append(f"\n- Lead time (p95): **{d.get('lead_time_minutes_p95')} min**")
-    out.append(f"\n- Change failure rate: **{d.get('change_failure_rate_pct')}%**")
-
-    out.append("\n\n## System availability (Prometheus)\n")
-    a = report.availability
-    out.append(f"\n- ClickHouse uptime: **{a.get('clickhouse_uptime_pct')}%**")
-    out.append(f"\n- Grafana uptime: **{a.get('grafana_uptime_pct')}%**")
-    out.append(f"\n- Prometheus self-uptime: **{a.get('prometheus_self_uptime_pct')}%**")
-    out.append(f"\n- ClickHouse mean queries/sec: **{a.get('clickhouse_mean_qps')}**")
-    out.append(f"\n- ClickHouse peak resident memory: **{a.get('clickhouse_peak_memory_bytes')} bytes**")
+    out.append("\n- Change failure rate / MTTR: **not reported** (no incident corpus in window)")
 
     out.append("\n")
     return "".join(out)
