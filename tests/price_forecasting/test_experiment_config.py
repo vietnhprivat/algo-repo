@@ -26,14 +26,14 @@ def test_experiment_config_accepts_wandb_values() -> None:
 
 
 class TestExogenousAggregates:
-    def test_defaults_empty(self):
+    def test_defaults_empty(self) -> None:
         config = ExperimentConfig(
             experiment_name="x", results_dir="r", area="DK1"
         )
         assert config.exogenous_aggregates == {}
         assert config.exogenous_columns == []
 
-    def test_exogenous_columns_combines_types_and_aggregate_names(self):
+    def test_exogenous_columns_combines_types_and_aggregate_names(self) -> None:
         config = ExperimentConfig(
             experiment_name="x",
             results_dir="r",
