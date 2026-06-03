@@ -162,3 +162,25 @@ class TestLoadExogenousAggregates:
         client = MagicMock()
         with pytest.raises(ValueError, match="'Wind'.*no member curves"):
             load_exogenous_series(client, "DK1", [], {"Wind": []})
+
+    def test_mixed_resolution_exog_anchors_to_coarsest_grid(self) -> None:
+        """A 15-min member series must not leak sub-hourly timestamps into
+        the joined frame when another exogenous column is hourly."""
+        h0 = datetime(2024, 1, 1, 0, tzinfo=timezone.utc)
+        h1 = datetime(2024, 1, 1, 1, tzinfo=timezone.utc)
+        q15 = datetime(2024, 1, 1, 0, 15, tzinfo=timezone.utc)
+        load_rows = [(h0, 45000.0), (h1, 46000.0)]  # hourly
+        onshore = [(h0, 100.0), (q15, 105.0), (h1, 110.0)]  # 15-min
+        offshore = [(h0, 40.0), (q15, 42.0), (h1, 44.0)]  # 15-min
+        client = MagicMock()
+        client.query.side_effect = [
+            _make_mock_query_result(load_rows, ["timestamp_utc", "value"]),
+            _make_mock_query_result(onshore, ["timestamp_utc", "value"]),
+            _make_mock_query_result(offshore, ["timestamp_utc", "value"]),
+        ]
+        df = load_exogenous_series(
+            client, "DK1", ["TotalLoad"], {"Wind": ["WindOnshore", "WindOffshore"]}
+        )
+        assert list(df.index) == [h0, h1]  # q15 must NOT appear
+        assert df["Wind"].tolist() == [140.0, 154.0]
+        assert not df.isna().any().any()

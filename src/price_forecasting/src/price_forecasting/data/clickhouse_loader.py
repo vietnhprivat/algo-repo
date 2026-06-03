@@ -61,6 +61,11 @@ def load_exogenous_series(
     column per aggregate (the sum of its member curves, inner-joined on
     timestamps so partial sums never occur).
     Curve names follow: "ENTSOE {area} {curve_type} Dayahead"
+
+    All exogenous columns are inner-joined together on timestamps, so the
+    coarsest series anchors the time grid.  Timestamps missing any exogenous
+    value are dropped; with same-resolution inputs this is behaviour-identical
+    to an outer join (no rows are lost).
     """
     frames = [_fetch_curve(client, area, curve_type) for curve_type in curve_types]
 
@@ -82,7 +87,7 @@ def load_exogenous_series(
 
     exogenous = frames[0]
     for df in frames[1:]:
-        exogenous = exogenous.join(df, how="outer")
+        exogenous = exogenous.join(df, how="inner")
 
     return exogenous
 
