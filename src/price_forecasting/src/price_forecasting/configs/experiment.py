@@ -40,6 +40,12 @@ class ExperimentConfig:
     # e.g. ["TotalLoad", "Generation", "Solar"]
     exogenous_curve_types: list[str] = field(default_factory=list)
 
+    # Aggregate exogenous series summed from raw curves at load time, e.g.
+    # {"Wind": ["WindOnshore", "WindOffshore"]} produces one "Wind" column.
+    # Keeps the papers' exactly-two-exogenous spec (Lago 2021 §3) while the
+    # DB stores only raw ENTSOE curves.
+    exogenous_aggregates: Dict[str, List[str]] = field(default_factory=dict)
+
     """Specific args passed to the model class (e.g. {'alpha': 0.1} or {'layers': [256, 24]})"""
     model_params: Dict[str, Any] = field(default_factory=dict)
 
@@ -65,3 +71,9 @@ class ExperimentConfig:
 
     # Custom W&B tags applied to runs logged from this config.
     wandb_tags: List[str] = field(default_factory=list)
+
+    @property
+    def exogenous_columns(self) -> List[str]:
+        """All exogenous column names after loading: raw curve types followed
+        by aggregate names. This is what the feature pipeline sees."""
+        return list(self.exogenous_curve_types) + list(self.exogenous_aggregates)
