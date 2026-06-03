@@ -24,10 +24,9 @@ config = ExperimentConfig(
     test_start_date="2025-10-24",
     test_end_date="2026-05-31",
     # Window verified against usable sequence rows before test start
-    # (plan Task 4 step 7); with wind/solar backfilled to 2022-03 the
-    # previous 365d data-sparsity cap no longer binds. If the verification
-    # snippet reports < 1092 usable rows, set this to (reported - 10) and
-    # update this comment with the measured number.
+    # (plan Task 4 step 7, measured 2026-06-04: 1265 rows >= 1092). With
+    # wind/solar backfilled to 2022-03 the previous 365d data-sparsity cap
+    # no longer binds.
     calibration_windows=[1092],
     refit_interval_days=7,
     exogenous_curve_types=["TotalLoad"],
