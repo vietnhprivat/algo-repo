@@ -5,19 +5,24 @@ config = ExperimentConfig(
     area="DK1",
     model_type="dnn",
     results_dir="results",
+    # Shared final-benchmark test window — see configs/dk1_lear.py.
     test_start_date="2025-10-24",
-    test_end_date="2026-05-19",
+    test_end_date="2026-05-31",
+    # 42-week validation window for Optuna tuning (ex-ante: ends the day
+    # before the test window starts).
     val_start_date="2025-01-01",
     val_end_date="2025-10-23",
-    # DNN: longer calibration window; ensemble of 4 (Lago §4.4).
+    # DNN: single long window (Lago §4.3 uses 4 years; 730d kept as the
+    # documented data/compute-constrained deviation). Ensemble of 4 (Lago §4.4).
     calibration_windows=[730],
     refit_interval_days=1,
+    # Paper-exact exogenous (Lago §3.1, Nord Pool): load + wind generation.
     exogenous_curve_types=["TotalLoad"],
+    exogenous_aggregates={"Wind": ["WindOnshore", "WindOffshore"]},
     target_scaler="asinh",
-    # Tuned via `forecast-cli tune dk1_dnn -n 50 --study-name dk1_dnn_tune_v3`
-    # (val MAE 21.24 on trial 26). Optimum found early and stable: a 50-trial
-    # TPE search did not improve on the value first located at trial 26.
-    # See algo.hyperparam_trials for the full study.
+    # INTERIM — re-tune pending (plan Task 6): these params were tuned on
+    # TotalLoad-only features (study dk1_dnn_tune_v3) and are replaced by the
+    # paper-exog re-tune before the final backtest.
     model_params={
         "hidden_units": 198,
         "activation": "tanh",
