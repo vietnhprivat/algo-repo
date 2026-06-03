@@ -1,0 +1,133 @@
+% =============================================================================
+% DRAFT SCAFFOLD — Methods: Forecasting Models & Evaluation (modelling part)
+% Structure-first. Tables + bullets; expand bullets into prose later.
+% Source of pinned setup values: configs/*.py on this branch +
+% docs/superpowers/specs/2026-06-04-final-model-experiments-and-report-design.md
+% =============================================================================
+
+\chapter{Methods --- Forecasting Models and Evaluation}
+\label{ch:methods-models}
+
+% -----------------------------------------------------------------------------
+\section{Replication framing}
+\label{sec:mm-framing}
+
+\begin{itemize}
+  \item One paragraph: methodology replicated from \cite{lago2021} (LEAR, DNN)
+        and \cite{llorente2025transformer} (Transformer) on current market data;
+        absolute errors are not comparable across periods, so comparison uses
+        rMAE and model rankings (\cite{lago2021} \S5.4).
+  \item State the three models and two markets; all six runs share one test
+        window so DM/GW tests are paired.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Data and features}
+\label{sec:mm-data}
+
+\begin{table}[h]
+  \centering
+  \caption{Datasets. Both markets span 2022-03-10 to 2026-05-31 (ENTSO-E).}
+  \label{tab:mm-datasets}
+  \begin{tabularx}{\linewidth}{@{}l l l X@{}}
+    \toprule
+    \textbf{Market} & \textbf{Resolution} & \textbf{Exogenous (paper-exact)} & \textbf{Paper analogue} \\
+    \midrule
+    DK1 & hourly (24)   & TotalLoad + Wind (on+offshore)        & Nord Pool: load + wind~\cite{lago2021} \\
+    DE  & 15-min (96)   & TotalLoad + Renewables (wind+solar)   & EPEX-DE: load + wind\&solar~\cite{lago2021} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{itemize}
+  \item Feature set per \cite{lago2021} Eq.~3: price lags $d{-}1,d{-}2,d{-}3,d{-}7$;
+        exogenous at $d0,d{-}1,d{-}7$; 7 day-of-week dummies
+        ($4n + 2\cdot3n + 7$; $n{=}24 \Rightarrow 247$, $n{=}96 \Rightarrow 967$).
+  \item Aggregation: raw ENTSO-E wind/solar curves summed at load time
+        (\texttt{exogenous\_aggregates}); members inner-joined on timestamps
+        before summing; all exogenous columns inner-joined so the coarsest
+        series anchors the time grid.
+  \item Variance stabilisation: asinh transform~\cite{uniejewski2018vst}.
+  \item Resolution note: DK1 day-ahead moved to 15-min on 2025-10-01; the
+        pipeline anchors on the hourly load forecast grid, so DK1 prices are
+        the hourly samples of the 15-min curve --- internally consistent for
+        all models and the naive baseline.
+  \item Data-gap note: ENTSO-E lacks DK1 wind forecasts for a handful of days
+        (incl.\ 2026-05-07 inside the test window); affected days drop from
+        all DK1 models identically, so paired tests remain valid.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Models}
+\label{sec:mm-models}
+
+\begin{table}[h]
+  \centering
+  \caption{Model setups (one row per model; identical across both markets unless noted).}
+  \label{tab:mm-models}
+  \begin{tabularx}{\linewidth}{@{}l X X l@{}}
+    \toprule
+    \textbf{Model} & \textbf{Spec} & \textbf{Calibration} & \textbf{Refit} \\
+    \midrule
+    LEAR        & One Lasso per delivery period; $\lambda$ by \texttt{LassoCV} (time-series CV) & ensemble over 56/84/1092\,d & daily \\
+    DNN         & MLP, 4-seed ensemble; architecture HPs by Optuna TPE (50 trials, ex-ante val) & 730\,d & daily \\
+    Transformer & Encoder stack per \cite{llorente2025transformer}; paper NP hyperparameters & 1092\,d & weekly \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{itemize}
+  \item Tuning protocol: validation window 2025-01-01 to 2025-10-23 (42 weeks,
+        immediately preceding the test window; \cite{lago2021} \S4.3.2);
+        trials persisted to \texttt{algo.hyperparam\_trials}.
+  \item Transformer calibration windows verified against usable sequence rows
+        before test start (DK1: 1197, DE: 1265 --- both $\geq$ 1092).
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Evaluation protocol}
+\label{sec:mm-eval}
+
+\begin{itemize}
+  \item Test window 2025-10-24 to 2026-05-31 (220 calendar days), identical for
+        all six runs; training data = everything before test start
+        (\cite{lago2021} \S5.7).
+  \item Metrics: MAE, RMSE, sMAPE, rMAE with weekly-naive
+        (\cite{lago2021} \S5.4); rMAE is the headline metric.
+  \item Statistical testing: multivariate GW on daily $L^1$ loss differentials
+        with Newey--West HAC errors~\cite{giacomini2006gw,lago2021}; pairwise
+        DM~\cite{diebold1995dm} as univariate complement. Models compared on
+        their common surviving test days (feature pipelines drop gap/DST days
+        differently per model family).
+  \item Computation cost: training seconds per recalibration day, from
+        \texttt{algo.experiment\_runs} (analogue of \cite{lago2021} Table~4).
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Deviations from the source papers}
+\label{sec:mm-deviations}
+
+\begin{table}[h]
+  \centering
+  \caption{Documented deviations from \cite{lago2021} and \cite{llorente2025transformer}.}
+  \label{tab:mm-deviations}
+  \begin{tabularx}{\linewidth}{@{}l X X@{}}
+    \toprule
+    \textbf{Aspect} & \textbf{Paper} & \textbf{This work (reason)} \\
+    \midrule
+    Test length            & $\geq$ 1--2 years            & 31 weeks (price history starts 2022-03; val + calibration consume the rest) \\
+    DNN tuning budget      & 1500 TPE iterations          & 50 trials (compute; optimum stable early in prior studies) \\
+    DNN search space       & architecture + feature selectors & architecture only (feature set fixed to paper spec) \\
+    LEAR windows           & 56/84/1092/1456\,d           & 56/84/1092\,d (1456 predates data) \\
+    DNN window             & 4 years                      & 730\,d (data/compute constraint) \\
+    $\lambda$ selection    & LARS + AIC                   & \texttt{LassoCV} time-series CV (standard, equivalent accuracy) \\
+    DK1 resolution         & hourly market                & hourly samples of 15-min curve after 2025-10-01 \\
+    Transformer pipeline   & train-once + renormalise     & calibration window + weekly refit (pipeline consistency) \\
+    Transformer HPs        & tuned per dataset            & paper NP optimum reused (future work) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% =============================================================================
+% END DRAFT
+% =============================================================================
