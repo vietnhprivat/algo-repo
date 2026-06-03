@@ -31,28 +31,45 @@ def load_price_series(client: Client, area: str) -> pd.DataFrame:
     return df
 
 
-def load_exogenous_series(client: Client, area: str, curve_types: list[str]) -> pd.DataFrame:
-    """Query algo.forecasts for each curve type.
+def _fetch_curve(client: Client, area: str, curve_type: str) -> pd.DataFrame:
+    """Fetch one forecast curve as a single-column DataFrame indexed by timestamp."""
+    curve_name = f"ENTSOE {area} {curve_type} Dayahead"
+    result = client.query(
+        "SELECT timestamp_utc, value "
+        "FROM algo.forecasts "
+        "WHERE curve_name = {curve_name:String} "
+        "ORDER BY timestamp_utc",
+        parameters={"curve_name": curve_name},
+    )
 
-    Returns DataFrame with DatetimeIndex and one column per curve type (hourly).
+    df = pd.DataFrame(result.result_rows, columns=["timestamp_utc", curve_type])
+    df["timestamp_utc"] = pd.to_datetime(df["timestamp_utc"], utc=True)
+    df = df.drop_duplicates(subset=["timestamp_utc"], keep="last")
+    df = df.set_index("timestamp_utc").sort_index()
+    return df
+
+
+def load_exogenous_series(
+    client: Client,
+    area: str,
+    curve_types: list[str],
+    aggregates: dict[str, list[str]] | None = None,
+) -> pd.DataFrame:
+    """Query algo.forecasts for each curve type and each aggregate.
+
+    Returns DataFrame with DatetimeIndex, one column per curve type, plus one
+    column per aggregate (the sum of its member curves, inner-joined on
+    timestamps so partial sums never occur).
     Curve names follow: "ENTSOE {area} {curve_type} Dayahead"
     """
-    frames = []
-    for curve_type in curve_types:
-        curve_name = f"ENTSOE {area} {curve_type} Dayahead"
-        result = client.query(
-            "SELECT timestamp_utc, value "
-            "FROM algo.forecasts "
-            "WHERE curve_name = {curve_name:String} "
-            "ORDER BY timestamp_utc",
-            parameters={"curve_name": curve_name},
-        )
+    frames = [_fetch_curve(client, area, curve_type) for curve_type in curve_types]
 
-        df = pd.DataFrame(result.result_rows, columns=["timestamp_utc", curve_type])
-        df["timestamp_utc"] = pd.to_datetime(df["timestamp_utc"], utc=True)
-        df = df.drop_duplicates(subset=["timestamp_utc"], keep="last")
-        df = df.set_index("timestamp_utc").sort_index()
-        frames.append(df)
+    for aggregate_name, members in (aggregates or {}).items():
+        member_frames = [_fetch_curve(client, area, member) for member in members]
+        joined = member_frames[0]
+        for member_frame in member_frames[1:]:
+            joined = joined.join(member_frame, how="inner")
+        frames.append(joined.sum(axis=1).to_frame(name=aggregate_name))
 
     if not frames:
         return pd.DataFrame()
@@ -74,9 +91,12 @@ def load_dataset(config: ExperimentConfig) -> pd.DataFrame:
     try:
         prices = load_price_series(client, config.area)
 
-        if config.exogenous_curve_types:
+        if config.exogenous_curve_types or config.exogenous_aggregates:
             exogenous = load_exogenous_series(
-                client, config.area, config.exogenous_curve_types
+                client,
+                config.area,
+                config.exogenous_curve_types,
+                config.exogenous_aggregates,
             )
             dataset = prices.join(exogenous, how="inner")
         else:

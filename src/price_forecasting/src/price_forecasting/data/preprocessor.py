@@ -47,7 +47,7 @@ class DataPreprocessor:
             self.transformers = experiment_config.feature_transformers
         else:
             from price_forecasting.data.transformers import default_transformers_for_model
-            self.transformers = default_transformers_for_model(experiment_config.exogenous_curve_types)
+            self.transformers = default_transformers_for_model(experiment_config.exogenous_columns)
 
     @staticmethod
     def _build_target_scaler(name: str):
