@@ -65,11 +65,17 @@ def load_exogenous_series(
     frames = [_fetch_curve(client, area, curve_type) for curve_type in curve_types]
 
     for aggregate_name, members in (aggregates or {}).items():
+        if not members:
+            raise ValueError(
+                f"exogenous_aggregates[{aggregate_name!r}] has no member curves"
+            )
         member_frames = [_fetch_curve(client, area, member) for member in members]
         joined = member_frames[0]
         for member_frame in member_frames[1:]:
             joined = joined.join(member_frame, how="inner")
-        frames.append(joined.sum(axis=1).to_frame(name=aggregate_name))
+        # skipna=False: a NULL member value must surface as NaN (and be dropped
+        # downstream), never silently understate the sum.
+        frames.append(joined.sum(axis=1, skipna=False).to_frame(name=aggregate_name))
 
     if not frames:
         return pd.DataFrame()
