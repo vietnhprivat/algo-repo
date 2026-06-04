@@ -1,3 +1,23 @@
 \chapter{Conclusion and Future Work}
 \label{ch:conclusion}
 % Written in Task 8.
+
+% === Relocated from system_implementation.tex (Task 1). Rewritten thesis-wide in Task 8. ===
+
+Of Zarour's nine MLOps practices, eight are realised end-to-end in algo-repo
+and one --- P9, the feedback loop and drift-triggered retraining --- is
+minimally realised, scoped to two bidding areas behind an opt-in config flag.
+ The quantitative evaluation in \S5.2 backs every realised label with measured values: an ML Test Score with a per-section breakdown, provenance-triple coverage validated by a live re-run, drift-detection counts, and DORA delivery throughput (deployment frequency and lead time), all computable on demand from the live system by re-running \texttt{scripts/report/extract\_metrics.py}.
+Every realised practice has been mapped in this chapter to a concrete repository
+artefact: a Prefect deployment, a ClickHouse migration, a GitHub Actions
+workflow, or a Grafana dashboard. The four tools that remain deferred ---
+MLflow, Kubernetes, a cloud-managed model store, and DVC --- are held back not
+by oversight but by the deliberate single-host MVP scope under which the
+deferred-cost and current-value trade-off does not yet justify adoption; each
+deferred tool carries a named, observable adoption trigger so that the decision
+to adopt it can be revisited against a concrete condition rather than
+re-litigated from first principles. Together, these nine practices and their
+supporting artefacts constitute a production ML platform that ingests live
+market data, refits daily, monitors prediction quality and data drift, and
+maintains a complete audit trail from every experiment row back to the exact
+Git commit and data window that produced it.

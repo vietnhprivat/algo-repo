@@ -1,3 +1,40 @@
 \chapter{Discussion}
 \label{ch:discussion}
 % Written in Task 7.
+
+% === Relocated from system_implementation.tex (Task 1). Integrated in Task 7. ===
+\subsection{Known gaps}
+
+Forecast and drift-detection deployments are currently scoped to two bidding
+areas --- DK1 and DE. The five remaining ingestion areas (DK2, NL, BE, FR, PL)
+receive hourly ENTSO-E data through the \texttt{entsoe-backfill-*} deployments
+but have no corresponding \texttt{daily-forecast} or \texttt{drift-detection}
+flow, which means prediction-quality monitoring and drift-triggered retraining
+are unavailable for those markets. Expanding coverage requires adding new
+experiment config files and appending the corresponding entries to the
+\texttt{FORECAST\_CONFIGS} list in \texttt{deploy\_forecast.py}; no flow code
+needs to change.
+
+Model artifacts are serialised with joblib and stored as base64-encoded blobs
+in the \texttt{algo.model\_artifacts} ClickHouse table. This is practical for
+the current LEAR models, whose serialised size is on the order of
+one hundred kilobytes, but it will not scale gracefully to large DNN weight
+tensors. A PyTorch model with several million parameters can easily exceed ten
+megabytes per artifact; at that point the blob column approach introduces
+non-trivial read amplification for ClickHouse and makes artifact management
+cumbersome. The appropriate migration path is to a cloud-managed model store
+once that threshold is crossed.
+
+The Optuna hyperparameter search persists trials across sessions in
+\texttt{algo.hyperparam\_trials} and resumes seamlessly on subsequent calls to
+\texttt{forecast-cli tune}. However, only one search space is currently encoded:
+the DNN architecture space covering six parameters (\texttt{n\_neurons},
+\texttt{activation}, \texttt{dropout}, \texttt{learning\_rate},
+\texttt{batch\_norm}, \texttt{l1\_reg}). The ten binary feature and selector
+hyperparameters identified by Lago et al.\ \cite{lago2021} in their \S4.3.3,
+together with the \texttt{preprocessing} and \texttt{init\_method} choices,
+remain manual decisions set in the config file, because the preprocessor and
+model constructors do not yet expose the corresponding constructor-level
+toggles. Until those toggles exist, including them in the Optuna space would
+create inert search dimensions.
+

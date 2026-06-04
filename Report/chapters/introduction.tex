@@ -1,3 +1,20 @@
 \chapter{Introduction}
 \label{ch:introduction}
 % Written in Task 3.
+
+% === Relocated from system_implementation.tex (Task 1). Rewritten as thesis intro in Task 3. ===
+Electricity price forecasting (EPF) is the task of predicting day-ahead
+wholesale electricity prices for a given bidding zone from a combination of
+historical prices and exogenous signals such as load, renewable generation, and
+calendar effects. Research on EPF has produced increasingly accurate offline
+benchmarks — LEAR, deep neural networks, and hybrid ensembles — evaluated on
+fixed historical holdout periods under idealised conditions.
+
+Production EPF, however, imposes a different and harder set of requirements.
+A deployed forecasting system must continuously ingest fresh market data from
+external APIs, retrain or recalibrate models on a rolling basis as the price
+distribution shifts, monitor prediction quality in near-real time, and align
+the evaluation methodology with actual operational use — a contrast that the
+EPF research literature largely sidesteps in favour of reporting accuracy on
+offline benchmarks \cite{lago2021}.
+

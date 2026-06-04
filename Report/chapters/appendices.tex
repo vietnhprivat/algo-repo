@@ -2,5 +2,43 @@
 \chapter{Glossary}
 \label{app:glossary}
 
+
+\begin{description}
+  \item[LEAR] Lasso Estimated AutoRegressive ensemble for day-ahead electricity
+        price forecasting, the primary baseline model from Lago et al.\
+        \cite{lago2021}.
+  \item[DNN] Deep neural network; in this chapter, a multi-layer perceptron
+        ensemble whose final prediction is the arithmetic mean of
+        \texttt{n\_dnn\_ensemble} replicates trained with distinct random seeds.
+  \item[EPF] Electricity price forecasting: the task of predicting day-ahead
+        wholesale electricity prices for a given bidding zone from historical
+        prices and exogenous signals.
+  \item[ENTSO-E] European Network of Transmission System Operators for
+        Electricity; the body that operates the Transparency Platform API from
+        which the platform ingests price, load, and generation data.
+  \item[Lasso] Least Absolute Shrinkage and Selection Operator, an
+        L1-regularised linear regression that simultaneously shrinks
+        coefficients and performs automatic feature selection.
+  \item[TPE] Tree-structured Parzen Estimator, the Bayesian optimisation
+        sampler used by Optuna when running \texttt{forecast-cli tune}.
+  \item[MLOps] Machine Learning Operations: the set of practices for
+        reliably building, deploying, and operating machine learning systems
+        in production.
+  \item[ReplacingMergeTree] A ClickHouse storage engine that deduplicates
+        rows sharing the same sort key during background merge, used throughout
+        the platform to make re-insertion safe under the platform's
+        append-only write semantics.
+  \item[Tailscale] A mesh VPN built on WireGuard used here to grant the
+        GitHub Actions runner ephemeral SSH access to the deploy host without
+        exposing any port on that host to the public internet.
+  \item[Loki] Grafana Labs' log aggregation system, used here as the
+        structured-log backend for all Prefect flows and infrastructure modules
+        via direct Python push through \texttt{python-logging-loki}.
+  \item[Evidently] An open-source library for data and model drift detection,
+        used here in in-process mode inside the Prefect drift-detection flow to
+        run a Kolmogorov--Smirnov test comparing a 90-day reference window
+        against a 7-day current window.
+\end{description}
+
 \chapter{ML Test Score Worksheet}
 \label{app:mlts-worksheet}
