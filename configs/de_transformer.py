@@ -34,6 +34,7 @@ config = ExperimentConfig(
         "Renewables": ["WindOnshore", "WindOffshore", "Solar"]
     },
     target_scaler="asinh",
+    resample_to_hourly=True,
     feature_transformers=default_transformers_for_transformer(
         exogenous_columns=_EXOG,
         sequence_length_days=_SEQ,

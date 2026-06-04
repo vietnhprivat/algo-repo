@@ -33,8 +33,9 @@
     \toprule
     \textbf{Market} & \textbf{Resolution} & \textbf{Exogenous (paper-exact)} & \textbf{Paper analogue} \\
     \midrule
-    DK1 & hourly (24)   & TotalLoad + Wind (on+offshore)        & Nord Pool: load + wind~\cite{lago2021} \\
-    DE  & 15-min (96)   & TotalLoad + Renewables (wind+solar)   & EPEX-DE: load + wind\&solar~\cite{lago2021} \\
+    DK1 & hourly (24)\textsuperscript{a} & TotalLoad + Wind (on+offshore)        & Nord Pool: load + wind~\cite{lago2021} \\
+    DE  & hourly (24)\textsuperscript{a} & TotalLoad + Renewables (wind+solar)   & EPEX-DE: load + wind\&solar~\cite{lago2021} \\
+    \\[2pt] \multicolumn{4}{@{}l@{}}{\footnotesize\textsuperscript{a} Both markets clear in 15-min blocks (DE throughout; DK1 since 2025-10-01); prices and exogenous forecasts are downsampled to an arithmetic hourly mean (\texttt{resample\_to\_hourly}).} \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -48,10 +49,13 @@
         before summing; all exogenous columns inner-joined so the coarsest
         series anchors the time grid.
   \item Variance stabilisation: asinh transform~\cite{uniejewski2018vst}.
-  \item Resolution note: DK1 day-ahead moved to 15-min on 2025-10-01; the
-        pipeline anchors on the hourly load forecast grid, so DK1 prices are
-        the hourly samples of the 15-min curve --- internally consistent for
-        all models and the naive baseline.
+  \item Resolution: both markets clear in 15-minute blocks (DE throughout the
+        sample; DK1 since 2025-10-01). To keep the two markets comparable with
+        each other and with the hourly reference benchmarks~\cite{lago2021,llorente2025transformer},
+        prices and exogenous forecasts are downsampled to an arithmetic hourly
+        mean (24 periods/day) before feature construction. Modelling natively at
+        96 periods is infeasible for DK1, which has under one month of 15-min
+        history before the test window.
   \item Data-gap note: ENTSO-E lacks DK1 wind forecasts for a handful of days
         (incl.\ 2026-05-07 inside the test window); affected days drop from
         all DK1 models identically, so paired tests remain valid.
@@ -121,7 +125,7 @@
     LEAR windows           & 56/84/1092/1456\,d           & 56/84/1092\,d (1456 predates data) \\
     DNN window             & 4 years                      & 730\,d (data/compute constraint) \\
     $\lambda$ selection    & LARS + AIC                   & \texttt{LassoCV} time-series CV (standard, equivalent accuracy) \\
-    DK1 resolution         & hourly market                & hourly samples of 15-min curve after 2025-10-01 \\
+    Market resolution      & hourly (paper era)           & both markets now 15-min; downsampled to an hourly mean for cross-market and cross-paper comparability \\
     Transformer pipeline   & train-once + renormalise     & calibration window + weekly refit (pipeline consistency) \\
     Transformer HPs        & tuned per dataset            & paper NP optimum reused (future work) \\
     \bottomrule

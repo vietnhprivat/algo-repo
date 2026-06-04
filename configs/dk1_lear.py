@@ -22,5 +22,6 @@ config = ExperimentConfig(
     exogenous_curve_types=["TotalLoad"],
     exogenous_aggregates={"Wind": ["WindOnshore", "WindOffshore"]},
     target_scaler="asinh",
+    resample_to_hourly=True,
     model_params={"alpha": "auto"},
 )

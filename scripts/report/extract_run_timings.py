@@ -28,11 +28,11 @@ EXPERIMENTS = ["dk1_lear", "de_lear", "dk1_dnn", "de_dnn",
 # Static run metadata (refit cadence / calibration window / ensemble / resolution).
 META: dict[str, dict[str, str]] = {
     "dk1_lear": {"refit": "daily", "window": "56/84/1092", "ensemble": "1", "resolution": "hourly (24)"},
-    "de_lear": {"refit": "daily", "window": "56/84/1092", "ensemble": "1", "resolution": "15-min (96)"},
+    "de_lear": {"refit": "daily", "window": "56/84/1092", "ensemble": "1", "resolution": "hourly (24, from 15-min)"},
     "dk1_dnn": {"refit": "daily", "window": "730", "ensemble": "4", "resolution": "hourly (24)"},
-    "de_dnn": {"refit": "daily", "window": "730", "ensemble": "4", "resolution": "15-min (96)"},
+    "de_dnn": {"refit": "daily", "window": "730", "ensemble": "4", "resolution": "hourly (24, from 15-min)"},
     "dk1_transformer": {"refit": "weekly", "window": "1092", "ensemble": "1", "resolution": "hourly (24)"},
-    "de_transformer": {"refit": "weekly", "window": "1092", "ensemble": "1", "resolution": "15-min (96)"},
+    "de_transformer": {"refit": "weekly", "window": "1092", "ensemble": "1", "resolution": "hourly (24, from 15-min)"},
 }
 
 
@@ -128,8 +128,9 @@ def main() -> None:
         "\n## Tuning and other timed steps\n",
         format_tuning_table(log_rows),
         "\n## Notes\n",
-        "- LEAR fits one Lasso per delivery period, so the 15-min DE market "
-        "(96 periods) incurs ~4x the per-day fits of hourly DK1 (24).\n",
+        "- All runs are modelled at hourly resolution (24 periods); the 15-min "
+        "DE and post-2025-10 DK1 prices are downsampled to an hourly mean, so "
+        "both markets fit the same number of per-period Lasso models.\n",
         "- DNN and Transformer are MIMO (one GPU network for all periods); the "
         "Transformer refits weekly, so its run is dominated by ~32 trainings.\n",
         "- Single-refit GPU probe (2026-06-04): dk1_dnn 4-net ensemble ~10s; "
