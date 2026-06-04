@@ -57,6 +57,13 @@ class ExperimentConfig:
     # (Lago et al. 2021 §4.2, recommended for LEAR).
     target_scaler: str = "standard"
 
+    # When True, the loaded price+exogenous frame is downsampled to an
+    # arithmetic hourly mean before feature construction, forcing 24 periods
+    # regardless of native resolution. Used to model 15-min markets (DE; DK1
+    # since 2025-10-01) at hourly resolution for cross-market comparability
+    # and alignment with the hourly reference benchmarks.
+    resample_to_hourly: bool = False
+
     # Number of DNN replicates to average at serving time (Lago §4.4).
     # Only used for model_type == "dnn".
     n_dnn_ensemble: int = 1

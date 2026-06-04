@@ -9,6 +9,17 @@ def _price_curve_pattern(area: str) -> str:
     return f"ENTSOE {area} EnergyPrice %"
 
 
+def resample_hourly(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Downsample a (15-min or hourly) frame to an arithmetic hourly mean.
+
+    Operates in UTC (the index is tz-aware UTC), so DST introduces no missing
+    or duplicated hours. Already-hourly data is returned unchanged (mean of a
+    single value per hour). Empty frames pass through.
+    """
+    if dataframe.empty:
+        return dataframe
+    return dataframe.resample("1h").mean()
+
 
 def load_price_series(client: Client, area: str) -> pd.DataFrame:
     """Query algo.timeseries for the price curve of the given area.
@@ -115,6 +126,9 @@ def load_dataset(config: ExperimentConfig) -> pd.DataFrame:
 
     finally:
         client.close()
+
+    if config.resample_to_hourly:
+        dataset = resample_hourly(dataset)
 
     if dataset.empty:
         raise ValueError(
