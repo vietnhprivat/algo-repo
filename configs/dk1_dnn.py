@@ -21,16 +21,17 @@ config = ExperimentConfig(
     exogenous_aggregates={"Wind": ["WindOnshore", "WindOffshore"]},
     target_scaler="asinh",
     resample_to_hourly=True,
-    # INTERIM — re-tune pending (plan Task 6): these params were tuned on
-    # TotalLoad-only features (study dk1_dnn_tune_v3) and are replaced by the
-    # paper-exog re-tune before the final backtest.
+    # Tuned via `forecast-cli tune dk1_dnn --study-name dk1_dnn_tune_v5_paperexog`
+    # on paper-exact exogenous (TotalLoad + Wind) at hourly resolution.
+    # 30-trial TPE; best = trial 26, val MAE 19.069 (optimum improved from the
+    # trial-6 plateau at trial 26, so 30 trials was warranted). algo.hyperparam_trials.
     model_params={
-        "hidden_units": 198,
+        "hidden_units": 191,
         "activation": "tanh",
-        "dropout": 0.02680613227742755,
-        "learning_rate": 0.000627980254004135,
+        "dropout": 0.20294297230504066,
+        "learning_rate": 0.00047588549478188745,
         "batch_norm": False,
-        "l1_reg": 0.0006727849421606088,
+        "l1_reg": 6.84305397641749e-08,
         "epochs": 200,
         "early_stopping_patience": 20,
     },
