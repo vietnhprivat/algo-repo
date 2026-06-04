@@ -1,3 +1,179 @@
+% =============================================================================
+% Chapter: Results --- Forecasting. Skeleton. Numeric cells marked [pending] are
+% filled from Report/metrics/model_comparison.md once the six --track runs
+% complete (scripts/report/extract_model_comparison.py); figures are rendered by
+% scripts/report/plot_forecast_figures.py into figures/results_models/.
+% =============================================================================
+
 \chapter{Results --- Forecasting}
 \label{ch:results-models}
-% Skeleton in Task 9; numeric cells filled in Task 11 once the six --track runs complete.
+
+This chapter reports the head-to-head comparison of LEAR, the DNN, and the
+Transformer on the DK1 and DE bidding zones over the shared test window
+(2025-10-24 to 2026-05-31); the modelling and evaluation protocol is in
+Chapter~\ref{ch:methods-models}. All numbers are produced by the six tracked
+backtests and extracted to \texttt{Report/metrics/model\_comparison.md}, which
+aligns every model of a market on its common surviving test days before
+recomputing metrics and significance. Because the source papers' test periods
+(2016--2018) predate the present regime, the comparison is read through rMAE and
+model rankings rather than absolute errors.
+
+% -----------------------------------------------------------------------------
+\section{Headline accuracy}
+\label{sec:rm-headline}
+
+Tables~\ref{tab:rm-dk1-headline} and~\ref{tab:rm-de-headline} report MAE, RMSE,
+sMAPE, and rMAE for the three models and the weekly-naive baseline, per market,
+on the common test days.
+
+\begin{table}[h]
+  \centering
+  \caption{DK1: final-benchmark accuracy on common test days.}
+  \label{tab:rm-dk1-headline}
+  \begin{tabularx}{\linewidth}{@{}X r r r r@{}}
+    \toprule
+    \textbf{Model} & \textbf{MAE} & \textbf{RMSE} & \textbf{sMAPE} & \textbf{rMAE} \\
+    \midrule
+    LEAR              & [pending] & [pending] & [pending] & [pending] \\
+    DNN               & [pending] & [pending] & [pending] & [pending] \\
+    Transformer       & [pending] & [pending] & [pending] & [pending] \\
+    Naive (weekly)    & [pending] & [pending] & [pending] & 1.000 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{DE: final-benchmark accuracy on common test days.}
+  \label{tab:rm-de-headline}
+  \begin{tabularx}{\linewidth}{@{}X r r r r@{}}
+    \toprule
+    \textbf{Model} & \textbf{MAE} & \textbf{RMSE} & \textbf{sMAPE} & \textbf{rMAE} \\
+    \midrule
+    LEAR              & [pending] & [pending] & [pending] & [pending] \\
+    DNN               & [pending] & [pending] & [pending] & [pending] \\
+    Transformer       & [pending] & [pending] & [pending] & [pending] \\
+    Naive (weekly)    & [pending] & [pending] & [pending] & 1.000 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\section{Statistical significance}
+\label{sec:rm-significance}
+
+Significance is assessed with the multivariate Giacomini--White test on daily
+$L^1$ loss differentials (\S\ref{sec:mm-eval}); the pairwise p-value matrices are
+shown as heatmaps in Figure~\ref{fig:rm-gw}, in which entry $(\text{row},
+\text{col})$ is the probability that the column model is more accurate than the
+row model. \textbf{[pending: state which pairwise differences are significant at
+the 5\,\% level per market, and whether the best model significantly beats the
+naive baseline.]}
+
+\begin{figure}[h]
+  \centering
+  \IfFileExists{figures/results_models/gw_heatmap_dk1.pdf}{%
+    \includegraphics[width=0.48\linewidth]{gw_heatmap_dk1}}{%
+    \fbox{\parbox[c][3cm][c]{0.46\linewidth}{\centering GW heatmap (DK1) --- pending experiment runs}}}
+  \hfill
+  \IfFileExists{figures/results_models/gw_heatmap_de.pdf}{%
+    \includegraphics[width=0.48\linewidth]{gw_heatmap_de}}{%
+    \fbox{\parbox[c][3cm][c]{0.46\linewidth}{\centering GW heatmap (DE) --- pending experiment runs}}}
+  \caption{Giacomini--White pairwise p-value matrices (DK1 left, DE right). A low value at (row, col) means the column model significantly outperforms the row model.}
+  \label{fig:rm-gw}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\section{Comparison with the published benchmarks}
+\label{sec:rm-vspapers}
+
+Table~\ref{tab:rm-vspapers} places this work's rMAE alongside the ensemble rMAE
+reported by Lago et al.~\cite{lago2021} (their Table~3, Nord Pool and EPEX-DE
+rows). The published values are from 2016--2018 test periods and are included for
+ranking and order-of-magnitude comparison only, never as an absolute-error
+match. Llorente and Portela~\cite{llorente2025transformer} report (their
+Table~5) that the Transformer outperforms a DNN on both Nord Pool and EPEX-DE;
+whether that ordering reproduces here is reported once the runs complete.
+
+\begin{table}[h]
+  \centering
+  \caption{rMAE: this work vs Lago et al.~\cite{lago2021}, Table~3 (periods differ; rankings, not absolute errors).}
+  \label{tab:rm-vspapers}
+  \begin{tabularx}{\linewidth}{@{}l X r r@{}}
+    \toprule
+    \textbf{Market} & \textbf{Model} & \textbf{Lago rMAE (2016--18)} & \textbf{This work} \\
+    \midrule
+    DK1 (Nord Pool) & LEAR & 0.420 & [pending] \\
+    DK1 (Nord Pool) & DNN  & 0.407 & [pending] \\
+    DE (EPEX-DE)    & LEAR & 0.433 & [pending] \\
+    DE (EPEX-DE)    & DNN  & 0.374 & [pending] \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\section{Computation cost}
+\label{sec:rm-cost}
+
+Table~\ref{tab:rm-cost} reports training time per recalibration, the analogue of
+Lago et al.~\cite{lago2021}, Table~4. The qualitative pattern is robust
+regardless of the exact figures: LEAR fits one Lasso per delivery period, so its
+cost scales with the number of periods, whereas the DNN and Transformer are
+multiple-input--multiple-output networks that produce all periods in one forward
+pass; the Transformer recalibrates weekly rather than daily, so its per-refit
+cost is roughly seven times its amortised per-day figure.
+
+\begin{table}[h]
+  \centering
+  \caption{Amortised training cost per test day (seconds), from \texttt{model\_comparison.md}.}
+  \label{tab:rm-cost}
+  \begin{tabularx}{\linewidth}{@{}X r r@{}}
+    \toprule
+    \textbf{Model} & \textbf{DK1 (s/day)} & \textbf{DE (s/day)} \\
+    \midrule
+    LEAR        & [pending] & [pending] \\
+    DNN         & [pending] & [pending] \\
+    Transformer & [pending] & [pending] \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\section{Forecast behaviour}
+\label{sec:rm-behaviour}
+
+Figure~\ref{fig:rm-week} shows a representative forecast week per market against
+the realised price, and Figure~\ref{fig:rm-hour} the mean absolute error by
+delivery period, which exposes the hours each model finds hardest.
+
+\begin{figure}[h]
+  \centering
+  \IfFileExists{figures/results_models/forecast_week_dk1.pdf}{%
+    \includegraphics[width=\linewidth]{forecast_week_dk1}}{%
+    \fbox{\parbox[c][3cm][c]{\linewidth}{\centering Sample forecast week (DK1) --- pending experiment runs}}}
+  \caption{A representative forecast week, DK1: predicted vs realised day-ahead price for each model. (DE analogue rendered alongside.)}
+  \label{fig:rm-week}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \IfFileExists{figures/results_models/mae_by_hour_dk1.pdf}{%
+    \includegraphics[width=0.48\linewidth]{mae_by_hour_dk1}}{%
+    \fbox{\parbox[c][3cm][c]{0.46\linewidth}{\centering MAE by hour (DK1) --- pending}}}
+  \hfill
+  \IfFileExists{figures/results_models/mae_by_hour_de.pdf}{%
+    \includegraphics[width=0.48\linewidth]{mae_by_hour_de}}{%
+    \fbox{\parbox[c][3cm][c]{0.46\linewidth}{\centering MAE by hour (DE) --- pending}}}
+  \caption{Mean absolute error by delivery period (DK1 left, DE right), per model.}
+  \label{fig:rm-hour}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\section{Discussion of forecasting findings}
+\label{sec:rm-discussion}
+
+\textbf{[pending: the per-market model ranking and whether it is significant; how
+the ranking compares to Lago's LEAR-competitive-with-DNN finding and Llorente's
+Transformer-beats-DNN finding; any market differences between DK1 and DE; and a
+sentence on what replicated from the papers and what did not. Feeds RQ1 in
+\S\ref{ch:discussion}.]}

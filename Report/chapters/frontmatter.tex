@@ -1,1 +1,58 @@
-% Title block, abstract, acronyms. Bodies written in Task 10.
+% Front matter: title page, abstract, acronyms.
+% TODO: set the final title, author name, and degree/institution line.
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Huge\bfseries Embedding Electricity Price Forecasting\\[0.4em]
+   Benchmarks in a Production MLOps Platform\par}
+  \vspace{2cm}
+  {\Large \textit{[Author Name]}\par}
+  \vspace{1cm}
+  {\large Master's Thesis\par}
+  \vspace{0.5cm}
+  {\large June 2026\par}
+  \vfill
+\end{titlepage}
+
+\begin{abstract}
+Day-ahead electricity price forecasting (EPF) research has produced accurate
+benchmark models but evaluates them offline, stopping short of the concerns ---
+scheduled retraining, monitoring, and reproducibility --- that arise when a model
+is operated in production. This thesis bridges that gap by embedding the
+benchmark EPF models of Lago et al.\ (the LEAR ensemble and a deep neural
+network) and the Transformer of Llorente and Portela in an end-to-end MLOps
+platform, and evaluating both the forecasts and the system that serves them. The
+platform ingests ENTSO-E data on a schedule, stores it in ClickHouse,
+recalibrates and forecasts daily for the DK1 and DE bidding zones, monitors data
+and model health, and records the provenance of every run. The three models are
+replicated to specification and compared on a shared recent test window with
+paired Diebold--Mariano and Giacomini--White significance tests:
+\textbf{[pending: one-sentence forecasting headline]}. The system is assessed
+against the nine MLOps practices of Zarour et al.: eight are realised end-to-end
+and one is minimally realised, supported by an ML Test Score of 2.5 (bound by
+data testing), 66.7\,\% provenance-triple coverage backed by a re-run that
+reproduced a logged forecast to within $7\times10^{-6}$\,EUR/MWh, and DORA
+throughput of 20 deployments at a sub-minute lead time. The outcome is a
+reproducible, monitored EPF platform together with a faithful,
+significance-tested model comparison on current market data.
+\end{abstract}
+
+\chapter*{Acronyms}
+\addcontentsline{toc}{chapter}{Acronyms}
+\begin{description}
+  \item[CI/CD] Continuous Integration / Continuous Delivery
+  \item[DM] Diebold--Mariano (test of equal predictive accuracy)
+  \item[DNN] Deep Neural Network
+  \item[DORA] DevOps Research and Assessment
+  \item[ENTSO-E] European Network of Transmission System Operators for Electricity
+  \item[EPF] Electricity Price Forecasting
+  \item[GW] Giacomini--White (test of conditional predictive ability)
+  \item[LEAR] Lasso Estimated AutoRegressive (model)
+  \item[MAE] Mean Absolute Error
+  \item[MLOps] Machine Learning Operations
+  \item[rMAE] relative Mean Absolute Error
+  \item[RMSE] Root Mean Squared Error
+  \item[sMAPE] symmetric Mean Absolute Percentage Error
+  \item[TPE] Tree-structured Parzen Estimator
+  \item[VST] Variance-Stabilising Transformation
+\end{description}
