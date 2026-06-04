@@ -19,15 +19,16 @@ config = ExperimentConfig(
     },
     target_scaler="asinh",
     resample_to_hourly=True,
-    # INTERIM — re-tune pending (plan Task 7): tuned on TotalLoad-only
-    # features (study de_dnn_tune_v4); replaced by the paper-exog re-tune.
+    # Tuned via `forecast-cli tune de_dnn --study-name de_dnn_tune_v5_paperexog`
+    # on paper-exact exogenous (TotalLoad + Renewables) at hourly resolution.
+    # 30-trial TPE; best = trial 11, val MAE 12.212. algo.hyperparam_trials.
     model_params={
-        "hidden_units": 58,
-        "activation": "elu",
-        "dropout": 0.13216185974066028,
-        "learning_rate": 0.004855834388063902,
-        "batch_norm": False,
-        "l1_reg": 0.0005710947096868873,
+        "hidden_units": 373,
+        "activation": "relu",
+        "dropout": 0.2039415317758791,
+        "learning_rate": 0.0006927908325618224,
+        "batch_norm": True,
+        "l1_reg": 7.115104131682743e-07,
         "epochs": 200,
         "early_stopping_patience": 20,
     },
