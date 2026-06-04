@@ -29,6 +29,7 @@ config = ExperimentConfig(
     exogenous_curve_types=["TotalLoad"],
     exogenous_aggregates={"Wind": ["WindOnshore", "WindOffshore"]},
     target_scaler="asinh",
+    resample_to_hourly=True,
     feature_transformers=default_transformers_for_transformer(
         exogenous_columns=_EXOG,
         sequence_length_days=_SEQ,

@@ -19,5 +19,6 @@ config = ExperimentConfig(
         "Renewables": ["WindOnshore", "WindOffshore", "Solar"]
     },
     target_scaler="asinh",
+    resample_to_hourly=True,
     model_params={"alpha": "auto"},
 )

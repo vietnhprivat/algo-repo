@@ -20,6 +20,7 @@ config = ExperimentConfig(
     exogenous_curve_types=["TotalLoad"],
     exogenous_aggregates={"Wind": ["WindOnshore", "WindOffshore"]},
     target_scaler="asinh",
+    resample_to_hourly=True,
     # INTERIM — re-tune pending (plan Task 6): these params were tuned on
     # TotalLoad-only features (study dk1_dnn_tune_v3) and are replaced by the
     # paper-exog re-tune before the final backtest.

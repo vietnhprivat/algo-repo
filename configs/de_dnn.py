@@ -18,6 +18,7 @@ config = ExperimentConfig(
         "Renewables": ["WindOnshore", "WindOffshore", "Solar"]
     },
     target_scaler="asinh",
+    resample_to_hourly=True,
     # INTERIM — re-tune pending (plan Task 7): tuned on TotalLoad-only
     # features (study de_dnn_tune_v4); replaced by the paper-exog re-tune.
     model_params={
