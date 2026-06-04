@@ -1,25 +1,50 @@
 % =============================================================================
-% DRAFT SCAFFOLD — Methods: Forecasting Models & Evaluation (modelling part)
-% Structure-first. Tables + bullets; expand bullets into prose later.
+% Chapter: Methods --- Forecasting Models and Evaluation (modelling thread)
 % Source of pinned setup values: configs/*.py on this branch +
 % docs/superpowers/specs/2026-06-04-final-model-experiments-and-report-design.md
+% Numeric DNN hyperparameters are the committed (interim) tuned values and are
+% refreshed by the paper-exogenous re-tune that accompanies the final benchmark.
 % =============================================================================
 
 \chapter{Methods --- Forecasting Models and Evaluation}
 \label{ch:methods-models}
 
+This chapter specifies the forecasting models that the platform serves and the
+protocol by which they are compared. Three model families are studied: the
+Lasso Estimated AutoRegressive ensemble (LEAR) and the deep neural network
+(DNN) of Lago et al.~\cite{lago2021}, and the encoder-only Transformer of
+Llorente and Portela~\cite{llorente2025transformer}. Each is reimplemented
+faithfully and run on recent day-ahead data for two European bidding zones,
+DK1 (Nord Pool) and DE (EPEX). The chapter first states what "faithful
+replication" means and why the comparison is framed in relative rather than
+absolute terms (\S\ref{sec:mm-framing}), then describes the data and feature
+construction (\S\ref{sec:mm-data}), the three models as implemented
+(\S\ref{sec:mm-models}), the rolling recalibration and backtesting scheme
+(\S\ref{sec:mm-recalibration}), the evaluation metrics and significance tests
+(\S\ref{sec:mm-eval}), the hyperparameter-tuning protocol
+(\S\ref{sec:mm-tuning}), and finally the documented deviations from the source
+papers (\S\ref{sec:mm-deviations}).
+
 % -----------------------------------------------------------------------------
 \section{Replication framing}
 \label{sec:mm-framing}
 
-\begin{itemize}
-  \item One paragraph: methodology replicated from \cite{lago2021} (LEAR, DNN)
-        and \cite{llorente2025transformer} (Transformer) on current market data;
-        absolute errors are not comparable across periods, so comparison uses
-        rMAE and model rankings (\cite{lago2021} \S5.4).
-  \item State the three models and two markets; all six runs share one test
-        window so DM/GW tests are paired.
-\end{itemize}
+The error magnitudes reported in the source papers were obtained on 2016--2018
+test periods whose price level and volatility differ sharply from the
+2025--2026 regime studied here; an absolute mean-error figure is therefore not
+comparable across the two eras. The comparison this work makes is consequently
+threefold. First, \emph{methodology replication}: the same model
+specifications, feature sets, recalibration scheme, metrics, and statistical
+tests as the papers, executed on current data. Second, \emph{relative
+accuracy}: the relative mean absolute error (rMAE), which Lago et
+al.~\cite{lago2021} designed precisely for cross-period and cross-market
+comparison, together with the ordinal ranking of the models against the
+rankings the papers report. Third, \emph{head-to-head significance}: paired
+Diebold--Mariano~\cite{diebold1995dm} and Giacomini--White~\cite{giacomini2006gw}
+tests across the three models and a weekly-naive baseline, per market, on
+identical test days. Because all six experimental runs (three models $\times$
+two markets) share a single test window, the paired tests are valid: every pair
+of models is compared on the same delivery days.
 
 % -----------------------------------------------------------------------------
 \section{Data and features}
@@ -27,7 +52,7 @@
 
 \begin{table}[h]
   \centering
-  \caption{Datasets. Both markets span 2022-03-10 to 2026-05-31 (ENTSO-E).}
+  \caption{Datasets. Both markets span 2022-03-10 to 2026-05-31 (ENTSO-E Transparency Platform).}
   \label{tab:mm-datasets}
   \begin{tabularx}{\linewidth}{@{}l l l X@{}}
     \toprule
@@ -35,35 +60,55 @@
     \midrule
     DK1 & hourly (24)\textsuperscript{a} & TotalLoad + Wind (on+offshore)        & Nord Pool: load + wind~\cite{lago2021} \\
     DE  & hourly (24)\textsuperscript{a} & TotalLoad + Renewables (wind+solar)   & EPEX-DE: load + wind\&solar~\cite{lago2021} \\
-    \\[2pt] \multicolumn{4}{@{}l@{}}{\footnotesize\textsuperscript{a} Both markets clear in 15-min blocks (DE throughout; DK1 since 2025-10-01); prices and exogenous forecasts are downsampled to an arithmetic hourly mean (\texttt{resample\_to\_hourly}).} \\
+    \\[2pt] \multicolumn{4}{@{}p{\linewidth}@{}}{\footnotesize\textsuperscript{a} Both markets clear in 15-min blocks (DE throughout; DK1 since 2025-10-01); prices and exogenous forecasts are downsampled to an arithmetic hourly mean (\texttt{resample\_to\_hourly}).} \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Feature set per \cite{lago2021} Eq.~3: price lags $d{-}1,d{-}2,d{-}3,d{-}7$;
-        exogenous at $d0,d{-}1,d{-}7$; 7 day-of-week dummies
-        ($4n + 2\cdot3n + 7$; $n{=}24 \Rightarrow 247$, $n{=}96 \Rightarrow 967$).
-  \item Aggregation: raw ENTSO-E wind/solar curves summed at load time
-        (\texttt{exogenous\_aggregates}); members inner-joined on timestamps
-        before summing; all exogenous columns inner-joined so the coarsest
-        series anchors the time grid.
-  \item Variance stabilisation: asinh transform~\cite{uniejewski2018vst}.
-  \item Resolution: both markets clear in 15-minute blocks (DE throughout the
-        sample; DK1 since 2025-10-01). To keep the two markets comparable with
-        each other and with the hourly reference benchmarks~\cite{lago2021,llorente2025transformer},
-        prices and exogenous forecasts are downsampled to an arithmetic hourly
-        mean (24 periods/day) before feature construction. Modelling natively at
-        96 periods is infeasible for DK1, which has under one month of 15-min
-        history before the test window.
-  \item Data-gap note: ENTSO-E lacks DK1 wind forecasts for a handful of days
-        (incl.\ 2026-05-07 inside the test window); affected days drop from
-        all DK1 models identically, so paired tests remain valid.
-\end{itemize}
+All data are obtained from the ENTSO-E Transparency Platform and stored in
+ClickHouse, from which the preprocessor loads a price series and a configurable
+set of exogenous forecast series for each market. Following Lago et
+al.~\cite{lago2021}, Eq.~3, the feature vector for each delivery day combines
+autoregressive price lags at $d{-}1$, $d{-}2$, $d{-}3$, and $d{-}7$; exogenous
+forecasts at $d0$, $d{-}1$, and $d{-}7$; and seven day-of-week dummies. For a
+day discretised into $n$ delivery periods this yields
+\begin{equation}
+  \underbrace{4n}_{\text{price lags}} + \underbrace{2 \cdot 3n}_{\text{two exogenous} \times \text{3 lags}} + \underbrace{7}_{\text{weekday}}
+  \label{eq:mm-featurecount}
+\end{equation}
+features, i.e.\ $247$ at hourly resolution ($n{=}24$) and $967$ at quarter-hourly
+resolution ($n{=}96$). The exogenous set is restricted, per market, to exactly
+the two signals the papers use: for DK1 the zonal load forecast and an
+aggregated wind forecast (onshore plus offshore); for DE the zonal load forecast
+and an aggregated renewables forecast (onshore plus offshore wind plus solar).
+The aggregates are formed at load time by summing the raw ENTSO-E curves: the
+member curves are inner-joined on their timestamps before summing so that a
+partial sum can never occur, and all exogenous columns are then inner-joined
+together, so the coarsest available series anchors the common time grid.
+
+The target undergoes the asinh variance-stabilising transform of Uniejewski et
+al.~\cite{uniejewski2018vst}, which compresses the heavy tails and price spikes
+characteristic of day-ahead series while, unlike a logarithm, remaining defined
+for the negative prices that occur under high renewable infeed. Both markets
+now clear in fifteen-minute blocks --- DE throughout the sample and DK1 since
+2025-10-01 --- but prices and exogenous forecasts are downsampled to an
+arithmetic hourly mean (24 periods per day) before features are constructed.
+This keeps the two markets comparable with each other and with the hourly
+reference benchmarks of Lago et al.~\cite{lago2021} and Llorente and
+Portela~\cite{llorente2025transformer}; modelling DK1 natively at 96 periods is
+in any case infeasible, as it has under one month of quarter-hourly history
+before the test window. Finally, ENTSO-E lacks DK1 wind forecasts for a small
+number of days (including 2026-05-07, inside the test window); affected days are
+dropped identically from every DK1 model, so the paired significance tests
+remain valid.
 
 % -----------------------------------------------------------------------------
 \section{Models}
 \label{sec:mm-models}
+
+Table~\ref{tab:mm-models} summarises the three model setups, which are identical
+across both markets except for the market-specific exogenous aggregate and the
+per-market DNN hyperparameters.
 
 \begin{table}[h]
   \centering
@@ -71,67 +116,190 @@
   \label{tab:mm-models}
   \begin{tabularx}{\linewidth}{@{}l X X l@{}}
     \toprule
-    \textbf{Model} & \textbf{Spec} & \textbf{Calibration} & \textbf{Refit} \\
+    \textbf{Model} & \textbf{Specification} & \textbf{Calibration} & \textbf{Refit} \\
     \midrule
-    LEAR        & One Lasso per delivery period; $\lambda$ by \texttt{LassoCV} (time-series CV) & ensemble over 56/84/1092\,d & daily \\
-    DNN         & MLP, 4-seed ensemble; architecture HPs by Optuna TPE (50 trials, ex-ante val) & 730\,d & daily \\
-    Transformer & Encoder stack per \cite{llorente2025transformer}; paper NP hyperparameters & 1092\,d & weekly \\
+    LEAR        & One Lasso per delivery period; $\lambda$ by \texttt{LassoCV} (time-series CV) & ensemble over 56 / 84 / 1092\,d & daily \\
+    DNN         & MLP, 4-seed ensemble; architecture HPs by Optuna TPE (ex-ante validation) & 730\,d & daily \\
+    Transformer & Encoder stack per~\cite{llorente2025transformer}; paper Nord Pool hyperparameters & 1092\,d & weekly \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Tuning protocol: validation window 2025-01-01 to 2025-10-23 (42 weeks,
-        immediately preceding the test window; \cite{lago2021} \S4.3.2);
-        trials persisted to \texttt{algo.hyperparam\_trials}.
-  \item Transformer calibration windows verified against usable sequence rows
-        before test start (DK1: 1197, DE: 1265 --- both $\geq$ 1092).
-\end{itemize}
+\subsection{LEAR}
+
+LEAR is a direct multi-period regressor: one independent Lasso model is fitted
+per delivery period, so an hourly market trains 24 separate Lasso estimators,
+each predicting a single hour from the full feature vector of
+Eq.~\eqref{eq:mm-featurecount}. The L1 penalty performs simultaneous shrinkage
+and feature selection, which is what makes the parameter-rich input space
+tractable. The regularisation strength $\lambda$ is selected automatically per
+period by \texttt{LassoCV} with a five-fold \texttt{TimeSeriesSplit}
+cross-validation (maximum 5000 coordinate-descent iterations), the configuration
+denoted \texttt{alpha="auto"}. LEAR carries no learned ensembling of its own;
+the ensemble averaging it benefits from is supplied by the multi-window
+recalibration scheme of \S\ref{sec:mm-recalibration}.
+
+\subsection{Deep neural network}
+
+The DNN is a multi-layer perceptron with two hidden layers that maps the feature
+vector to all $n$ delivery periods in a single forward pass (a
+multiple-input--multiple-output design). It is trained to minimise the mean
+absolute error with the Adam optimiser, with optional L1 weight regularisation,
+optional batch normalisation, and early stopping (the best weights, by
+validation loss, are restored from memory rather than from disk). The serving
+prediction is the arithmetic mean of four replicates trained from distinct
+random seeds, following the ensemble recommendation of Lago et
+al.~\cite{lago2021}, \S4.4. The six architecture hyperparameters --- hidden-layer
+width, activation, dropout, learning rate, the batch-normalisation flag, and the
+L1 penalty --- are selected per market by the tuning protocol of
+\S\ref{sec:mm-tuning}; Table~\ref{tab:mm-dnn-hp} lists the values in force.
+
+\begin{table}[h]
+  \centering
+  \caption{Tuned DNN hyperparameters per market. Selected by the protocol of \S\ref{sec:mm-tuning} on the ex-ante validation window; the architecture-only search is re-run whenever the feature set changes, so these values are refreshed by the paper-exogenous re-tune that accompanies the final benchmark.}
+  \label{tab:mm-dnn-hp}
+  \begin{tabularx}{\linewidth}{@{}l l l l l l X@{}}
+    \toprule
+    \textbf{Market} & \textbf{Width} & \textbf{Activation} & \textbf{Dropout} & \textbf{Learning rate} & \textbf{Batch norm} & \textbf{L1 penalty} \\
+    \midrule
+    DK1 & 198 & tanh & 0.027 & $6.3\times10^{-4}$ & no & $6.7\times10^{-4}$ \\
+    DE  & 58  & elu  & 0.132 & $4.9\times10^{-3}$ & no & $5.7\times10^{-4}$ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Transformer}
+
+The Transformer follows Llorente and Portela~\cite{llorente2025transformer} and
+is encoder-only with two parallel input branches. The first branch takes the
+past-price sequence of the previous $m{=}14$ days, each day a vector of $n$
+period prices; each day is linearly embedded to a 128-dimensional vector, a
+learnable positional encoding is added, and the sequence is passed through a
+stack of six Transformer encoder layers (eight attention heads, feed-forward
+dimension 1024, dropout 0.2), of which the final position is taken as the price
+representation. The second branch linearly embeds the day-ahead exogenous
+forecasts. The two representations are concatenated and mapped by a
+single-hidden-layer perceptron (width 128) to the $n$ output periods. The model
+is trained with Adam at a learning rate of $10^{-4}$, batch size 32, for up to
+200 epochs with early stopping (patience 25) on an internal validation split,
+under a step learning-rate schedule. The number of exogenous inputs is fixed at
+two to match the paper specification, and the remaining hyperparameters reuse the
+paper's Nord Pool search optimum; per-market Transformer tuning is left as
+future work (\S\ref{sec:mm-deviations}). Because the wide feature vector this
+model consumes is interpreted positionally rather than by column name, it is
+produced by a dedicated feature pipeline
+(\texttt{default\_transformers\_for\_transformer}) that lays out the
+$m{\times}n$ price block followed by the exogenous block in a fixed order.
+
+% -----------------------------------------------------------------------------
+\section{Recalibration and backtesting}
+\label{sec:mm-recalibration}
+
+All three models are evaluated by a single walk-forward backtesting engine that
+reproduces the rolling-recalibration scheme of Lago et al.~\cite{lago2021}. For
+each delivery day in the test window, and for each calibration-window length in
+the model's ensemble, the engine slices the training data to the most recent
+window of days strictly preceding the target day, fits the feature and target
+scalers on that slice alone, trains the model, and predicts the target day; the
+day's forecast is the arithmetic mean of the predictions across the
+calibration windows. To bound compute, each window keeps a cached fitted model
+and is refitted only when the number of days since its last fit reaches the
+configured refit interval --- daily for LEAR and the DNN, weekly for the
+Transformer, following the respective papers. LEAR uses the paper ensemble of
+56-, 84-, and 1092-day windows (the 1456-day window of the original
+specification is dropped because it predates the available data); the DNN uses a
+single 730-day window; and the Transformer uses a single 1092-day window, which
+was verified to leave enough usable sequence rows before the test start in both
+markets (1197 for DK1, 1265 for DE, both at least 1092). The train/test split is
+date-based: training data are all rows strictly before the test start date, and
+no validation holdout is carved out of the backtest itself (the validation
+window of \S\ref{sec:mm-tuning} is used only by the tuning command).
 
 % -----------------------------------------------------------------------------
 \section{Evaluation protocol}
 \label{sec:mm-eval}
 
-\begin{itemize}
-  \item Test window 2025-10-24 to 2026-05-31 (220 calendar days), identical for
-        all six runs; training data = everything before test start
-        (\cite{lago2021} \S5.7).
-  \item Metrics: MAE, RMSE, sMAPE, rMAE with weekly-naive
-        (\cite{lago2021} \S5.4); rMAE is the headline metric.
-  \item Statistical testing: multivariate GW on daily $L^1$ loss differentials
-        with Newey--West HAC errors~\cite{giacomini2006gw,lago2021}; pairwise
-        DM~\cite{diebold1995dm} as univariate complement. Models compared on
-        their common surviving test days (feature pipelines drop gap/DST days
-        differently per model family).
-  \item Computation cost: training seconds per recalibration day, from
-        \texttt{algo.experiment\_runs} (analogue of \cite{lago2021} Table~4).
-\end{itemize}
+The test window runs from 2025-10-24 to 2026-05-31 (220 calendar days) and is
+identical for all six runs. Four accuracy metrics are reported. For $N$ aligned
+prediction--actual pairs $(\hat{y}_i, y_i)$,
+\begin{align}
+  \mathrm{MAE}   &= \frac{1}{N}\sum_{i=1}^{N} \lvert y_i - \hat{y}_i \rvert,
+  & \mathrm{RMSE} &= \sqrt{\frac{1}{N}\sum_{i=1}^{N} (y_i - \hat{y}_i)^2}, \\
+  \mathrm{sMAPE} &= \frac{100}{N}\sum_{i=1}^{N} \frac{\lvert y_i - \hat{y}_i\rvert}{\tfrac{1}{2}(\lvert y_i\rvert + \lvert \hat{y}_i\rvert)},
+  & \mathrm{rMAE} &= \frac{\mathrm{MAE}(\mathbf{y}, \hat{\mathbf{y}})}{\mathrm{MAE}(\mathbf{y}, \hat{\mathbf{y}}^{\text{naive}})},
+\end{align}
+where the naive benchmark $\hat{\mathbf{y}}^{\text{naive}}$ is the weekly-naive
+forecast (the realised price exactly seven days earlier), as recommended by Lago
+et al.~\cite{lago2021}, \S5.4. The rMAE is the headline metric because, being
+normalised by the same-market naive error, it is the figure that can be compared
+across periods and markets.
+
+Statistical significance is assessed with the multivariate Giacomini--White
+test~\cite{giacomini2006gw, lago2021}. For each ordered pair of models $(A,B)$
+the daily loss differential
+\begin{equation}
+  d_t = \sum_{h=1}^{n} \bigl(\lvert e^{A}_{t,h}\rvert - \lvert e^{B}_{t,h}\rvert\bigr)
+\end{equation}
+is formed over the $n$ delivery periods of day $t$ (the $L^1$ norm of the
+errors), and the test statistic $\bar{d}/\hat{\sigma}_{\bar d}$ is computed with
+a Newey--West heteroskedasticity- and autocorrelation-consistent standard error
+using a lag of $\lfloor T^{1/4}\rfloor$ over the $T$ test days. The univariate
+Diebold--Mariano test~\cite{diebold1995dm} is reported as a complement. Models
+are compared on the test days that all of them produced, since the different
+feature pipelines drop gap and daylight-saving days slightly differently across
+model families. Finally, computation cost is reported as the training time per
+recalibration, read from the experiment tracker, as the analogue of Lago et
+al.~\cite{lago2021}, Table~4.
+
+% -----------------------------------------------------------------------------
+\section{Hyperparameter tuning}
+\label{sec:mm-tuning}
+
+The DNN is the only model whose hyperparameters are searched; LEAR selects
+$\lambda$ internally by cross-validation, and the Transformer reuses the paper
+optimum. Tuning uses Optuna's Tree-structured Parzen Estimator over a six-dimensional
+architecture-only search space: hidden-layer width (16--512, log scale),
+activation (one of relu, tanh, elu, softplus, sigmoid), dropout (0--0.5),
+learning rate ($10^{-5}$--$10^{-1}$, log scale), the batch-normalisation flag,
+and the L1 penalty ($10^{-8}$--$10^{-2}$, log scale). The objective is the mean
+MAE over the validation window of 2025-01-01 to 2025-10-23 --- the 42 weeks
+immediately preceding the test window, kept strictly ex-ante per Lago et
+al.~\cite{lago2021}, \S4.3.2 --- evaluated under the same walk-forward engine
+used for the backtest. Every trial is persisted to the
+\texttt{algo.hyperparam\_trials} table so that a search resumes across sessions.
+The ten binary feature- and selector-toggles of Lago et al.\ (\S4.3.3), together
+with their \texttt{preprocessing} and \texttt{init\_method} choices, are
+deliberately omitted: the preprocessor and model constructors do not expose the
+corresponding switches, so including them in the search space would create inert
+dimensions that consume the trial budget without affecting the model.
 
 % -----------------------------------------------------------------------------
 \section{Deviations from the source papers}
 \label{sec:mm-deviations}
 
+The replication is faithful in specification but departs from the source papers
+in a small number of documented respects, summarised in
+Table~\ref{tab:mm-deviations}. Each deviation is driven either by the length of
+the available data history (which begins on 2022-03-10) or by a compute budget,
+and none changes the model class or the feature definition.
+
 \begin{table}[h]
   \centering
-  \caption{Documented deviations from \cite{lago2021} and \cite{llorente2025transformer}.}
+  \caption{Documented deviations from~\cite{lago2021} and~\cite{llorente2025transformer}.}
   \label{tab:mm-deviations}
   \begin{tabularx}{\linewidth}{@{}l X X@{}}
     \toprule
     \textbf{Aspect} & \textbf{Paper} & \textbf{This work (reason)} \\
     \midrule
-    Test length            & $\geq$ 1--2 years            & 31 weeks (price history starts 2022-03; val + calibration consume the rest) \\
-    DNN tuning budget      & 1500 TPE iterations          & 50 trials (compute; optimum stable early in prior studies) \\
-    DNN search space       & architecture + feature selectors & architecture only (feature set fixed to paper spec) \\
-    LEAR windows           & 56/84/1092/1456\,d           & 56/84/1092\,d (1456 predates data) \\
-    DNN window             & 4 years                      & 730\,d (data/compute constraint) \\
+    Test length            & $\geq$ 1--2 years            & 31 weeks (price history starts 2022-03; validation and calibration consume the rest) \\
+    DNN tuning budget      & 1500 TPE iterations          & 50 trials (compute; the optimum is stable early in prior studies) \\
+    DNN search space       & architecture + feature selectors & architecture only (feature set fixed to the paper specification) \\
+    LEAR windows           & 56 / 84 / 1092 / 1456\,d     & 56 / 84 / 1092\,d (1456 predates the data) \\
+    DNN window             & 4 years                      & 730\,d (data and compute constraint) \\
     $\lambda$ selection    & LARS + AIC                   & \texttt{LassoCV} time-series CV (standard, equivalent accuracy) \\
     Market resolution      & hourly (paper era)           & both markets now 15-min; downsampled to an hourly mean for cross-market and cross-paper comparability \\
-    Transformer pipeline   & train-once + renormalise     & calibration window + weekly refit (pipeline consistency) \\
-    Transformer HPs        & tuned per dataset            & paper NP optimum reused (future work) \\
+    Transformer pipeline   & train-once + renormalise     & calibration window + weekly refit (consistency with the other models) \\
+    Transformer HPs        & tuned per dataset            & paper Nord Pool optimum reused (future work) \\
     \bottomrule
   \end{tabularx}
 \end{table}
-
-% =============================================================================
-% END DRAFT
-% =============================================================================
