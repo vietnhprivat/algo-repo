@@ -1,61 +1,38 @@
 % =============================================================================
-% DRAFT SCAFFOLD — System Evaluation Results (non-modelling part)
-%
-% Structure-first. Tables + citations + bullets of what to write.
-% NOT final prose. Expand bullets into 2–4 sentences each where they sit.
-% Numbers are pinned from the metrics artifacts on this branch and are real.
-%
-% Sibling location (already written, can be cannibalised / cross-referenced):
-%   Report/chapters/system_implementation.tex § "Quantitative evaluation"
-% Source artifacts:
-%   Report/metrics/quantitative_results.md
-%   Report/metrics/ml_test_score.md
-%   scripts/report/reproduce_run.py (live demo)
-% Zarour SLR (already in references.bib as zarour2025) is the spine cite for
-% the practice-by-practice and maturity-model discussion.
+% Chapter: Results --- System Evaluation. Reports the numbers; the framework
+% (which tests, why) is in Chapter ch:eval-framework. Figures are real, drawn
+% from Report/metrics/{quantitative_results,ml_test_score}.md.
 % =============================================================================
 
-\chapter{Results — System Evaluation}
+\chapter{Results --- System Evaluation}
 \label{ch:results-system}
 
-% -----------------------------------------------------------------------------
-\section{Methodology}
-\label{sec:res-method}
-
-\begin{itemize}
-  \item This chapter evaluates the \emph{system}; forecast accuracy lives in Chapter~\ref{ch:results-models}.
-  \item Frame as a single-case study~\cite{runeson2009casestudy}: source code, git/CI history, ClickHouse experiment tracker, short targeted experiments.
-  \item Honesty boundary: figures are indicative over the study window, not long-run production claims.
-  \item Domain precedent: matches how MLOps platforms for electricity-price forecasting are evaluated~\cite{subramanya2022devops2mlops}.
-  \item Explicitly not claimed: controlled comparison against another platform.
-\end{itemize}
-
-% -----------------------------------------------------------------------------
-\section{Instrument selection rationale}
-\label{sec:res-instruments}
-
-\begin{itemize}
-  \item Open: Zarour's SLR~\cite{zarour2025} catalogues nine practices but no single quantitative score; we therefore compose two instruments, each addressing a measurable face of the system.
-  \item Map the two instruments to the practices they evidence:
-  \begin{itemize}
-    \item ML Test Score (\S\ref{sec:res-mlts}) $\to$ aggregate evidence for P1, P2, P3, P4, P6, P7, P8 (rubric items cover them).
-    \item Reproducibility (\S\ref{sec:res-repro}) $\to$ direct evidence for P3.
-  \end{itemize}
-  \item One sentence on what is \emph{not} instrumented quantitatively and why: P5 (Collaboration) — qualitative by nature, handled in System Implementation Ch.~\ref{ch:system-implementation}.
-\end{itemize}
+This chapter reports the system-side evaluation defined in
+Chapter~\ref{ch:eval-framework}; the forecast-accuracy results are in
+Chapter~\ref{ch:results-models}. Following the single-case study guidelines of
+Runeson and H\"ost~\cite{runeson2009casestudy}, the system is evaluated from its
+source code, version-control and CI history, the ClickHouse experiment tracker,
+and short targeted experiments. The figures are indicative of the system over
+the study window rather than claims about long-run production operation --- a
+framing that matches comparable MLOps evaluations in the electricity-forecasting
+domain~\cite{subramanya2022devops2mlops}. No controlled comparison against a
+second platform is attempted. The instruments themselves, and the reasoning for
+choosing them, were set out in Chapter~\ref{ch:eval-framework}; here each is
+applied and its result reported.
 
 % -----------------------------------------------------------------------------
 \section{ML Test Score}
 \label{sec:res-mlts}
 
-\begin{itemize}
-  \item Rubric origin~\cite{breck2017mltestscore}: 28 tests across four sections, each scored $\{0, 0.5, 1\}$; final = \emph{min} of the four section sums.
-  \item Min-of-sections rationale: the weakest section bounds the result and surfaces where investment is needed; rewards balance, not breadth.
-\end{itemize}
+The ML Test Score rubric of Breck et al.~\cite{breck2017mltestscore} scores 28
+tests across four sections on a $\{0, 0.5, 1\}$ scale, the final score being the
+minimum of the four section sums so that the weakest area bounds the result.
+Table~\ref{tab:res-mlts} reports the per-section sums; the full per-item evidence
+is in Appendix~\ref{app:mlts-worksheet}.
 
 \begin{table}[h]
   \centering
-  \caption{ML Test Score self-assessment. Per-item evidence in \texttt{Report/metrics/ml\_test\_score.md}.}
+  \caption{ML Test Score self-assessment (min-of-sections rule). Per-item evidence in Appendix~\ref{app:mlts-worksheet}.}
   \label{tab:res-mlts}
   \begin{tabularx}{\linewidth}{@{}X r@{}}
     \toprule
@@ -71,24 +48,27 @@
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Binding section: Data tests (2.5 / 7).
-  \item What is scored: input schema enforcement (\texttt{enforce\_schema}); a tested feature-transformer pipeline.
-  \item What is missing: formal feature-benefit, feature-cost, privacy-controls analyses; no data-quality CI gate.
-  \item Future work pointer: \S\ref{sec:res-known-gaps}.
-  \item \textit{Optional rescore decision (your call):} S1-2 (Lasso is feature selection) and S1-4 (Lago-grounded feature set) are arguably 0.5 each — would lift Data to 3.0 or 3.5 and the headline to 3.0. State and defend, or leave conservative.
-\end{itemize}
+The final score is \textbf{2.5}, bound by the data-testing section. The system
+scores there for enforcing strict input schemas (\texttt{enforce\_schema}) and
+for a tested feature-transformer pipeline, but does not formally document the
+feature-benefit, feature-cost, or privacy analyses the rubric also rewards, and
+has no data-quality CI gate. We read this as the system's primary remaining
+investment area (\S\ref{sec:res-known-gaps}). The score is deliberately
+conservative: two data items --- that the Lasso performs feature selection, and
+that the feature set is grounded in Lago et al.~\cite{lago2021} --- could each
+be argued to 0.5, which would lift the data section to 3.0 and the headline to
+3.0; we leave them at zero absent a documented analysis, so the reported score is
+a lower bound.
 
 % -----------------------------------------------------------------------------
 \section{Reproducibility}
 \label{sec:res-repro}
 
-\begin{itemize}
-  \item Two senses, measured separately: \emph{provenance coverage} (a percentage) and \emph{demonstration} (a worked re-run).
-  \item Score framing follows~\cite{gundersen2018reproducibility}; ACM Artifact Review and Badging~\cite{acm2020badging} gives the badge mapping.
-\end{itemize}
-
-\subsection*{Provenance coverage}
+Reproducibility is reported in the two senses defined in
+Chapter~\ref{ch:eval-framework}: provenance coverage across all runs, and a
+worked re-run of one. The framing follows Gundersen and
+Kjensmo~\cite{gundersen2018reproducibility}, and the badge vocabulary follows the
+ACM Artifact Review and Badging policy~\cite{acm2020badging}.
 
 \begin{table}[h]
   \centering
@@ -108,13 +88,12 @@
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Shortfall is entirely on \texttt{git\_sha}; data window and artefact are 100\,\% from day one.
-  \item Cause: 5 of 15 runs pre-date the CD pipeline baking \texttt{GIT\_SHA} into the production image.
-  \item From the first cd-deployed run onward, all four components are populated.
-\end{itemize}
-
-\subsection*{Re-run demonstration}
+Of the 15 live runs in the window, 66.7\,\% carry the complete provenance triple
+(Table~\ref{tab:res-repro-coverage}). The shortfall is entirely on
+\texttt{git\_sha}: the data-window and artefact columns are populated for every
+run from day one, while five early runs predate the CD pipeline that bakes
+\texttt{GIT\_SHA} into the production image. From the first cd-deployed run
+onward, all four components are present.
 
 \begin{table}[h]
   \centering
@@ -134,98 +113,72 @@
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Only inputs supplied: the run's committed config + target date; stored prediction loaded from \texttt{algo.experiment\_predictions}.
-  \item $7 \times 10^{-6}$ EUR/MWh is five orders of magnitude below any economically meaningful price unit — solver-level floating-point tolerance.
-  \item Deterministic LEAR used for the headline demo; DNN / Transformer carry seed and ensemble stochasticity (note as caveat).
-  \item ACM Artifact Badging~\cite{acm2020badging}: \emph{Available, Functional, Reusable} by self-review; \emph{Reproduced} not claimed (requires external reviewer).
-\end{itemize}
+For the demonstration (Table~\ref{tab:res-repro-rerun}), the only inputs supplied
+were the run's committed config and target date; the stored prediction was loaded
+from \texttt{algo.experiment\_predictions}. For the deterministic LEAR
+configuration on 2026-03-22, the maximum absolute difference across all 24
+delivery periods was $7\times10^{-6}$\,EUR/MWh --- five orders of magnitude below
+any economically meaningful price unit, i.e.\ numerically identical up to
+solver-level floating-point tolerance. LEAR is used for the headline
+demonstration because it is deterministic given a fixed data window; the DNN and
+Transformer carry seed and ensemble stochasticity whose controlled re-run is
+left to future work. Against the ACM vocabulary~\cite{acm2020badging}, the
+artefact is Available, Functional, and Reusable by self-review; the independent
+``Reproduced'' badge, which requires an external reviewer, is not claimed.
 
 % -----------------------------------------------------------------------------
-\section{Maturity-model placement}
+\section{Delivery throughput}
+\label{sec:res-dora}
+
+Treating each successful run of \texttt{cd\_deploy.yml} on \texttt{main} as one
+deployment, the two DORA throughput metrics~\cite{forsgren2018accelerate} over
+the window are 20 successful deployments (1.56 per week), with a
+PR-merge-to-deploy-start lead time of 0.1\,min at both the median and the 95th
+percentile. Change failure rate and mean time to restore are deliberately not
+reported --- both require an incident corpus that a study window of this length
+does not provide --- and no DORA performance tier is assigned, since the tier
+thresholds are re-derived annually. The sub-minute lead time reflects that
+\texttt{cd\_deploy.yml} fires immediately on push to \texttt{main} and that the
+interval measured runs from the merge commit to the workflow's own start, not
+from the first commit on a feature branch.
+
+% -----------------------------------------------------------------------------
+\section{Drift detection as monitoring, not a retraining trigger}
+\label{sec:res-drift}
+
+The system refits every model from scratch daily on a rolling window at a cost of
+seconds (Chapter~\ref{ch:system-implementation}, P6), so the model is never stale
+between scheduled refits. In this regime, drift-\emph{triggered} retraining adds
+no freshness benefit over the scheduled refit: the cost--benefit analysis of
+Mahadevan and Mathioudakis~\cite{mahadevan2024costaware} shows that triggered
+retraining earns its keep only when retraining is expensive, and that
+distribution-drift triggers otherwise incur unnecessary retrains from false
+positives. Drift detection is therefore retained as a \emph{monitoring and
+alerting} signal rather than a retraining trigger, which is why
+\texttt{retrain\_on\_drift} defaults to false. This conclusion is conditional: it
+holds while retraining stays cheap and the rolling window short, and would be
+revisited for expensive multi-year Transformer retraining. One calibration
+limitation is noted: over the window the detector flagged drift on 49 of 49
+reports, a detection rate that is uninformatively high and is listed as future
+work in \S\ref{sec:res-known-gaps}.
+
+% -----------------------------------------------------------------------------
+\section{Maturity placement}
 \label{sec:res-maturity}
 
-\begin{itemize}
-  \item Cross-reference the qualitative practice-by-practice table in System Implementation (Ch.~\ref{ch:system-implementation}, Table~\ref{tab:maturity}) — do not duplicate it here.
-  \item Open the section with the methodological question: \emph{which} maturity model should the per-practice levels be assigned against, and why?
-\end{itemize}
-
-\begin{table}[h]
-  \centering
-  \caption{The five MLOps maturity models reviewed by Zarour et al.~\cite{zarour2025}, Table~7. All trace back to CMM/CMMI lineage. The system is positioned against the \textbf{Google 3-level} model (chosen below).}
-  \label{tab:res-maturity-candidates}
-  \begin{tabularx}{\linewidth}{@{}l c X@{}}
-    \toprule
-    \textbf{Model} & \textbf{Levels} & \textbf{Top level description} \\
-    \midrule
-    Google                                  & 3 (0--2) & CI/CD pipeline automation \\
-    Microsoft                               & 5 (0--4) & Full MLOps automated operations \\
-    GigaOm                                  & 5 (0--4) & Comprehensive MLOps pipeline supporting frequent model updates \\
-    John, Olsson \& Bosch (2021)            & 4 (0--3) & Fully-automated model monitoring \\
-    Mateo-Casal\'i et al.\ (2022)            & 5 (0--4) & Optimization (CMMI mapping) \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-\begin{itemize}
-  \item Justify the choice of Google in three bullets:
-  \begin{itemize}
-    \item \textbf{Granularity matches scope}: the system is a single-host MVP; a 3-level scheme avoids over-claiming distinctions between Microsoft's Levels 2–4 (Automated Training / Auto Deployment / Full Automation) that a single deployment target cannot meaningfully differentiate.
-    \item \textbf{Top level is plausibly attainable}: Google Level 2 (``CI/CD pipeline automation'') maps cleanly to the realised platform; Microsoft Level 4 (``Full MLOps automated operations'') would require multi-environment claims the platform does not make.
-    \item \textbf{Open and widely cited}: Google's whitepaper is publicly accessible~\cite{google_mlops_maturity} and is the most cited industry maturity reference in the Zarour SLR, giving the assignment an external touchpoint reviewers can check.
-  \end{itemize}
-  \item Disclose alternatives honestly: a Microsoft, GigaOm, John\,et\,al., or Mateo-Casal\'i scoring is possible and would yield different per-practice numbers; we report Google levels in Table~\ref{tab:maturity} for these reasons and note that none of the five models has empirical validation comparable to a peer-reviewed instrument.
-  \item Limitation: all five models are descriptive, vendor- or academia-defined ordinals — they do not produce a quantitative aggregate; they support \emph{positioning}, not \emph{measurement}. The instruments in \S\ref{sec:res-mlts}--\ref{sec:res-repro} carry the measurement load.
-\end{itemize}
-
-% -----------------------------------------------------------------------------
-\section{Threats to validity}
-\label{sec:res-validity}
-
-\begin{itemize}
-  \item Frame per~\cite{runeson2009casestudy}; one bullet per threat type.
-  \item \textbf{Construct}: do the chosen scores measure what we claim? ML Test Score is a self-administered rubric; per-item evidence in \texttt{ml\_test\_score.md} makes claims checkable.
-  \item \textbf{Internal}: are observed properties causally attributable to the platform? Reproducibility speaks directly from artefacts.
-  \item \textbf{External}: single-case design, analytic generalisation only — findings are not statistical claims about MLOps platforms in general.
-  \item \textbf{Reliability}: would another evaluator score the same? Scoring rules in \S\ref{sec:res-mlts} are explicit; evidence is recorded per item.
-  \item Alignment with Zarour's own SLR validity discussion (its §4.5): the threats we name parallel internal/external/construct in their paper~\cite{zarour2025}.
-\end{itemize}
-
-% -----------------------------------------------------------------------------
-\section{Known gaps and future work (system side)}
-\label{sec:res-known-gaps}
-
-\begin{itemize}
-  \item \textbf{Data tests} — formalise feature-benefit / feature-cost / privacy analyses; add a data-quality CI gate. Drives the binding ML Test Score section.
-  \item \textbf{Reproducibility extension} — DNN / Transformer re-run with controlled seeds; currently only deterministic LEAR is demonstrated.
-  \item \textbf{Provenance backfill} — 5 pre-CD runs lack \texttt{git\_sha}; either backfill from log timestamps or document the gap explicitly.
-  \item Cross-reference modelling-side future work in Chapter~\ref{ch:results-models}.
-\end{itemize}
-
-% -----------------------------------------------------------------------------
-\section{Summary}
-\label{sec:res-summary}
-
-\begin{itemize}
-  \item One-paragraph summary: the chapter's qualitative ``Realised'' labels are backed by an ML Test Score of 2.5 and a provenance-triple coverage of 66.7\,\% supported by a $7\times 10^{-6}$ EUR/MWh re-run.
-  \item Maturity position: Google Level 2 across most practices, Level 1 for P5--P7 and P9 (see Ch.~\ref{ch:system-implementation}, Table~\ref{tab:maturity}).
-  \item Cross-reference Chapter~\ref{ch:results-models} (model accuracy) and Chapter~\ref{ch:system-implementation} (qualitative practice-by-practice).
-\end{itemize}
-
-% =============================================================================
-% END DRAFT
-% =============================================================================
-
-% === Relocated from system_implementation.tex (Task 1). Integrated/expanded in Task 6. ===
-\subsection{Practice-by-practice status}
-
-The table below summarises the implementation status of each Zarour practice as
-realised in algo-repo. The three status labels map directly to the evidence
-inventory that precedes them: a practice is \emph{Realised} when a concrete,
-production-running artefact closes it end-to-end; \emph{Minimal} when the
-mechanism exists but its scope is intentionally restricted; and \emph{Deferred}
-when a gap was identified, a tool evaluated, and adoption postponed to a named
-trigger.
+The platform is positioned against the Google three-level maturity model, the
+choice of which is justified in Chapter~\ref{ch:eval-framework},
+\S\ref{sec:ef-maturity}. Table~\ref{tab:maturity} assigns a status and a Google
+level to each of Zarour's nine practices, with one line of evidence apiece. The
+three status labels map to the evidence already presented: a practice is
+\emph{Realised} when a concrete, production-running artefact closes it
+end-to-end, and \emph{Minimal} when the mechanism exists but its scope is
+intentionally restricted. Eight of the nine are Realised; the ninth, the feedback
+loop, is Minimal --- drift-triggered retraining exists but is scoped to two areas
+behind an opt-in flag, consistent with the monitoring-not-trigger argument of
+\S\ref{sec:res-drift}. The levels themselves are descriptive ordinals and support
+positioning, not measurement; the quantitative load is carried by the ML Test
+Score and reproducibility results above.
 
 \begin{table}[h]
   \centering
@@ -248,109 +201,53 @@ trigger.
   \end{tabularx}
 \end{table}
 
+% -----------------------------------------------------------------------------
+\section{Threats to validity}
+\label{sec:res-validity}
 
-\subsection{Quantitative evaluation}
+The threats are framed per Runeson and H\"ost~\cite{runeson2009casestudy}.
+\textbf{Construct validity} --- do the chosen scores measure what is claimed? ---
+is the main concern for the ML Test Score, which is a self-administered rubric;
+the per-item evidence in Appendix~\ref{app:mlts-worksheet} makes every score
+checkable and contestable. \textbf{Internal validity} --- are the observed
+properties causally attributable to the platform? --- is strongest for the
+reproducibility results, which speak directly from committed artefacts rather
+than inference. \textbf{External validity} is bounded by the single-case design:
+the findings support analytic generalisation to platforms sharing this one's
+characteristics, not statistical claims about MLOps platforms in general.
+\textbf{Reliability} --- would another evaluator reach the same scores? --- is
+supported by the explicit scoring rule and the recorded per-item evidence. These
+threat types parallel the validity discussion in Zarour et al.'s own
+review~\cite{zarour2025}.
 
-The qualitative maturity table above records whether a practice is realised, not
-by how much. This section adds quantitative evidence. Following the single-case
-study guidelines of Runeson and H\"ost~\cite{runeson2009casestudy}, the system is
-evaluated from its source code, version-control and CI history, and short targeted
-experiments; the reported figures are indicative of the system over the study
-window rather than claims about long-run production operation. This framing
-matches comparable MLOps evaluations in the electricity-forecasting
-domain~\cite{subramanya2022devops2mlops}.
+% -----------------------------------------------------------------------------
+\section{Known gaps and future work}
+\label{sec:res-known-gaps}
 
-\subsubsection{ML Test Score}
+Three system-side gaps follow from the results. The binding \textbf{data-testing}
+section would be raised by formalising the feature-benefit, feature-cost, and
+privacy analyses and adding a data-quality CI gate. The \textbf{reproducibility}
+demonstration currently covers only the deterministic LEAR; extending it to the
+DNN and Transformer requires a controlled-seed re-run that suppresses GPU
+non-determinism. The \textbf{provenance} shortfall is confined to five pre-CD
+runs lacking \texttt{git\_sha}, which could be backfilled from log timestamps or
+left documented as a one-off. The \textbf{drift detector} flagged every report as
+drifted over the window, an uninformative rate that calls for threshold
+recalibration. Modelling-side future work is collected in
+Chapter~\ref{ch:results-models}.
 
-We self-administer the ML Test Score rubric of Breck et
-al.~\cite{breck2017mltestscore}, which scores 28 tests across four sections
-(data, model development, ML infrastructure, monitoring) on a $\{0, 0.5, 1\}$
-scale; the final score is the \emph{minimum} of the four section sums, so the
-weakest area bounds the result. Table~\ref{tab:ml-test-score} reports the
-per-section sums and the final score.
+% -----------------------------------------------------------------------------
+\section{Summary}
+\label{sec:res-summary}
 
-\begin{table}[h]
-  \centering
-  \caption{ML Test Score self-assessment (min-of-sections rule).}
-  \label{tab:ml-test-score}
-  \begin{tabularx}{\linewidth}{@{}X r@{}}
-    \toprule
-    \textbf{Section (max 7)} & \textbf{Sum} \\
-    \midrule
-    Data tests                 & 2.5 \\
-    Model development tests     & 3.0 \\
-    ML infrastructure tests     & 4.0 \\
-    Monitoring tests            & 4.0 \\
-    \midrule
-    \textbf{ML Test Score (min)} & \textbf{2.5} \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-The binding section is data testing: the system enforces strict input schemas and
-tests its feature-transformer code, but does not formally document the
-feature-benefit, feature-cost, or privacy analyses that the rubric also rewards.
-We read this as the system's primary remaining investment area and revisit it
-under \S5.3.
-
-\subsubsection{Reproducibility}
-
-Reproducibility is measured two ways. First, as provenance coverage: of the 15
-live runs in the window, 66.7\,\% carry the complete provenance triple
-(\texttt{git\_sha}, the data window (\texttt{data\_start\_utc},
-\texttt{data\_end\_utc}), and \texttt{model\_artifact\_id}); the shortfall is
-attributable to early runs that predate the CD pipeline baking \texttt{GIT\_SHA}
-into the image, whereas the data-window and artefact columns are populated for
-every run. Second, as a worked re-run: using only a logged run's committed
-configuration and target date, we regenerated the forecast with
-\texttt{scripts/report/reproduce\_run.py} and compared it to the prediction
-stored in \texttt{algo.experiment\_predictions}. For the deterministic LEAR
-configuration on 2026-03-22, the maximum absolute difference across all 24
-delivery periods was $7\times10^{-6}$\,EUR/MWh --- five orders of magnitude below
-any economically meaningful price unit, i.e.\ numerically identical up to
-solver-level floating-point tolerance. Under the ACM Artifact Review and Badging
-terminology the artefact is Available, Functional, and Reusable by self-review;
-we do not claim the independent ``Reproduced'' badge, which requires an external
-reviewer~\cite{acm2020badging}.
-
-\subsubsection{Delivery throughput}
-
-Treating each successful run of \texttt{cd\_deploy.yml} on \texttt{main} as one
-deployment, we report the two DORA \emph{throughput}
-metrics~\cite{forsgren2018accelerate}: over the window there were 20 successful
-deployments (1.56 per week), with a PR-merge-to-deploy-start lead time of
-0.1\,min at both the median and the 95th percentile. We deliberately do
-\emph{not} report change failure rate or mean time to restore: both require an
-incident corpus that a study window of this length does not provide, and we do
-not assign a DORA performance tier, whose thresholds are re-derived annually. The
-sub-minute lead time reflects that \texttt{cd\_deploy.yml} fires immediately on
-push to \texttt{main} and that the interval measured is from the merge commit to
-the workflow's own start, not from the first commit on a feature branch.
-
-\subsubsection{Drift detection as monitoring, not a retraining trigger}
-\label{sec:res-drift}
-
-The system refits every model from scratch daily on a rolling window at a cost of
-seconds (\S P6), so the model is never stale between scheduled refits. In this
-regime, drift-\emph{triggered} retraining adds no freshness benefit over the
-scheduled refit: the cost--benefit analysis of Mahadevan and
-Mathioudakis~\cite{mahadevan2024costaware} shows that triggered retraining earns
-its keep only when retraining is expensive, and that distribution-drift triggers
-otherwise incur unnecessary retrains from false positives. We therefore retain
-drift detection as a \emph{monitoring and alerting} signal rather than a
-retraining trigger, which is why \texttt{retrain\_on\_drift} defaults to false.
-This conclusion is conditional: it holds while retraining stays cheap and the
-rolling window short, and would be revisited for expensive multi-year transformer
-retraining. We also note a calibration limitation: over the window the detector
-flagged drift on 49 of 49 reports, a detection rate that is uninformatively high
-and is listed as future work in \S5.3.
-
-\subsubsection{Summary}
-
-Taken together, these measurements turn the chapter's qualitative ``Realised''
-labels into numbers: a single ML Test Score with a per-section breakdown, a
-provenance-coverage percentage backed by a live re-run that reproduced a logged
-forecast to within $10^{-5}$\,EUR/MWh, and delivery-throughput figures. Each is
-recomputable by re-running \texttt{scripts/report/extract\_metrics.py} and
+The chapter turns the qualitative ``Realised'' labels of
+Table~\ref{tab:maturity} into measured values: an ML Test Score of 2.5 (bound by
+data testing), provenance-triple coverage of 66.7\,\% backed by a re-run that
+reproduced a logged forecast to within $7\times10^{-6}$\,EUR/MWh, and
+delivery-throughput figures of 20 deployments at a sub-minute lead time. On the
+Google model the platform sits at Level 2 for the CI/CD, orchestration,
+reproducibility, versioning, and monitoring practices, and Level 1 for
+collaboration, continuous training, metadata tracking, and the feedback loop.
+Each objective figure is recomputable on demand by re-running
+\texttt{scripts/report/extract\_metrics.py} and
 \texttt{scripts/report/reproduce\_run.py} against the live system.
-

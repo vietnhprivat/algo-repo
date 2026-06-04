@@ -1,23 +1,59 @@
 \chapter{Conclusion and Future Work}
 \label{ch:conclusion}
-% Written in Task 8.
 
-% === Relocated from system_implementation.tex (Task 1). Rewritten thesis-wide in Task 8. ===
+This thesis took the benchmark electricity-price-forecasting models from the
+research literature and embedded them in an end-to-end production platform built
+along MLOps principles, then evaluated the result on two axes: the forecast
+quality of the models and the operational maturity of the system serving them.
 
-Of Zarour's nine MLOps practices, eight are realised end-to-end in algo-repo
-and one --- P9, the feedback loop and drift-triggered retraining --- is
-minimally realised, scoped to two bidding areas behind an opt-in config flag.
- The quantitative evaluation in \S5.2 backs every realised label with measured values: an ML Test Score with a per-section breakdown, provenance-triple coverage validated by a live re-run, drift-detection counts, and DORA delivery throughput (deployment frequency and lead time), all computable on demand from the live system by re-running \texttt{scripts/report/extract\_metrics.py}.
-Every realised practice has been mapped in this chapter to a concrete repository
-artefact: a Prefect deployment, a ClickHouse migration, a GitHub Actions
-workflow, or a Grafana dashboard. The four tools that remain deferred ---
-MLflow, Kubernetes, a cloud-managed model store, and DVC --- are held back not
-by oversight but by the deliberate single-host MVP scope under which the
-deferred-cost and current-value trade-off does not yet justify adoption; each
-deferred tool carries a named, observable adoption trigger so that the decision
-to adopt it can be revisited against a concrete condition rather than
-re-litigated from first principles. Together, these nine practices and their
-supporting artefacts constitute a production ML platform that ingests live
-market data, refits daily, monitors prediction quality and data drift, and
-maintains a complete audit trail from every experiment row back to the exact
-Git commit and data window that produced it.
+On the system axis, eight of Zarour et al.'s nine MLOps
+practices~\cite{zarour2025} are realised end-to-end in the platform, and one ---
+the feedback loop --- is minimally realised, scoped to two bidding zones behind an
+opt-in flag. Every realised practice is traced to a concrete repository artefact:
+a Prefect deployment, a ClickHouse migration, a GitHub Actions workflow, or a
+Grafana dashboard. The qualitative ``realised'' labels are backed by measured
+values --- an ML Test Score of 2.5 bound by data testing, provenance-triple
+coverage of 66.7\,\% supported by a re-run that reproduced a logged forecast to
+within $7\times10^{-6}$\,EUR/MWh, and DORA throughput of 20 deployments at a
+sub-minute lead time --- each recomputable on demand from the live system. On the
+forecasting axis, the faithful replication of LEAR, the DNN, and the Transformer
+across DK1 and DE, evaluated with paired significance tests on a shared recent
+window, is reported in Chapter~\ref{ch:results-models}:
+% NUMBERS PENDING THE SIX --track RUNS.
+\textbf{[pending: one-sentence headline of the model ranking and how it compares
+to the published benchmarks.]}
+Together, the two threads constitute a production ML platform that ingests live
+market data, recalibrates and forecasts daily, monitors prediction quality and
+data drift, and maintains a complete audit trail from every forecast back to the
+exact code commit and data window that produced it.
+
+\section{Future work}
+
+Several extensions follow directly from the limitations of
+\S\ref{sec:res-known-gaps} and Chapter~\ref{ch:discussion}.
+
+\begin{itemize}
+  \item \textbf{Modelling fidelity.} Restore the 1456-day calibration window and
+    the LARS+AIC $\lambda$-selection of the original benchmark once the data
+    history is long enough; tune the Transformer per market rather than reusing
+    the paper defaults; and run an \texttt{epftoolbox} side-by-side on the
+    original 2016--2018 datasets to separate replication error from regime change.
+  \item \textbf{Calibration-window sensitivity.} Use the \texttt{forecast-cli
+    ablate} command to quantify how accuracy varies with calibration-window
+    length, an ablation the present fixed-window matrix does not cover.
+  \item \textbf{Probabilistic forecasting.} Extend the point forecasts to
+    predictive distributions and evaluate with pinball loss or CRPS, the
+    direction surveyed by Nowotarski and Weron~\cite{nowotarski2018}.
+  \item \textbf{Reproducibility of stochastic models.} Demonstrate the re-run
+    for the DNN and Transformer under controlled seeds with GPU non-determinism
+    suppressed, extending the deterministic-LEAR demonstration.
+  \item \textbf{Data-testing maturity.} Formalise the feature-benefit,
+    feature-cost, and privacy analyses and add a data-quality CI gate --- the
+    binding constraint on the ML Test Score.
+  \item \textbf{Drift recalibration and coverage.} Recalibrate the drift detector,
+    which currently flags every report, and extend forecasting and drift to the
+    remaining ingested bidding zones.
+  \item \textbf{Tooling adoption triggers.} Adopt MLflow, Kubernetes, a
+    cloud-managed model store, or DVC if and when their named, observable
+    triggers are reached (Chapter~\ref{ch:system-implementation}).
+\end{itemize}
