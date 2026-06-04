@@ -3,11 +3,13 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
+import pandas as pd
 import pytest
 
 from price_forecasting.data.clickhouse_loader import (
     load_price_series,
     load_exogenous_series,
+    resample_hourly,
 )
 
 
@@ -184,3 +186,34 @@ class TestLoadExogenousAggregates:
         assert list(df.index) == [h0, h1]  # q15 must NOT appear
         assert df["Wind"].tolist() == [140.0, 154.0]
         assert not df.isna().any().any()
+
+
+class TestResampleHourly:
+    def test_averages_four_quarters_into_one_hour(self) -> None:
+        idx = pd.to_datetime([
+            "2024-01-01T00:00", "2024-01-01T00:15",
+            "2024-01-01T00:30", "2024-01-01T00:45",
+            "2024-01-01T01:00",
+        ], utc=True)
+        df = pd.DataFrame(
+            {"price": [10.0, 20.0, 30.0, 40.0, 100.0],
+             "Wind": [1.0, 1.0, 1.0, 1.0, 5.0]},
+            index=idx,
+        )
+        out = resample_hourly(df)
+        assert list(out.index) == list(pd.to_datetime(
+            ["2024-01-01T00:00", "2024-01-01T01:00"], utc=True))
+        assert out.loc[pd.Timestamp("2024-01-01T00:00", tz="UTC"), "price"] == 25.0
+        assert out.loc[pd.Timestamp("2024-01-01T01:00", tz="UTC"), "price"] == 100.0
+
+    def test_already_hourly_is_unchanged(self) -> None:
+        idx = pd.to_datetime(
+            ["2024-01-01T00:00", "2024-01-01T01:00", "2024-01-01T02:00"], utc=True)
+        df = pd.DataFrame({"price": [10.0, 20.0, 30.0]}, index=idx)
+        out = resample_hourly(df)
+        assert out["price"].tolist() == [10.0, 20.0, 30.0]
+        assert len(out) == 3
+
+    def test_empty_frame_returns_empty(self) -> None:
+        out = resample_hourly(pd.DataFrame())
+        assert out.empty
