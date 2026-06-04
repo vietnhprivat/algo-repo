@@ -36,7 +36,8 @@
         via direct Python push through \texttt{python-logging-loki}.
   \item[Evidently] An open-source library for data and model drift detection,
         used here in in-process mode inside the Prefect drift-detection flow to
-        run a Kolmogorov--Smirnov test comparing a 90-day reference window
+        apply its \texttt{DataDriftPreset}, which auto-selects a drift test
+        (Kolmogorov--Smirnov or Wasserstein, by sample size) and compares a 90-day reference window
         against a 7-day current window.
 \end{description}
 

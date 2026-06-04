@@ -1,5 +1,5 @@
 # Quantitative System Metrics
-_Window: last 90 days. Generated: 2026-05-27T22:33:36+00:00._
+_Window: last 90 days. Generated: 2026-06-04T15:07:16+00:00._
 
 ## Operational metrics
 
@@ -15,8 +15,8 @@ _Window: last 90 days. Generated: 2026-05-27T22:33:36+00:00._
 
 ### Reconciliation completeness
 
-- Eligible runs (forecast day already in the past by ≥2 days): **10**
-- Reconciled (at least one actual logged): **10**
+- Eligible runs (forecast day already in the past by ≥2 days): **15**
+- Reconciled (at least one actual logged): **15**
 - Reconciliation rate: **100.0%**
 
 ## Reproducibility coverage
@@ -30,13 +30,13 @@ _Window: last 90 days. Generated: 2026-05-27T22:33:36+00:00._
 
 ## Drift monitoring
 
-- Drift reports written: **35**
-- Drift detections (`drift_detected = 1`): **35**
+- Drift reports written: **49**
+- Drift detections (`drift_detected = 1`): **49**
 
 ## DORA delivery throughput
 
-- Successful deployments in window: **19**
-- Deploy frequency: **1.48/week**
+- Successful deployments in window: **20**
+- Deploy frequency: **1.56/week**
 - Lead time PR-merge → cd_deploy start (p50): **0.1 min**
 - Lead time (p95): **0.1 min**
 - Change failure rate / MTTR: **not reported** (no incident corpus in window)

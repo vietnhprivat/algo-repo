@@ -98,7 +98,7 @@ reference benchmarks of Lago et al.~\cite{lago2021} and Llorente and
 Portela~\cite{llorente2025transformer}; modelling DK1 natively at 96 periods is
 in any case infeasible, as it has under one month of quarter-hourly history
 before the test window. Finally, ENTSO-E lacks DK1 wind forecasts for a small
-number of days (including 2026-05-07, inside the test window); affected days are
+number of days inside the sample; affected days are
 dropped identically from every DK1 model, so the paired significance tests
 remain valid.
 
@@ -183,8 +183,10 @@ single-hidden-layer perceptron (width 128) to the $n$ output periods. The model
 is trained with Adam at a learning rate of $10^{-4}$, batch size 32, for up to
 200 epochs with early stopping (patience 25) on an internal validation split,
 under a step learning-rate schedule. The number of exogenous inputs is fixed at
-two to match the paper specification, and the remaining hyperparameters reuse the
-paper's Nord Pool search optimum; per-market Transformer tuning is left as
+two to match the paper specification, and the remaining hyperparameters follow
+the paper's reported architecture and search ranges rather than a per-market
+optimum --- the 128-dimensional embedding lies within the paper's search range
+but below its Nord Pool optimum of 512. Per-market Transformer tuning is left as
 future work (\S\ref{sec:mm-deviations}). Because the wide feature vector this
 model consumes is interpreted positionally rather than by column name, it is
 produced by a dedicated feature pipeline
@@ -210,7 +212,7 @@ Transformer, following the respective papers. LEAR uses the paper ensemble of
 specification is dropped because it predates the available data); the DNN uses a
 single 730-day window; and the Transformer uses a single 1092-day window, which
 was verified to leave enough usable sequence rows before the test start in both
-markets (1197 for DK1, 1265 for DE, both at least 1092). The train/test split is
+markets (at least 1092 in both; 1265 measured for DE). The train/test split is
 date-based: training data are all rows strictly before the test start date, and
 no validation holdout is carved out of the backtest itself (the validation
 window of \S\ref{sec:mm-tuning} is used only by the tuning command).
@@ -296,10 +298,10 @@ and none changes the model class or the feature definition.
     DNN search space       & architecture + feature selectors & architecture only (feature set fixed to the paper specification) \\
     LEAR windows           & 56 / 84 / 1092 / 1456\,d     & 56 / 84 / 1092\,d (1456 predates the data) \\
     DNN window             & 4 years                      & 730\,d (data and compute constraint) \\
-    $\lambda$ selection    & LARS + AIC                   & \texttt{LassoCV} time-series CV (standard, equivalent accuracy) \\
+    $\lambda$ selection    & LARS+AIC, then coordinate-descent refit & \texttt{LassoCV} time-series CV (standard; close accuracy) \\
     Market resolution      & hourly (paper era)           & both markets now 15-min; downsampled to an hourly mean for cross-market and cross-paper comparability \\
     Transformer pipeline   & train-once + renormalise     & calibration window + weekly refit (consistency with the other models) \\
-    Transformer HPs        & tuned per dataset            & paper Nord Pool optimum reused (future work) \\
+    Transformer HPs        & tuned per dataset            & paper architecture / search-range defaults reused (per-market tuning is future work) \\
     \bottomrule
   \end{tabularx}
 \end{table}
