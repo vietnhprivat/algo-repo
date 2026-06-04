@@ -1,0 +1,30 @@
+% Standalone wrapper to render `chapters/results_models_draft.tex` as a PDF.
+% Mirrors methods_models_draft_standalone.tex. Cross-chapter refs show as `??`.
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+\setlength{\emergencystretch}{3em}
+\hyphenpenalty=1000
+\tolerance=1000
+
+\begin{document}
+
+\tableofcontents
+\clearpage
+
+\input{chapters/results_models_draft}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
