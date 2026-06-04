@@ -1,11 +1,6 @@
 % =============================================================================
-% DRAFT SCAFFOLD — Evaluation Framework (non-modelling part)
-%
-% This chapter sits BEFORE the results chapter and describes WHICH tests are
-% run and WHY. The Results chapter (results_system_draft.tex) presents the
-% numbers themselves.
-%
-% Structure-first. Tables + bullets, not prose.
+% Chapter: Evaluation Framework (system-side). Describes WHICH tests are run and
+% WHY; the Results chapter (results_system_draft.tex) presents the numbers.
 % =============================================================================
 
 \chapter{Evaluation Framework}
@@ -15,12 +10,22 @@
 \section{Approach}
 \label{sec:ef-approach}
 
-\begin{itemize}
-  \item One paragraph framing: this chapter describes the system-side tests; modelling-side evaluation (MAE/RMSE/sMAPE/rMAE) lives in Ch.~\ref{ch:methods-models}.
-  \item Cite single-case study methodology~\cite{runeson2009casestudy}: one platform, evaluated in its real context, no controlled comparison.
-  \item State the honesty boundary up front: numbers are indicative over the study window, not long-run production claims.
-  \item Distinguish two kinds of measurement (introduced in Table~\ref{tab:ef-test-types}): \emph{objective measurements} (reproducible scripts) and a \emph{structured self-assessment} (the ML Test Score). This distinction matters for the validity discussion.
-\end{itemize}
+This chapter sets out how the \emph{system} is evaluated --- which tests are
+applied and why --- while the numbers themselves are reported in
+Chapter~\ref{ch:results-system}. It is concerned with operational maturity, not
+forecast accuracy: the modelling-side evaluation (MAE, RMSE, sMAPE, rMAE, and the
+Diebold--Mariano and Giacomini--White significance tests) is defined in
+Chapter~\ref{ch:methods-models} and reported in Chapter~\ref{ch:results-models},
+so the two threads of the thesis each carry their own evaluation. Following the
+single-case study methodology of Runeson and H\"ost~\cite{runeson2009casestudy},
+the platform is evaluated as one system in its real operating context; there is
+no controlled comparison against a second platform. The honesty boundary is
+stated up front: the figures reported are indicative of the system over the
+study window, not claims about long-run production operation. A distinction that
+runs through the chapter, and that matters for the validity discussion, is
+between \emph{objective measurements} --- numbers produced by reproducible scripts
+--- and a single \emph{structured self-assessment}, the ML Test Score
+(Table~\ref{tab:ef-test-types}).
 
 \begin{table}[h]
   \centering
@@ -40,9 +45,10 @@
 \section{Test inventory}
 \label{sec:ef-inventory}
 
-\begin{itemize}
-  \item One sentence: five tests, four objective and one self-assessment, listed in Table~\ref{tab:ef-inventory}.
-\end{itemize}
+Five tests are applied to the system: four objective measurements and one
+structured self-assessment, listed in Table~\ref{tab:ef-inventory}. The
+remainder of the chapter takes each in turn, stating its definition, the
+instrument that produces it, and the reason it is included.
 
 \begin{table}[h]
   \centering
@@ -65,10 +71,14 @@
 \section{Why these five tests}
 \label{sec:ef-why}
 
-\begin{itemize}
-  \item Open: Zarour's SLR~\cite{zarour2025} catalogues nine MLOps practices but produces no quantitative aggregate; we compose tests that each address a measurable face of one or more practices.
-  \item Argue: between them, the five tests evidence eight of Zarour's nine practices (Table~\ref{tab:ef-mapping}); the ninth (P5 Collaboration) is qualitative by nature and is addressed in the System Implementation chapter, not measured here.
-\end{itemize}
+Zarour et al.'s systematic review~\cite{zarour2025} catalogues nine MLOps
+practices but produces no single quantitative aggregate against which a platform
+can be scored. Rather than invent one, this work composes a small set of tests
+that each address a measurable face of one or more practices. Between them, the
+five tests evidence eight of Zarour's nine practices, as mapped in
+Table~\ref{tab:ef-mapping}; the ninth, collaboration and communication, is
+qualitative by nature and is documented in the System Implementation chapter
+(Chapter~\ref{ch:system-implementation}) rather than measured here.
 
 \begin{table}[h]
   \centering
@@ -95,11 +105,18 @@
 \section{ML Test Score}
 \label{sec:ef-mlts}
 
-\begin{itemize}
-  \item Rubric origin~\cite{breck2017mltestscore}: 28 tests in four sections (Data / Model development / ML infrastructure / Monitoring); per-item score from $\{0, 0.5, 1\}$.
-  \item Final score: $\min$(section sums). Justify the min-rule (one sentence): the four sections protect against different failure modes, are not substitutable, so the weakest section bounds production-readiness.
-  \item How conducted: a structured self-assessment — every item walked against the codebase, one-line evidence recorded, scores assigned by the explicit rule in Table~\ref{tab:ef-mlts-rules}. Per-item evidence is committed to \texttt{Report/metrics/ml\_test\_score.md}.
-\end{itemize}
+The ML Test Score of Breck et al.~\cite{breck2017mltestscore} is a rubric of 28
+tests across four sections --- data, model development, ML infrastructure, and
+monitoring --- each scored on the scale $\{0, 0.5, 1\}$ defined in
+Table~\ref{tab:ef-mlts-rules}. The final score is the \emph{minimum} of the four
+section sums, not their total: because the four sections guard against different
+and non-substitutable failure modes (Table~\ref{tab:ef-mlts-sections}), the
+weakest section bounds the platform's production-readiness, and the rule rewards
+balance rather than breadth. The assessment is conducted as a structured
+self-assessment: every item is walked against the codebase, one line of evidence
+is recorded for it, and a score is assigned by the explicit rule. The full
+per-item evidence is committed to \texttt{Report/metrics/ml\_test\_score.md} so
+that each score can be checked or contested independently.
 
 \begin{table}[h]
   \centering
@@ -132,18 +149,23 @@
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Honesty rule applied: no point awarded without written evidence; n/a items scored 0 (not awarded points).
-  \item Validity caveat to flag: this is a self-administered rubric — the threats-to-validity section names this and explains the mitigations.
-\end{itemize}
+One honesty rule is applied throughout: no point is awarded without written
+evidence, and items that are genuinely not applicable to wholesale-price
+forecasting (for example, demographic-fairness tests) are scored zero rather than
+excused. That the rubric is self-administered is itself a threat to construct
+validity; it is named as such in \S\ref{sec:ef-validity} and mitigated by the
+recorded per-item evidence.
 
 % -----------------------------------------------------------------------------
 \section{Reproducibility tests}
 \label{sec:ef-repro}
 
-\begin{itemize}
-  \item Framing: reproducibility is measured in two senses --- coverage and demonstration --- per~\cite{gundersen2018reproducibility}.
-\end{itemize}
+Reproducibility is measured in two complementary senses, following the
+reproducibility-degrees framing of Gundersen and Kjensmo
+\cite{gundersen2018reproducibility} and defined in Table~\ref{tab:ef-repro-tests}:
+\emph{coverage}, a system-wide property asking whether every run carries enough
+metadata to be reproduced, and \emph{demonstration}, a worked existence proof in
+which one logged run is regenerated from scratch.
 
 \begin{table}[h]
   \centering
@@ -159,20 +181,27 @@
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Why both: coverage is a system-wide property (does every run carry enough metadata to be reproduced?); demonstration is a worked existence proof (here is one logged run, regenerated).
-  \item Why LEAR for the demonstration: deterministic given fixed data; DNN / Transformer add seed / ensemble stochasticity --- to be addressed as future work.
-  \item ACM Artifact Badge mapping~\cite{acm2020badging}: claim \emph{Available, Functional, Reusable} by self-review; do not claim \emph{Reproduced} (requires external reviewer).
-\end{itemize}
+Both are reported because they answer different questions: coverage asks whether
+the system \emph{could} reproduce any run, while the demonstration shows that it
+\emph{does} for a concrete one. The deterministic LEAR configuration is used for
+the demonstration because, given a fixed data window, it reproduces exactly;
+the DNN and Transformer carry seed and ensemble stochasticity whose controlled
+re-run is left to future work. Against the ACM Artifact Review and Badging
+vocabulary~\cite{acm2020badging}, the artefact can be claimed Available,
+Functional, and Reusable by self-review; the independent ``Reproduced'' badge,
+which requires an external reviewer, is not claimed.
 
 % -----------------------------------------------------------------------------
 \section{Delivery throughput (DORA)}
 \label{sec:ef-dora}
 
-\begin{itemize}
-  \item Definitions: one deploy = one successful \texttt{cd\_deploy.yml} run on \texttt{main}~\cite{forsgren2018accelerate}.
-  \item Lead time: wall-clock interval from merge commit to \texttt{cd\_deploy} run start (the interval under the platform's automated control).
-\end{itemize}
+Delivery performance is reported using the throughput half of the DORA
+metrics~\cite{forsgren2018accelerate}. One deployment is defined as one
+successful run of \texttt{cd\_deploy.yml} on \texttt{main}, and lead time is the
+wall-clock interval from the merge commit to the start of that run --- the
+interval under the platform's automated control, rather than the time a feature
+spends in development. Table~\ref{tab:ef-dora-scope} records which DORA metrics
+are reported and which are deliberately withheld, with the reason in each case.
 
 \begin{table}[h]
   \centering
@@ -195,20 +224,29 @@
 \section{Drift monitoring counts}
 \label{sec:ef-drift}
 
-\begin{itemize}
-  \item Definition: counts of (a) drift reports written and (b) reports flagged \texttt{drift\_detected = 1}, over the window, from \texttt{algo.drift\_reports}.
-  \item Why these and not drift-to-retrain latency: under the reframing argued in the Results chapter (\S\ref{sec:res-drift}), drift detection serves monitoring, not triggering. Latency to retrain is therefore not a meaningful metric for this system.
-  \item Boundary condition (to surface in the results chapter): this reframing is conditional on retraining staying cheap; it would flip for expensive multi-year retraining~\cite{mahadevan2024costaware}.
-\end{itemize}
+The drift test reports two counts over the study window, taken from
+\texttt{algo.drift\_reports}: the number of drift reports written, and the number
+flagged \texttt{drift\_detected = 1}. Deliberately, it does \emph{not} report a
+drift-to-retrain latency. Under the reframing argued in
+Chapter~\ref{ch:results-system} (\S\ref{sec:res-drift}), drift detection on this
+platform serves monitoring and alerting rather than triggering, so a latency to
+retrain is not a meaningful metric. That reframing is conditional: it holds while
+retraining stays cheap, and would flip for expensive multi-year
+retraining~\cite{mahadevan2024costaware} --- a boundary condition surfaced again
+where the counts are reported.
 
 % -----------------------------------------------------------------------------
 \section{Maturity-model positioning}
 \label{sec:ef-maturity}
 
-\begin{itemize}
-  \item Maturity-model placement is reported in the qualitative practice-by-practice table in System Implementation (Ch.~\ref{ch:system-implementation}, Table~\ref{tab:maturity}) --- this section justifies the \emph{choice} of model.
-  \item Zarour~\cite{zarour2025} Table~7 lists five MLOps maturity models (Table~\ref{tab:ef-maturity-candidates}); we position the system against the Google 3-level model.
-\end{itemize}
+The platform's per-practice maturity levels are reported in the qualitative
+practice-by-practice table in the Results chapter
+(Chapter~\ref{ch:results-system}, Table~\ref{tab:maturity}); this section
+justifies the prior question of \emph{which} maturity model those levels are
+assigned against. Zarour et al.~\cite{zarour2025} review five MLOps maturity
+models (Table~\ref{tab:ef-maturity-candidates}), all descended from the
+CMM/CMMI lineage. The platform is positioned against the Google three-level
+model.
 
 \begin{table}[h]
   \centering
@@ -227,24 +265,27 @@
   \end{tabularx}
 \end{table}
 
-\begin{itemize}
-  \item Justify Google in three bullets:
-  \begin{itemize}
-    \item Granularity matches the single-host MVP scope; 3 levels avoids over-claiming distinctions a single deployment target cannot meaningfully differentiate (e.g.\ Microsoft Levels 2--4).
-    \item Top level (CI/CD pipeline automation) is plausibly attainable for this platform; Microsoft Level 4 (``Full MLOps automated operations'') would require multi-environment claims the platform does not make.
-    \item Open and widely cited industry whitepaper~\cite{google_mlops_maturity}; the most-cited maturity reference in the Zarour SLR.
-  \end{itemize}
-  \item Disclose limitation: all five models are descriptive ordinals --- they support \emph{positioning}, not \emph{measurement}. The instruments in \S\ref{sec:ef-mlts}--\S\ref{sec:ef-drift} carry the measurement load.
-\end{itemize}
+Google is chosen for three reasons. Its granularity matches the single-host MVP
+scope: three levels avoid over-claiming distinctions --- such as those between
+Microsoft's Levels 2--4 --- that a single deployment target cannot meaningfully
+differentiate. Its top level, CI/CD-pipeline automation, is plausibly attainable
+for this platform, whereas Microsoft's Level 4 (``full MLOps automated
+operations'') would require multi-environment claims the platform does not make.
+And it is an open, widely cited industry whitepaper~\cite{google_mlops_maturity},
+the most-cited maturity reference in the Zarour review, giving the assignment an
+external touchpoint a reviewer can check. The limitation is disclosed plainly:
+all five models are descriptive ordinals that support \emph{positioning}, not
+\emph{measurement}; the instruments of \S\ref{sec:ef-mlts}--\S\ref{sec:ef-drift}
+carry the measurement load.
 
 % -----------------------------------------------------------------------------
 \section{Threats to validity (preview)}
 \label{sec:ef-validity}
 
-\begin{itemize}
-  \item Detailed discussion lives at \S\ref{sec:res-validity}; here, one sentence per threat type so the reader sees what we will defend against.
-  \item Frame per~\cite{runeson2009casestudy}.
-\end{itemize}
+The detailed validity discussion accompanies the results in
+\S\ref{sec:res-validity}; previewed here, with one line per threat type framed
+per Runeson and H\"ost~\cite{runeson2009casestudy}, are the threats the
+evaluation must defend against (Table~\ref{tab:ef-validity}).
 
 \begin{table}[h]
   \centering
@@ -266,9 +307,9 @@
 \section{What is not tested and why}
 \label{sec:ef-non-claims}
 
-\begin{itemize}
-  \item Explicit non-claims --- writing these down prevents accidental over-reading of the results.
-\end{itemize}
+Stating the evaluation's non-claims explicitly (Table~\ref{tab:ef-non-claims})
+prevents the results from being over-read: each entry is something a reader might
+reasonably expect but which the study window or design cannot support.
 
 \begin{table}[h]
   \centering
@@ -287,7 +328,3 @@
     \bottomrule
   \end{tabularx}
 \end{table}
-
-% =============================================================================
-% END DRAFT
-% =============================================================================

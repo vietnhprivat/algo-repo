@@ -1,20 +1,117 @@
 \chapter{Introduction}
 \label{ch:introduction}
-% Written in Task 3.
 
-% === Relocated from system_implementation.tex (Task 1). Rewritten as thesis intro in Task 3. ===
-Electricity price forecasting (EPF) is the task of predicting day-ahead
-wholesale electricity prices for a given bidding zone from a combination of
-historical prices and exogenous signals such as load, renewable generation, and
-calendar effects. Research on EPF has produced increasingly accurate offline
-benchmarks — LEAR, deep neural networks, and hybrid ensembles — evaluated on
-fixed historical holdout periods under idealised conditions.
+\section{Motivation}
 
-Production EPF, however, imposes a different and harder set of requirements.
-A deployed forecasting system must continuously ingest fresh market data from
-external APIs, retrain or recalibrate models on a rolling basis as the price
-distribution shifts, monitor prediction quality in near-real time, and align
-the evaluation methodology with actual operational use — a contrast that the
-EPF research literature largely sidesteps in favour of reporting accuracy on
-offline benchmarks \cite{lago2021}.
+Day-ahead electricity price forecasting (EPF) is the task of predicting the
+wholesale price of electricity for each delivery period of the following day in
+a given bidding zone, from a combination of historical prices and exogenous
+signals such as load and renewable-generation forecasts. Accurate day-ahead
+forecasts are essential to generators, retailers, and grid operators, who rely
+on them to schedule production, hedge positions, and bid into the day-ahead
+auction. The task has grown harder over the past decade. The expansion of wind
+and solar generation introduces supply-side volatility that statistical models
+struggle to capture, and the coupling of European bidding zones propagates price
+shocks across borders in ways historical data may not reflect. The resulting
+price series are heavy-tailed and spike-prone and, increasingly under high
+renewable infeed, admit negative prices --- a regime that rules out modelling
+choices, such as a logarithmic price transform, that presume positivity
+\cite{weron2014}.
 
+\section{The gap between forecasting research and operation}
+
+Research on EPF has produced increasingly accurate models, spanning statistical,
+reduced-form, and machine-learning approaches, and the field has been surveyed
+comprehensively \cite{weron2014, nowotarski2018}. A turning point was the
+open-access benchmark of Lago et al.\ \cite{lago2021}, which documented how
+severe the evaluation problem had become --- new methods compared on private
+datasets, over test periods too short to be conclusive, and against baselines
+too weak to be informative --- and responded by standardising both a pair of
+benchmark models and a methodology for comparing them rigorously.
+
+Yet even the most careful EPF contributions stop at the boundary of offline
+evaluation: they standardise how models are \emph{compared}, but not how they
+are \emph{run}. Ingesting data on a schedule, versioning experiments, detecting
+model degradation, and retraining on fresh data are left unaddressed. This gap
+between building a model and operating it is precisely the one that Machine
+Learning Operations (MLOps) emerged to close, by carrying DevOps principles ---
+automation, reproducibility, and monitoring --- into machine-learning systems.
+Zarour et al.\ \cite{zarour2025} synthesise the MLOps literature into a
+systematic review of nine core practices and an accompanying maturity model. The
+two bodies of work rarely meet: EPF research treats forecasting as a problem
+that ends when predictions are produced, while MLOps research is largely
+domain-agnostic. The closest precedent for joining them is the work of
+Subramanya et al.\ \cite{subramanya2022devops2mlops}, who apply an MLOps pipeline
+to electricity-market forecasting as a case study.
+
+\section{Aim and research questions}
+
+This thesis takes the benchmark EPF models from the forecasting literature and
+embeds them in an end-to-end production platform built along MLOps principles.
+The platform ingests data from the ENTSO-E Transparency Platform on a recurring
+schedule, stores it in ClickHouse, produces day-ahead forecasts through
+rolling-window recalibration, monitors prediction quality and data drift, and
+maintains a complete audit trail from every forecast back to the code version
+and data window that produced it. It is evaluated on two axes: the \emph{forecast
+quality} of the models it serves, and the \emph{operational maturity} of the
+system that serves them. Three research questions structure the investigation.
+
+\begin{description}
+  \item[RQ1 (forecasting).] How do faithfully-replicated LEAR, DNN, and
+    Transformer day-ahead EPF models compare on recent ENTSO-E data for the DK1
+    and DE bidding zones --- against one another, a weekly-naive baseline, and
+    the rankings reported by Lago et al.\ \cite{lago2021} and Llorente and
+    Portela \cite{llorente2025transformer}?
+  \item[RQ2 (engineering).] What engineering trade-offs and operational
+    constraints emerge when embedding these benchmark models into a scheduled,
+    containerised, continuously-monitored production pipeline?
+  \item[RQ3 (maturity).] Assessed against the nine MLOps practices of Zarour et
+    al.\ \cite{zarour2025} and the Google maturity model, which practices does
+    the platform realise, which prove most critical, and where does a
+    single-host minimum-viable platform reach its limit?
+\end{description}
+
+\section{Contributions}
+
+This work makes four contributions.
+
+\begin{itemize}
+  \item \textbf{A production EPF platform.} An end-to-end system that ingests
+    live ENTSO-E data, recalibrates and forecasts on a daily schedule, monitors
+    data and model health, and records the full provenance of every run --- the
+    artefact that RQ2 and RQ3 are evaluated against.
+  \item \textbf{A faithful model replication.} LEAR and the DNN of Lago et al.\
+    \cite{lago2021} and the Transformer of Llorente and Portela
+    \cite{llorente2025transformer}, reimplemented to specification and compared
+    across two markets on a shared recent test window with paired
+    Diebold--Mariano and Giacomini--White significance tests (RQ1).
+  \item \textbf{A composed quantitative MLOps evaluation.} A combination of the
+    ML Test Score rubric, provenance-coverage measurement, a worked
+    reproducibility re-run, and DORA delivery-throughput metrics, assembled to
+    give the otherwise-qualitative maturity question a measurable answer.
+  \item \textbf{A practice-by-practice maturity assessment} of the platform
+    against Zarour et al.'s nine practices, with each practice traced to a
+    concrete repository artefact and positioned on the Google maturity model.
+\end{itemize}
+
+The scope is deliberately bounded. The work forecasts point prices, not
+probabilistic distributions; it is a single-case study of one platform, so its
+system-side findings support analytic rather than statistical generalisation;
+and, because the source papers' test periods predate the present price regime,
+the forecasting comparison is framed in relative terms (rMAE and rankings)
+rather than as a comparison of absolute errors.
+
+\section{Report structure}
+
+Chapter~\ref{ch:background} reviews the EPF and MLOps literatures and the
+evaluation methodology this work draws on. Chapter~\ref{ch:methods-models}
+specifies the three forecasting models, their features, the recalibration
+scheme, and the metrics and significance tests used to compare them.
+Chapter~\ref{ch:system-implementation} documents the production system around
+those models, organised around Zarour's nine practices.
+Chapter~\ref{ch:eval-framework} sets out how the system is evaluated --- which
+tests are applied and why. Chapter~\ref{ch:results-models} reports the
+forecasting comparison, and Chapter~\ref{ch:results-system} the system
+evaluation. Chapter~\ref{ch:discussion} answers the three research questions and
+draws the two threads together, and Chapter~\ref{ch:conclusion} concludes and
+identifies future work.
