@@ -17,10 +17,56 @@ weekly-naive baseline and the rankings of Lago et al.~\cite{lago2021} and
 Llorente and Portela~\cite{llorente2025transformer}. Because the source papers'
 test periods predate the present price regime, the comparison is read through
 rMAE and model rankings rather than absolute errors.
-% NUMBERS PENDING THE SIX --track RUNS (filled in once Chapter ch:results-models is populated).
-\textbf{[pending: headline ranking across the three models per market, the rMAE
-summary, and whether the GW tests find the differences significant; one paragraph
-on what replicated from the papers and what did not.]}
+
+Across both bidding zones the three models fall into two tiers. LEAR records
+the lowest mean absolute error---and with it the lowest rMAE and sMAPE---on
+both DK1 and DE (rMAE 0.469 and 0.376), the DNN follows closely (0.482 and
+0.388), and the Transformer is third (0.543 and 0.420); all three improve
+substantially on the weekly-naive baseline. The Giacomini--White test, however,
+cannot distinguish LEAR from the DNN on either market: the hypothesis that LEAR
+is no more accurate than the DNN gives $p=0.16$ on DK1 and $p=0.19$ on DE, and
+neither can its converse be rejected. LEAR's numerical lead is therefore not a
+significant accuracy advantage, and the two models are best regarded as
+equivalent. The same test confirms that LEAR and the DNN each significantly
+outperform the Transformer ($p\le0.012$) and that every model beats the naive
+forecast ($p\approx0$). The answer to RQ1 is thus a statistical tie between
+LEAR and the DNN at the top, a significantly weaker Transformer, and a wide,
+significant margin over the naive benchmark---a pattern that holds identically
+on DK1 and DE.
+
+Two refinements qualify this headline. First, the ranking depends on the error
+metric: although LEAR leads on the absolute-error measures, the DNN achieves the
+lowest RMSE in both markets, and on DE LEAR posts the highest RMSE of the three
+models. Because RMSE penalises large errors more heavily than MAE, the DNN
+evidently controls the worst misforecasts better than LEAR even where its mean
+error is marginally larger---a distinction that matters whenever large
+individual errors are disproportionately costly. Second, the accuracy tie does
+not extend to cost: on the platform's GPU the DNN recalibrates in about a second
+per day against LEAR's forty to fifty (Table~\ref{tab:results-cost}), so it
+delivers statistically equal accuracy at a fraction of the compute. Where two
+models are tied on accuracy, this asymmetry becomes the deciding practical
+factor, and it favours the DNN.
+
+Measured against the source papers, the comparison replicates one result and
+inverts two. It reproduces the finding of Lago et al.~\cite{lago2021} that the
+accuracy gap between LEAR and the DNN is frequently insignificant---here the two
+are statistically tied. It does not reproduce the papers' point rankings: Lago
+et al.\ place the DNN at least level with LEAR, yet here LEAR is numerically
+ahead (though tied), and Llorente and Portela~\cite{llorente2025transformer}
+place their Transformer above the DNN, yet here the Transformer is significantly
+the weakest model. The most credible explanation is procedural rather than
+architectural. The deep models were optimised far less than LEAR in this study:
+the DNN was tuned for 30 TPE trials against the paper's 1500, and the
+Transformer reused the paper's Nord Pool hyperparameters without per-market
+retuning, adapted into the rolling calibration-window-and-weekly-refit pipeline
+of the other models rather than its native train-once-and-renormalise scheme
+(Chapter~\ref{ch:methods-models}, Table~\ref{tab:mm-deviations}). LEAR, by
+contrast, re-selects its penalty by cross-validation at every daily
+recalibration and so sits close to its achievable best. The inversion is
+therefore better read as a measure of how much tuning the deep models need to
+express their reported advantage than as evidence that their architectures are
+weaker; narrowing that gap is the leading item of modelling future work
+(Chapter~\ref{ch:results-models}, \S\ref{sec:rm-future}).
 
 % -----------------------------------------------------------------------------
 \section{RQ2 --- Engineering trade-offs of productionising an EPF benchmark}

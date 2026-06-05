@@ -19,9 +19,14 @@ sub-minute lead time --- each recomputable on demand from the live system. On th
 forecasting axis, the faithful replication of LEAR, the DNN, and the Transformer
 across DK1 and DE, evaluated with paired significance tests on a shared recent
 window, is reported in Chapter~\ref{ch:results-models}:
-% NUMBERS PENDING THE SIX --track RUNS.
-\textbf{[pending: one-sentence headline of the model ranking and how it compares
-to the published benchmarks.]}
+on both markets LEAR proved the most accurate model and the DNN
+its statistical equal---indistinguishable under the Giacomini--White
+test ($p>0.16$)---while both significantly outperformed the pure Transformer and
+all three beat the weekly-naive baseline. This ordering inverts the rankings of
+the source papers, in which the DNN edges LEAR~\cite{lago2021} and the
+Transformer leads the DNN~\cite{llorente2025transformer}; the inversion is
+attributable to the deep models' reduced tuning budget in this study rather than
+to any inherent weakness of their architectures.
 Together, the two threads constitute a production ML platform that ingests live
 market data, recalibrates and forecasts daily, monitors prediction quality and
 data drift, and maintains a complete audit trail from every forecast back to the

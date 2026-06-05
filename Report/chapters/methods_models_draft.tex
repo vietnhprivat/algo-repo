@@ -119,7 +119,7 @@ per-market DNN hyperparameters.
     \textbf{Model} & \textbf{Specification} & \textbf{Calibration} & \textbf{Refit} \\
     \midrule
     LEAR        & One Lasso per delivery period; $\lambda$ by \texttt{LassoCV} (time-series CV) & ensemble over 56 / 84 / 1092\,d & daily \\
-    DNN         & MLP, 4-seed ensemble; architecture HPs by Optuna TPE (ex-ante validation) & 730\,d & daily \\
+    DNN         & MLP; architecture HPs by Optuna TPE (ex-ante validation); 4-seed ensemble at serving, single seed in backtest & 730\,d & daily \\
     Transformer & Encoder stack per~\cite{llorente2025transformer}; paper Nord Pool hyperparameters & 1092\,d & weekly \\
     \bottomrule
   \end{tabularx}
@@ -149,7 +149,11 @@ optional batch normalisation, and early stopping (the best weights, by
 validation loss, are restored from memory rather than from disk). The serving
 prediction is the arithmetic mean of four replicates trained from distinct
 random seeds, following the ensemble recommendation of Lago et
-al.~\cite{lago2021}, \S4.4. The six architecture hyperparameters --- hidden-layer
+al.~\cite{lago2021}, \S4.4. This four-seed averaging is applied only on the
+production serving path; the rolling backtest that produces the
+Chapter~\ref{ch:results-models} results trains a single network per
+recalibration at a fixed seed, so the reported DNN metrics carry the seed
+variance of one draw (revisited in \S\ref{sec:rm-validity}). The six architecture hyperparameters --- hidden-layer
 width, activation, dropout, learning rate, the batch-normalisation flag, and the
 L1 penalty --- are selected per market by the tuning protocol of
 \S\ref{sec:mm-tuning}; Table~\ref{tab:mm-dnn-hp} lists the values in force.
@@ -162,8 +166,8 @@ L1 penalty --- are selected per market by the tuning protocol of
     \toprule
     \textbf{Market} & \textbf{Width} & \textbf{Activation} & \textbf{Dropout} & \textbf{Learning rate} & \textbf{Batch norm} & \textbf{L1 penalty} \\
     \midrule
-    DK1 & 198 & tanh & 0.027 & $6.3\times10^{-4}$ & no & $6.7\times10^{-4}$ \\
-    DE  & 58  & elu  & 0.132 & $4.9\times10^{-3}$ & no & $5.7\times10^{-4}$ \\
+    DK1 & 191 & tanh & 0.203 & $4.8\times10^{-4}$ & no  & $6.8\times10^{-8}$ \\
+    DE  & 373 & relu & 0.204 & $6.9\times10^{-4}$ & yes & $7.1\times10^{-7}$ \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -294,7 +298,7 @@ and none changes the model class or the feature definition.
     \textbf{Aspect} & \textbf{Paper} & \textbf{This work (reason)} \\
     \midrule
     Test length            & $\geq$ 1--2 years            & 31 weeks (price history starts 2022-03; validation and calibration consume the rest) \\
-    DNN tuning budget      & 1500 TPE iterations          & 50 trials (compute; the optimum is stable early in prior studies) \\
+    DNN tuning budget      & 1500 TPE iterations          & 30 trials (compute; the optimum is stable early in prior studies) \\
     DNN search space       & architecture + feature selectors & architecture only (feature set fixed to the paper specification) \\
     LEAR windows           & 56 / 84 / 1092 / 1456\,d     & 56 / 84 / 1092\,d (1456 predates the data) \\
     DNN window             & 4 years                      & 730\,d (data and compute constraint) \\

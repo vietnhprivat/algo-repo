@@ -27,7 +27,11 @@ recalibrates and forecasts daily for the DK1 and DE bidding zones, monitors data
 and model health, and records the provenance of every run. The three models are
 replicated to specification and compared on a shared recent test window with
 paired Diebold--Mariano and Giacomini--White significance tests:
-\textbf{[pending: one-sentence forecasting headline]}. The system is assessed
+LEAR and a tuned DNN are statistically tied as the most accurate
+models on both markets ($p>0.16$), both significantly outperform the pure
+Transformer ($p\le0.012$), and all three beat the weekly-naive baseline; the
+source papers' model rankings do not replicate under our reduced tuning
+budget. The system is assessed
 against the nine MLOps practices of Zarour et al.: eight are realised end-to-end
 and one is minimally realised, supported by an ML Test Score of 2.5 (bound by
 data testing), 66.7\,\% provenance-triple coverage backed by a re-run that
