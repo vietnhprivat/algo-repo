@@ -1,12 +1,12 @@
 \section*{Abstract}
 \addcontentsline{toc}{section}{Abstract}
 Research on day-ahead electricity price forecasting (EPF) has produced accurate
-benchmark models, but it evaluates them offline. It stops short of the concerns
-that arise when a model runs in production, such as scheduled retraining,
-monitoring, and reproducibility. This thesis addresses that gap. It embeds the
-benchmark EPF models of Lago et al.\ (the LEAR ensemble and a deep neural
-network) and the Transformer of Llorente and Portela in an end-to-end MLOps
-platform, and it evaluates both the forecasts and the system that serves them.
+benchmark models but evaluates them only offline, away from the concerns that
+arise once a model runs in production, such as scheduled retraining, monitoring,
+and reproducibility. This thesis addresses that gap by embedding the benchmark
+EPF models of Lago et al., the LEAR ensemble and a deep neural network, together
+with the Transformer of Llorente and Portela, in an end-to-end MLOps platform,
+and by evaluating both the forecasts and the system that serves them.
 The platform ingests ENTSO-E data on a schedule, stores it in ClickHouse,
 recalibrates and forecasts daily for the DK1 and DE bidding zones, monitors data
 and model health, and records the provenance of every run. The three models are

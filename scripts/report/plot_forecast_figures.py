@@ -67,7 +67,7 @@ def plot_gw_heatmap(forecasts_by_model, actuals, out_path: Path) -> None:
         for j in range(len(labels)):
             value = data[i, j]
             ax.text(
-                j, i, "--" if np.isnan(value) else f"{value:.3f}",
+                j, i, "--" if np.isnan(value) else f"{round(float(value), 4):.3f}",
                 ha="center", va="center", fontsize=8,
             )
     ax.set_title("GW p-value (column better than row)", fontsize=9)

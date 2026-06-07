@@ -8,7 +8,7 @@ engineering and maturity answers (RQ2, RQ3) synthesise the system implementation
 and its evaluation.
 
 % -----------------------------------------------------------------------------
-\section{RQ1: Comparing the forecasting models}
+\section{RQ1, Comparing the forecasting models}
 
 The head-to-head comparison of LEAR, the DNN, and the Transformer across DK1 and
 DE is reported in Chapter~\ref{ch:results-models}, on a single shared test window
@@ -35,7 +35,7 @@ significant margin over the naive benchmark, a pattern that holds identically
 on DK1 and DE.
 
 Two refinements qualify this headline. First, the ranking depends on the error
-metric: although LEAR leads on the absolute-error measures, the DNN achieves the
+metric. Although LEAR leads on the absolute-error measures, the DNN achieves the
 lowest RMSE in both markets, and on DE LEAR posts the highest RMSE of the three
 models. Because RMSE penalises large errors more heavily than MAE, the DNN
 evidently controls the worst misforecasts better than LEAR even where its mean
@@ -43,7 +43,7 @@ error is marginally larger, a distinction that matters whenever large
 individual errors are disproportionately costly. Second, the accuracy tie does
 not extend to cost. On the platform's GPU the DNN recalibrates in about a second
 per day against LEAR's forty to fifty (Table~\ref{tab:results-cost}), so it
-delivers statistically equal accuracy at a fraction of the compute. Where two
+delivers statistically equal accuracy for far less compute. Where two
 models are tied on accuracy, this asymmetry becomes the deciding practical
 factor, and it favours the DNN.
 
@@ -54,9 +54,9 @@ are statistically tied. It does not reproduce the papers' point rankings. Lago
 et al.\ place the DNN at least level with LEAR, yet here LEAR is numerically
 ahead (though tied), and Llorente and Portela~\cite{llorente2025transformer}
 place their Transformer above the DNN, yet here the Transformer is significantly
-the weakest model. The most credible explanation is procedural rather than
-architectural. The deep models were optimised far less than LEAR in this study:
-the DNN was tuned for 30 TPE trials against the paper's 1500, and the
+the weakest model. The explanation is more likely procedural than
+architectural. The deep models were optimised far less than LEAR in this study.
+The DNN was tuned for 30 TPE trials against the paper's 1500, and the
 Transformer reused the paper's Nord Pool hyperparameters without per-market
 retuning, adapted into the rolling calibration-window-and-weekly-refit pipeline
 of the other models rather than its native train-once-and-renormalise scheme
@@ -69,12 +69,12 @@ weaker. Narrowing that gap is the leading item of modelling future work
 (Chapter~\ref{ch:conclusion}).
 
 % -----------------------------------------------------------------------------
-\section{RQ2: Engineering trade-offs of productionising an EPF benchmark}
+\section{RQ2, Engineering trade-offs of productionising an EPF benchmark}
 
 Embedding the benchmark models in a scheduled, containerised pipeline surfaced a
 series of trade-offs, each resolved in favour of the single-host MVP scope. The
 most consequential is the choice of a full refit from scratch on every daily run
-over warm-start or incremental learning: because the daily data increment is
+over warm-start or incremental learning. Because the daily data increment is
 small relative to the calibration windows, a clean refit is cheap and avoids
 accumulated approximation error, and, as RQ3 and the drift discussion show,
 it also makes the model fresh enough that drift-triggered retraining becomes
@@ -88,11 +88,11 @@ large neural weights. And serving the paper-strict feature set in production,
 rather than a separate, richer operational feature set, keeps the deployed
 models bit-faithful to the benchmark, at the cost of forgoing features that might
 help operationally but would break the replication. In most cases the needs of a
-faithful benchmark and the needs of a small production platform lined up. Both
-favour simplicity, determinism, and a single source of truth.
+faithful benchmark and of a small production platform lined up, both favouring
+simplicity, determinism, and a single source of truth.
 
 % -----------------------------------------------------------------------------
-\section{RQ3: Critical practices and the limits of a single-host platform}
+\section{RQ3, Critical practices and the limits of a single-host platform}
 
 Of Zarour's nine practices, eight are realised end-to-end and one, the
 feedback loop, is minimally realised (Table~\ref{tab:maturity}). The
@@ -105,19 +105,18 @@ reproducibility, and monitoring), because they transfer directly from software
 engineering, whereas the ML-specific data-quality discipline (feature-benefit,
 feature-cost, and slice analyses) is where the platform is weakest and where
 further investment would most raise its maturity. The single-host scope reaches
-its limit at three identifiable points. The first is the artifact store, which
-suits LEAR's hundred-kilobyte blobs but not multi-megabyte neural weights. The
-second is the absence of a model-quality gate before serving. The third is the
-coverage gap, with forecasting and drift scoped to two of the seven ingested
-bidding zones. None of these is a design flaw. Each is a deliberate boundary of
-the MVP with a named adoption trigger (Chapter~\ref{ch:system-implementation}).
+its limit at three points. The artifact store suits LEAR's hundred-kilobyte
+blobs but not multi-megabyte neural weights; there is no model-quality gate
+before serving; and forecasting and drift reach only two of the seven ingested
+bidding zones. Each is a bounded MVP choice with a named adoption trigger
+(Chapter~\ref{ch:system-implementation}), not an oversight.
 
 % -----------------------------------------------------------------------------
 \section{Tying the threads together}
 
-The two threads are mutually reinforcing rather than independent. Several
-modelling decisions are only defensible because of the system around them:
-downsampling both markets to an hourly grid is what makes the cross-market and
+The two threads are mutually reinforcing, not independent. Several
+modelling decisions are only defensible because of the system around them.
+Downsampling both markets to an hourly grid is what makes the cross-market and
 cross-paper comparison valid, and the cheap, scheduled daily refit is what
 licenses treating drift detection as monitoring rather than as a retraining
 trigger, following the cost-aware argument of Mahadevan and
@@ -126,9 +125,9 @@ claim, that any forecast can be reconstructed from its logged provenance,
 is what makes the forecasting replication itself trustworthy. The worked re-run
 that reproduced a logged LEAR forecast to within $7\times10^{-6}$\,EUR/MWh
 (\S\ref{sec:res-repro}) is evidence about the modelling thread as much as the
-system thread. The forecasting work tests the platform, and
-the platform makes the forecasting reproducible. Neither half of the thesis would
-stand on its own.
+system thread. The forecasting work exercises the platform under real operating
+conditions, and the platform's provenance logging is what lets those forecasts
+be checked and rerun.
 
 % -----------------------------------------------------------------------------
 \section{Limitations}

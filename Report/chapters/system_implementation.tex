@@ -5,7 +5,7 @@
 \section{Scope and approach}
 
 \subsection{Scope of this chapter}
-This chapter documents the \emph{system} built around the forecasting models.
+This chapter documents the system built around the forecasting models.
 That system comprises the orchestration layer, infrastructure choices,
 observability stack, and CI/CD pipeline that together let the platform run
 reliably in production. It
@@ -29,7 +29,7 @@ concrete implementation found in algo-repo, the technology chosen together with
 the alternatives that were considered and rejected, and the design rationale
 given the single-host MVP scope of the platform. This
 structure makes it straightforward to assess which practices are fully
-implemented, partially implemented, or deliberately deferred, and to trace
+implemented, partially implemented, or deferred, and to trace
 every technology choice back to an explicit justification. The same nine-practice
 vocabulary structures the maturity assessment in
 Chapter~\ref{ch:results-system}.
@@ -38,7 +38,7 @@ Chapter~\ref{ch:results-system}.
 \section{System at a Glance}
 
 Before examining each Zarour practice in detail, this section presents the
-platform as a whole, covering its host-level topology, the end-to-end data plane,
+platform as a whole, covering its host-level topology, the data plane,
 the complete inventory of scheduled deployments, and the technology choices that
 underpin every layer.
 
@@ -86,7 +86,7 @@ production forecasting. Predictions and trained model artifacts are persisted to
 actuals the following day and the drift-detection flow compares the recent price
 distribution against a ninety-day reference window, triggering an alert and an
 optional automatic retraining run when significant drift is detected. Figure~\ref{fig:f2-data-plane} draws this
-end-to-end path together; it is deferred to the end of the chapter
+path together; it is deferred to the end of the chapter
 (\S\ref{sec:si-crosscutting}) so that each stage is introduced first.
 
 
@@ -124,8 +124,8 @@ Zarour practice it primarily realises.
     \midrule
     reconcile-predictions & all & 0 18 * * * & \texttt{reconcile\_predictions\_flow} & Day-after reconciliation & P7, P8 \\
     \midrule
-    drift-detection-dk1 & DK1 & 0 19 * * * & \texttt{drift\_detection\_flow} & Drift: 90d ref vs 7d (Evidently) & P8, P9 \\
-    drift-detection-de  & DE  & 0 19 * * * & {\itshape (as above)} & Drift: 90d ref vs 7d (Evidently) & P8, P9 \\
+    drift-detection-dk1 & DK1 & 0 19 * * * & \texttt{drift\_detection\_flow} & Drift, 90d ref vs 7d (Evidently) & P8, P9 \\
+    drift-detection-de  & DE  & 0 19 * * * & {\itshape (as above)} & Drift, 90d ref vs 7d (Evidently) & P8, P9 \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -164,20 +164,16 @@ choice is given in the practice section where the tool appears.
 
 The nine sections that follow map every MLOps practice identified by Zarour et
 al.\ (Chapter~\ref{ch:background}) to a concrete subsystem in algo-repo, in
-Zarour's order from P1 to P9. Each follows the same shape, covering the
-practice's framing, the implementation found in this repository, the technology
-chosen and its rejected alternatives, and the design rationale scoped to a
-single-host MVP.
-Where a practice is only partially realised, the limitation is stated
+Zarour's order from P1 to P9. Where a practice is only partially realised, the
+limitation is stated
 explicitly and cross-referenced to the maturity assessment in
 Chapter~\ref{ch:results-system}.
 
 \subsection{Automating CI/CD}
 
-Automating continuous integration and delivery requires that every proposed
-change be validated before it reaches \texttt{main}, and that an accepted change
-then propagate to the running system without manual intervention
-\cite{zarour2025}. In algo-repo this is a two-phase GitHub Actions pipeline
+Under automated CI/CD, every proposed change is validated before it reaches
+\texttt{main}, and an accepted change then propagates to the running system
+without manual intervention \cite{zarour2025}. In algo-repo this is a two-phase GitHub Actions pipeline
 (Figure~\ref{fig:f3-cicd}).
 
 On a pull request, three checks must pass before a merge is allowed.
@@ -211,10 +207,10 @@ no separately managed runner.
 
 \subsection{Orchestrating workflows}
 
-Orchestrating workflows, in Zarour et al.'s framing, is the practice of
-expressing the recurring data and model tasks as scheduled, observable,
-retryable pipelines rather than as cron-driven scripts, so that failures are
-isolated, retried, and surfaced rather than silently lost \cite{zarour2025}.
+Orchestrating workflows means expressing the recurring data and model tasks as
+scheduled, observable, retryable pipelines instead of cron-driven scripts, so
+that failures are isolated, retried, and surfaced rather than silently lost
+\cite{zarour2025}.
 
 All recurring work on the platform is expressed as four Prefect flows executed
 by a Docker work pool (Table~\ref{tab:inventory}). These are ingestion, daily
@@ -231,19 +227,18 @@ failing does not abort the others. The ingestion flow re-ingests a rolling
 48-hour lookback window on every run. Because both ClickHouse tables are
 \texttt{ReplacingMergeTree}, re-ingesting overlapping data is always safe.
 
-A deliberate design choice keeps the fetch-and-insert logic in a shared ingest
-service with no Prefect dependency, so that both the data-backfill CLI and the
-ingestion flow import the same code path rather than duplicating it.
-Prefect was chosen over Airflow and Dagster. At single-host scale its Python-native
-flow definitions and Docker work pool are sufficient, and it avoids the
+The fetch-and-insert logic lives in a shared ingest service with no Prefect
+dependency, so both the data-backfill CLI and the ingestion flow import the same
+code path instead of duplicating it.
+Prefect was preferred to Airflow and Dagster. At single-host scale its
+Python-native flow definitions and Docker work pool suffice, and it avoids the
 operational weight of an Airflow scheduler or a Dagster daemon and database.
 
 \subsection{Ensuring reproducibility}
 
-Reproducibility in the context of MLOps requires that a past model result can
-be reconstructed from the same code version, data window, hyperparameters, and
-\emph{runtime environment}, without relying on implicit host state
-\cite{zarour2025}. Zarour et al.\ identify it as one of the most frequently
+In MLOps, reproducibility turns on reconstructing a past model result from the
+same code version, data window, hyperparameters, and runtime environment,
+without relying on implicit host state \cite{zarour2025}. Zarour et al.\ identify it as one of the most frequently
 cited challenges in practitioner surveys, and treat containerisation of the
 runtime as one of its principal enablers.
 
@@ -267,20 +262,18 @@ fixed in the committed configs, and the DNN ensemble averages
 the trained ensemble is fully described by the config and a deterministic seed
 sequence.
 
-Docker Compose was chosen over Kubernetes for the container runtime. At
-single-host scope, a control plane, etcd, and Helm charts are unjustified
-overhead (\S\ref{sec:si-crosscutting}). Baking the
+Docker Compose, not Kubernetes, runs the container runtime. At single-host
+scope, a control plane, etcd, and Helm charts are unjustified overhead
+(\S\ref{sec:si-crosscutting}). Baking the
 SHA into the image rather than resolving it at container start makes every
 \texttt{algo.experiment\_runs} row self-describing under a deployment model that
 has no source checkout on the host.
 
 \subsection{Versioning}
 
-Versioning is the foundational practice under which all code, data schemas, and
-configuration that affect model behaviour are tracked in source control,
-enabling reproducible reconstruction of any past system state
-\cite{zarour2025}. Zarour et al.\ treat it as a prerequisite for every other
-practice, because without a shared history of code and configuration changes,
+Versioning underpins every other practice. All code, data schemas, and
+configuration that affect model behaviour are tracked in source control, so any
+past system state can be reconstructed \cite{zarour2025}. Zarour et al.\ treat it as a prerequisite, because without a shared history of code and configuration changes,
 claims about reproducibility or rollback cannot be substantiated.
 
 The platform uses Git with GitHub as the remote, and versions every artefact
@@ -307,10 +300,10 @@ operational changes and the audit trail expected of a production ML system.
 Collaboration practices let contributors work on a shared ML system without
 relying on tribal knowledge \cite{zarour2025}. As a single-developer project this
 was the least-emphasised of the nine practices, but the core disciplines were
-still followed. Every code change went through a GitHub \emph{pull request} rather
+still followed. Every code change went through a GitHub pull request rather
 than a direct commit to \texttt{main}, so each change passed the CI gate of P1
 (Figure~\ref{fig:f3-cicd}) and left a reviewable record of what changed and why.
-GitHub \emph{Issues} tracked outstanding work and the status of each feature
+GitHub Issues tracked outstanding work and the status of each feature
 branch, giving a single queue of what was in progress, blocked, or done.
 
 Beyond the version-control workflow, project conventions, repository structure,
@@ -322,10 +315,9 @@ person's head.
 
 \subsection{Continuously train and evaluate}
 
-Continuous training and evaluation requires that the model be retrained
-automatically on a regular cadence so that it reflects the most recent data
-distribution, and that its live predictions be continuously scored against
-realised outcomes \cite{zarour2025}. Zarour et al.\ distinguish the scheduled,
+Continuous training and evaluation retrains the model automatically on a regular
+cadence so that it reflects the most recent data distribution, and scores its
+live predictions against realised outcomes as they arrive \cite{zarour2025}. Zarour et al.\ distinguish the scheduled,
 unconditional refit from the reactive drift-triggered path of P9.
 
 The platform's train-and-evaluate cycle runs on a fixed daily cadence
@@ -337,7 +329,7 @@ calibration-window models from scratch, and immediately produces a day-ahead
 forecast. For DNN configurations
 it fits \texttt{n\_dnn\_ensemble} seed replicates and averages them, following
 Lago et al.\ \cite{lago2021}. The trained models are serialised to
-\texttt{algo.model\_artifacts}. The \emph{evaluate} half of the practice is the
+\texttt{algo.model\_artifacts}. The evaluation half of the practice is the
 reconciliation flow (\S P7--P8). The day after each forecast, realised prices
 are joined to the stored predictions and the same MAE, RMSE, and sMAPE used in
 backtesting are computed on the live forecast, so offline and online evaluation
@@ -358,9 +350,9 @@ the served model is always consistent with the forecast it produced.
 
 \subsection{Track and log ML metadata}
 
-Tracking and logging ML metadata is the practice of recording the full
-provenance of every model run in a queryable store, so that past results can be
-reproduced and compared without ad-hoc file management \cite{zarour2025}. That
+Tracking and logging ML metadata records the full provenance of every model run
+in a queryable store, so that past results can be reproduced and compared
+without ad-hoc file management \cite{zarour2025}. That
 provenance covers the hyperparameters, data windows, performance metrics, and the
 model artefact itself.
 
@@ -394,9 +386,8 @@ it and the store it reads. Structured logs from every Prefect flow and
 infrastructure module are pushed straight to Loki through a
 \texttt{python-logging-loki} handler, and Grafana
 auto-provisions three dashboards over ClickHouse, Prometheus, and Loki from
-\texttt{grafana/dashboards/}. The division of surfaces is deliberate. Grafana
-owns platform-and-data-health and W\&B owns model quality, and both read from
-the same ClickHouse tables.
+\texttt{grafana/dashboards/}. Grafana owns platform and data health and W\&B
+owns model quality, and both read from the same ClickHouse tables.
 
 \begin{table}[H]
   \centering
@@ -439,8 +430,8 @@ Five conditions raise an alert, listed in Table~\ref{tab:alert-rules}.
   \end{tabularx}
 \end{table}
 
-Loki was chosen over the ELK stack as a single binary with far lower memory and
-operational overhead, proportionate to a single host. Prometheus sits alongside
+Loki replaces the heavier ELK stack and runs as a single binary with far lower
+memory and operational overhead, proportionate to a single host. Prometheus sits alongside
 Loki as the metrics
 tier to its logs tier, scraping ClickHouse, Grafana, and itself every 15 seconds
 and retaining 120 days of series, with Grafana the single dashboard and alerting
@@ -448,9 +439,9 @@ surface above both.
 
 \subsection{Implementing feedback loops}
 
-The feedback-loop practice asks that a system detect when its inputs or outputs
-have shifted enough to degrade quality and respond automatically, rather than
-waiting for a human to notice \cite{zarour2025}. This is the least developed of
+A feedback loop should detect when a system's inputs or outputs have shifted
+enough to degrade quality and respond automatically, instead of waiting for a
+human to notice \cite{zarour2025}. This is the least developed of
 the nine practices on the platform and one of its weaker points. Drift detection
 itself runs daily and in-process, inside the \texttt{drift-detection-dk1} and
 \texttt{drift-detection-de} deployments, via Evidently's \texttt{DataDriftPreset}
@@ -499,7 +490,7 @@ Loki events from the same period alongside the \texttt{git\_sha} of the image
 that produced them, making it possible to \texttt{git log} back to the exact
 commit. This links the reproducibility of P3 to the monitoring of P8.
 The audit trail for a production anomaly runs from the Grafana panel, through
-the \texttt{algo.experiment\_runs} row, to a checkable commit, with no gap.
+the \texttt{algo.experiment\_runs} row, to a checkable commit.
 
 \subsection{Why a single-host deploy is the right MVP scope}
 

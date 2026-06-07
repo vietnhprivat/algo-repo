@@ -22,9 +22,9 @@ clearing price is set by the marginal generator, so it inherits the cost
 structure of the generation mix and the topology of cross-border exchange.
 This mechanism produces a price series with pronounced multi-scale seasonality
 (daily, weekly, and annual), heavy tails, and sudden spikes driven by scarcity
-or congestion. As wind and solar capacity has grown, two further features have
-become routine: sharp drops, and outright negative prices, when inflexible
-must-run generation coincides with high renewable infeed and low demand. Weron's
+or congestion. As wind and solar capacity has grown, sharp drops and outright negative
+prices have become routine, occurring when inflexible must-run generation
+coincides with high renewable infeed and low demand. Weron's
 review \cite{weron2014} surveys the statistical and computational-intelligence
 methods developed for this problem, and Nowotarski and Weron
 \cite{nowotarski2018} extend the picture to probabilistic forecasting. Both
@@ -76,14 +76,14 @@ thesis instead places the Transformer in the same rolling-recalibration pipeline
 as the other models, a deviation documented in Chapter~\ref{ch:methods-models}.
 
 % -----------------------------------------------------------------------------
-\section{MLOps: practices and maturity}
+\section{MLOps practices and maturity}
 \label{sec:bg-mlops}
 
 MLOps applies DevOps principles such as automation, version control, continuous
 delivery, and monitoring to the particular demands of machine-learning
 systems, where data and models, not only code, evolve over time. Zarour et al.\
 \cite{zarour2025} consolidate the field in a systematic literature review that
-identifies nine recurring best practices: automating CI/CD, orchestrating
+identifies nine recurring best practices. These are automating CI/CD, orchestrating
 workflows, ensuring reproducibility, versioning, collaboration and
 communication, continuously training and evaluating models, tracking and logging
 ML metadata, continuous monitoring, and implementing feedback loops. These nine
@@ -91,7 +91,7 @@ practices provide the organising structure for the system chapter
 (Chapter~\ref{ch:system-implementation}).
 
 The same review surveys five MLOps maturity models, all descended from the
-CMM/CMMI lineage: the Google three-level model, the Microsoft and GigaOm
+CMM/CMMI lineage. These are the Google three-level model, the Microsoft and GigaOm
 five-level models, the four-level model of John, Olsson and Bosch, and the
 five-level model of Mateo-Casal\'i et al. This work positions the platform
 against the Google model \cite{google_mlops_maturity}, whose three levels (manual
@@ -109,7 +109,7 @@ operating context.
 
 Because the platform is a single artefact rather than a sample, its system-side
 evaluation follows the single-case study methodology of Runeson and H\"ost
-\cite{runeson2009casestudy}. That method supports \emph{analytic} generalisation,
+\cite{runeson2009casestudy}. That method supports analytic generalisation,
 extending findings to cases that share the platform's characteristics, rather
 than statistical generalisation to a population. Within that frame, several
 established instruments are composed. The ML Test Score of Breck et al.\
@@ -121,6 +121,6 @@ Reproducibility is treated in two senses. Gundersen and Kjensmo
 AI research. Finally, the decision of whether drift should
 trigger retraining is informed by the cost-aware analysis of Mahadevan and
 Mathioudakis \cite{mahadevan2024costaware}, who show that triggered retraining
-earns its keep mainly when retraining is expensive. How these instruments are
+is worthwhile mainly when retraining is expensive. How these instruments are
 applied, and why each was chosen, is the subject of
 Chapter~\ref{ch:results-system}.

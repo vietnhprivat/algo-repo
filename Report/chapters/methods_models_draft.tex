@@ -6,11 +6,11 @@
 % paper-exogenous re-tune (configs/dk1_dnn.py, configs/de_dnn.py).
 % =============================================================================
 
-\chapter{Methods: Forecasting Models and Evaluation}
+\chapter{Forecasting Models and Evaluation}
 \label{ch:methods-models}
 
 This chapter specifies the forecasting models that the platform serves and the
-protocol by which they are compared. Three model families are studied: the
+protocol by which they are compared. Three model families are studied, the
 Lasso Estimated AutoRegressive ensemble (LEAR) and the deep neural network
 (DNN) of Lago et al.~\cite{lago2021}, and the encoder-only Transformer of
 Llorente and Portela~\cite{llorente2025transformer}. Each is reimplemented
@@ -33,18 +33,18 @@ The error magnitudes reported in the source papers were obtained on 2016--2018
 test periods whose price level and volatility differ sharply from the
 2025--2026 regime studied here. An absolute mean-error figure is therefore not
 comparable across the two eras. The comparison this work makes has three parts.
-The first part is methodology replication. It uses the same model
-specifications, feature sets, recalibration scheme, metrics, and statistical
-tests as the papers, run on current data. The second part is relative accuracy,
-measured by the relative mean absolute error (rMAE), which Lago et
-al.~\cite{lago2021} designed for cross-period and cross-market comparison,
-together with the ordinal ranking of the models against the rankings the papers
-report. The third part is head-to-head significance, using paired
-Diebold--Mariano~\cite{diebold1995dm} and Giacomini--White~\cite{giacomini2006gw}
-tests across the three models and a weekly-naive baseline, per market, on
-identical test days. Because all six experimental runs (three models $\times$
-two markets) share a single test window, the paired tests are valid: every pair
-of models is compared on the same delivery days.
+The methodology is replicated first, reusing the same model specifications,
+feature sets, recalibration scheme, metrics, and statistical tests as the papers
+on current data. Relative accuracy is then measured through the relative mean
+absolute error (rMAE) that Lago et al.~\cite{lago2021} designed for cross-period
+and cross-market comparison, alongside the ordinal ranking of the models against
+the rankings the papers report. Head-to-head significance is tested last, with
+paired Diebold--Mariano~\cite{diebold1995dm} and
+Giacomini--White~\cite{giacomini2006gw} tests across the three models and a
+weekly-naive baseline, per market, on identical test days. Because all six
+experimental runs, three models across two markets, share a single test window,
+the paired tests are valid, since every pair of models is compared on the same
+delivery days.
 
 % -----------------------------------------------------------------------------
 \section{Data and features}
@@ -59,8 +59,8 @@ of models is compared on the same delivery days.
     \toprule
     \textbf{Market} & \textbf{Resolution} & \textbf{Exogenous (paper-exact)} & \textbf{Paper analogue} \\
     \midrule
-    DK1 & hourly (24)\textsuperscript{a} & TotalLoad + Wind (on+offshore)        & Nord Pool: load + wind~\cite{lago2021} \\
-    DE  & hourly (24)\textsuperscript{a} & TotalLoad + Renewables (wind+solar)   & EPEX-DE: load + wind\&solar~\cite{lago2021} \\
+    DK1 & hourly (24)\textsuperscript{a} & TotalLoad + Wind (on+offshore)        & Nord Pool load + wind~\cite{lago2021} \\
+    DE  & hourly (24)\textsuperscript{a} & TotalLoad + Renewables (wind+solar)   & EPEX-DE load + wind\&solar~\cite{lago2021} \\
     \\[2pt] \multicolumn{4}{@{}p{\linewidth}@{}}{\footnotesize\textsuperscript{a} Both markets clear in 15-min blocks (DE throughout, DK1 since 2025-10-01), and prices and exogenous forecasts are downsampled to an arithmetic hourly mean (\texttt{resample\_to\_hourly}).} \\
     \bottomrule
   \end{tabularx}
@@ -128,7 +128,7 @@ resolution ($n{=}96$).
 The exogenous set is restricted, per market, to exactly the two signals the
 papers use, the load and wind/renewables aggregates of
 Table~\ref{tab:mm-datasets}. These aggregates are formed at load time by summing
-the raw ENTSO-E curves: the member curves are inner-joined on their timestamps
+the raw ENTSO-E curves. The member curves are inner-joined on their timestamps
 before summing so a partial sum can never occur, and all exogenous columns are
 then inner-joined together, so the coarsest available series anchors the common
 time grid.
@@ -173,13 +173,13 @@ per-market DNN hyperparameters.
 
 \subsection{LEAR}
 
-LEAR is a direct multi-period regressor: one independent Lasso model is fitted
+LEAR is a direct multi-period regressor. One independent Lasso model is fitted
 per delivery period, so an hourly market trains $n{=}24$ separate estimators,
 each predicting a single period from the full feature vector of
 Eq.~\eqref{eq:mm-featurecount}. Writing $x^1,x^2$ for the two exogenous series
 and $z_d$ for the seven day-of-week dummies, the (asinh-transformed) price for
 period $h$ is modelled, following Lago et al.~\cite{lago2021}, Eq.~3, as a linear
-combination of the price lags, the exogenous lags, and the weekday dummies:
+combination of the price lags, the exogenous lags, and the weekday dummies,
 \begin{equation}
 \begin{aligned}
   \hat{p}_{d,h} = {}
@@ -227,10 +227,10 @@ forward pass, a multiple-input multiple-output design (Fig.~\ref{fig:mm-dnn}).
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.82\linewidth]{f-dnn-architecture}
-  \caption{The DNN, after Lago et al.~\cite{lago2021}, Fig.~4: a fully-connected
+  \caption{The DNN, after Lago et al.~\cite{lago2021}, Fig.~4, a fully-connected
   multilayer perceptron from the feature vector of Eq.~\eqref{eq:mm-featurecount}
   to the $n$ delivery periods. The two hidden layers share a single tuned width
-  (Table~\ref{tab:mm-dnn-hp}: 191 for DK1, 373 for DE); the number of units drawn
+  (Table~\ref{tab:mm-dnn-hp}, 191 for DK1 and 373 for DE); the number of units drawn
   is schematic.}
   \label{fig:mm-dnn}
 \end{figure}
@@ -292,7 +292,7 @@ uses Adam at learning rate $10^{-4}$, batch size 32, up to 200 epochs with early
 stopping (patience 25) on an internal validation split, under a step
 learning-rate schedule. The number of exogenous inputs is fixed at two to match
 the paper, and the remaining hyperparameters follow the paper's reported
-architecture and search ranges rather than a per-market optimum: the
+architecture and search ranges rather than a per-market optimum. The
 128-dimensional embedding lies within the paper's range but below its Nord Pool
 optimum of 512, and per-market tuning is left as future work
 (\S\ref{sec:mm-deviations}). Because this wide feature vector is interpreted
@@ -318,7 +318,7 @@ arithmetic mean of the predictions across the windows.
   \includegraphics[width=\linewidth]{f-recalibration}
   \caption{Rolling walk-forward recalibration with a calibration-window ensemble,
   after Lago et al.~\cite{lago2021}. For each test day the data are sliced to the
-  most recent window of each ensemble length (shown for LEAR: 56/84/1092 days),
+  most recent window of each ensemble length (shown for LEAR, 56/84/1092 days),
   every window is refit and predicts the target day, and the forecast is their
   average. The boundary then advances one day; models refit daily (LEAR, DNN) or
   weekly (Transformer).}
@@ -333,7 +333,7 @@ window of the original specification is dropped because it predates the availabl
 data. The DNN uses a single 730-day window, and the Transformer a single
 1092-day window, verified to leave enough usable sequence rows before the test
 start in both markets (at least 1092, and 1265 measured for DE). The train/test
-split is date-based: training data are all rows strictly before the test start
+split is date-based. Training data are all rows strictly before the test start
 date, and no validation holdout is carved out of the backtest itself (the
 validation window of \S\ref{sec:mm-tuning} is used only by the tuning command).
 
@@ -388,7 +388,7 @@ ex-ante validation window (2025-01-01 to 2025-10-23, the 42 weeks before the tes
 window; \cite{lago2021}, \S4.3.2), scored under the same walk-forward engine as
 the backtest, with each trial persisted to \texttt{algo.hyperparam\_trials} for
 resumable search. Lago's ten binary feature- and selector-toggles, and their
-\texttt{preprocessing} and \texttt{init\_method} choices, are omitted: the
+\texttt{preprocessing} and \texttt{init\_method} choices, are omitted. The
 preprocessor exposes no such switches, so they would only add inert search
 dimensions (Table~\ref{tab:mm-deviations}).
 

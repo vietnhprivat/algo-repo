@@ -4,7 +4,7 @@
 % Report/metrics/{quantitative_results,ml_test_score}.md.
 % =============================================================================
 
-\chapter{Results: System Evaluation}
+\chapter{System-Evaluation Results}
 \label{ch:results-system}
 
 This chapter evaluates the system. The forecast-accuracy results are in
@@ -65,13 +65,11 @@ the data section the system scores for enforcing strict input schemas
 (\texttt{enforce\_schema}) and for a tested feature-transformer pipeline, but
 does not formally document the
 feature-benefit, feature-cost, or privacy analyses the rubric also rewards, and
-has no data-quality CI gate. We read this as the system's primary remaining
-investment area. The score is deliberately
-conservative. Two data items could each be argued to 0.5 (that the Lasso performs
-feature selection, and that the feature set is grounded in Lago
-et al.~\cite{lago2021}), which would lift the data section to 3.0 and the
-headline to 3.0. We leave them at zero absent a documented analysis, so the
-reported score is a lower bound.
+has no data-quality CI gate. This is the system's primary remaining
+investment area. The score is conservative. Two data items could each be argued to 0.5, that the Lasso performs feature
+selection and that the feature set is grounded in Lago et al.~\cite{lago2021},
+which would lift the data section to 3.0 and the headline to 3.0. They are left
+at zero absent a documented analysis, so the reported score is a lower bound.
 
 % -----------------------------------------------------------------------------
 \section{Reproducibility}
@@ -102,14 +100,14 @@ Kjensmo~\cite{gundersen2018reproducibility}.
 
 Of the 15 live runs in the window, 66.7\,\% carry the complete provenance triple
 (Table~\ref{tab:res-repro-coverage}). The shortfall is entirely on
-\texttt{git\_sha}: the data-window and artefact columns are populated for every
+\texttt{git\_sha}. The data-window and artefact columns are populated for every
 run from day one, while five early runs predate the CD pipeline that bakes
 \texttt{GIT\_SHA} into the production image. From the first cd-deployed run
 onward, all four components are present.
 
 \begin{table}[h]
   \centering
-  \caption{Reproducibility re-run: regenerated from logged provenance, compared against the stored prediction.}
+  \caption{Reproducibility re-run, regenerated from logged provenance and compared against the stored prediction.}
   \label{tab:res-repro-rerun}
   \renewcommand{\arraystretch}{1.3}
   \begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X@{}}
@@ -130,9 +128,9 @@ For the demonstration (Table~\ref{tab:res-repro-rerun}), the only inputs supplie
 were the run's committed config and target date, and the stored prediction was
 loaded from \texttt{algo.experiment\_predictions}. For the deterministic LEAR
 configuration on 2026-03-22, the maximum absolute difference across all 24
-delivery periods was $7\times10^{-6}$\,EUR/MWh, five orders of magnitude below
-any economically meaningful price unit, i.e.\ numerically identical up to
-solver-level floating-point tolerance. LEAR is used for the headline
+delivery periods was $7\times10^{-6}$\,EUR/MWh, far below any economically
+meaningful price unit, so the regenerated and stored forecasts are numerically
+identical up to solver-level floating-point tolerance. LEAR is used for the headline
 demonstration because it is deterministic given a fixed data window. The DNN and
 Transformer carry seed and ensemble stochasticity whose controlled re-run is
 left to future work.
@@ -143,10 +141,10 @@ left to future work.
 
 The system refits every model from scratch daily on a rolling window at a cost of
 seconds (Chapter~\ref{ch:system-implementation}, P6), so it is never stale between
-refits and drift-\emph{triggered} retraining would add no freshness benefit,
+refits, and drift-triggered retraining would add no freshness benefit,
 following the cost-aware argument of Mahadevan and
 Mathioudakis~\cite{mahadevan2024costaware}. Drift detection is therefore kept as a
-\emph{monitoring and alerting} signal rather than a retraining trigger, and
+monitoring and alerting signal rather than a retraining trigger, and
 \texttt{retrain\_on\_drift} defaults to false. Over the window the detector
 flagged drift on 49 of 49 reports, an uninformatively high rate that calls for
 recalibration.
@@ -167,7 +165,7 @@ a Google level to each of Zarour's nine practices, with one line of evidence
 apiece. The three status labels map to the evidence already presented. A practice
 is \emph{Realised} when a concrete, production-running artefact closes it
 end-to-end, and \emph{Minimal} when the mechanism exists but its scope is
-intentionally restricted. Eight of the nine are Realised. The ninth, the feedback
+limited by design. Eight of the nine are Realised. The ninth, the feedback
 loop, is Minimal, since drift-triggered retraining exists but is scoped to two
 areas behind an opt-in flag, consistent with the monitoring-not-trigger argument
 of \S\ref{sec:res-drift}. The levels themselves are descriptive ordinals and
@@ -186,7 +184,7 @@ the ML Test Score and reproducibility results above.
     P1 Automating CI/CD              & Realised & 2 & \texttt{pr\_test}/\texttt{pr\_ruff-lint}/\texttt{pr\_smoke} PR gates, \texttt{cd\_deploy} on every merge to \texttt{main}, 20 production deploys over the window at about 1.56 per week \\
     P2 Orchestrating workflows       & Realised & 2 & Prefect flows with per-area deployments on a Docker work pool \\
     P3 Ensuring reproducibility      & Realised & 2 & \texttt{GIT\_SHA} + data-window columns per run, containerised runtime in \texttt{docker-compose.yml} \\
-    P4 Versioning                    & Realised & 2 & Git: \texttt{configs/}, numbered migrations, dashboards and alert rules all version-controlled \\
+    P4 Versioning                    & Realised & 2 & Git tracks \texttt{configs/}, numbered migrations, dashboards and alert rules all version-controlled \\
     P5 Collaboration \& communication & Realised & 1 & \texttt{CLAUDE.md}, \texttt{REPO\_OVERVIEW.md}, \texttt{RUNBOOK.md}, \texttt{CONTRIBUTING.md}, plus Slack alerts \\
     P6 Continuously train \& evaluate & Realised & 1 & Six \texttt{daily-forecast} deployments refit at 06:00 UTC, reconciliation scores live forecasts \\
     P7 Track \& log ML metadata      & Realised & 1 & \texttt{algo.experiment\_runs} + predictions + artifacts, plus the W\&B research surface \\

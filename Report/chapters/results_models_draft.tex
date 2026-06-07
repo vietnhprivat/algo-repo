@@ -6,7 +6,7 @@
 % Test window 2025-10-24..2026-05-31, hourly (24p), paper-exact features.
 % =============================================================================
 
-\chapter{Results: Forecasting Models}
+\chapter{Forecasting-Model Results}
 \label{ch:results-models}
 
 This chapter reports the head-to-head comparison of the three forecasting
@@ -27,7 +27,7 @@ published benchmarks (\S\ref{sec:rm-papers}).
 
 \begin{table}[h]
   \centering
-  \caption{DK1: final benchmark metrics (test 2025-10-24--2026-05-31, common days).}
+  \caption{DK1 final benchmark metrics (test 2025-10-24--2026-05-31, common days).}
   \label{tab:results-dk1-headline}
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{lrrrr}
@@ -44,7 +44,7 @@ Naive (weekly) & 36.899 & 51.385 & 50.110 & 1.000 \\
 
 \begin{table}[h]
   \centering
-  \caption{DE: final benchmark metrics (test 2025-10-24--2026-05-31, common days).}
+  \caption{DE final benchmark metrics (test 2025-10-24--2026-05-31, common days).}
   \label{tab:results-de-headline}
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{lrrrr}
@@ -82,47 +82,81 @@ al.~\cite{lago2021}, \S5.4, designate as primary. On the squared-error criterion
 the DNN is preferable. Whether either difference is statistically meaningful is
 the subject of \S\ref{sec:rm-significance}.
 
+Figures~\ref{fig:rm-forecast-week} and~\ref{fig:rm-mae-hour} make these orderings
+concrete, showing the forecasts against realised prices over a sample week and
+the absolute error broken down by delivery period.
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}{\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{forecast_week_dk1}
+    \caption{DK1}
+    \label{fig:rm-forecast-week-dk1}
+  \end{subfigure}\\[6pt]
+  \begin{subfigure}{\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{forecast_week_de}
+    \caption{DE}
+    \label{fig:rm-forecast-week-de}
+  \end{subfigure}
+  \caption{Day-ahead forecasts against realised prices over the opening seven
+  days of each market's test window (from 2025-10-24), with dotted lines marking
+  day boundaries. The three models track the daily price cycle; LEAR overshoots
+  the sharpest DK1 peaks and the Transformer the German ones.}
+  \label{fig:rm-forecast-week}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{mae_by_hour_dk1}
+    \caption{DK1}
+    \label{fig:rm-mae-hour-dk1}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{mae_by_hour_de}
+    \caption{DE}
+    \label{fig:rm-mae-hour-de}
+  \end{subfigure}
+  \caption{Mean absolute error by delivery period (hour of day) across the test
+  window. Error is smallest overnight and largest on the morning and evening
+  ramps, and the Transformer's error exceeds LEAR's and the DNN's at most
+  periods.}
+  \label{fig:rm-mae-hour}
+\end{figure}
+
 % -----------------------------------------------------------------------------
 \section{Statistical significance}
 \label{sec:rm-significance}
 
-\begin{table}[h]
+\begin{figure}[h]
   \centering
-  \caption{DK1: GW multivariate p-values (column model better than row model).}
-  \label{tab:results-dk1-gw}
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{lrrrr}
-\toprule
- & LEAR & DNN & Transformer & Naive (weekly) \\
-\midrule
-LEAR & -- & 0.836 & 1.000 & 1.000 \\
-DNN & 0.164 & -- & 1.000 & 1.000 \\
-Transformer & 0.001 & 0.001 & -- & 1.000 \\
-Naive (weekly) & 0.000 & 0.000 & 0.000 & -- \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[h]
-  \centering
-  \caption{DE: GW multivariate p-values (column model better than row model).}
-  \label{tab:results-de-gw}
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{lrrrr}
-\toprule
- & LEAR & DNN & Transformer & Naive (weekly) \\
-\midrule
-LEAR & -- & 0.807 & 0.988 & 1.000 \\
-DNN & 0.193 & -- & 0.994 & 1.000 \\
-Transformer & 0.012 & 0.006 & -- & 1.000 \\
-Naive (weekly) & 0.000 & 0.000 & 0.000 & -- \\
-\bottomrule
-\end{tabular}
-\end{table}
+  \begin{subfigure}{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{gw_heatmap_dk1}
+    \caption{DK1}
+    \label{fig:rm-gw-dk1}
+  \end{subfigure}\hfill
+  \begin{subfigure}{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{gw_heatmap_de}
+    \caption{DE}
+    \label{fig:rm-gw-de}
+  \end{subfigure}
+  \caption{Giacomini--White multivariate p-values, one heatmap per market. Each
+  cell is the pairwise p-value; green marks a significant win for the column
+  model over the row model ($p<0.05$), red a non-significant difference. LEAR and
+  the DNN are indistinguishable, both significantly beat the Transformer, and
+  every model beats the weekly-naive baseline.}
+  \label{fig:rm-gw}
+\end{figure}
 
 The Giacomini--White multivariate test~\cite{giacomini2006gw, lago2021}
 establishes whether these differences are significant.
-Tables~\ref{tab:results-dk1-gw} and~\ref{tab:results-de-gw} give the pairwise
+Figure~\ref{fig:rm-gw} gives the pairwise
 p-values, where cell $(r,c)$ is the probability of a loss differential at least
 as large as the one observed under the null that column model $c$ is no more
 accurate than row model $r$ (the convention of~\cite{lago2021}, Fig.~5). A value
@@ -174,8 +208,7 @@ therefore roughly 25 to 55 times cheaper per recalibration than LEAR while, as
 This inversion is a property of the hardware rather than of the models or the
 markets, since a GPU rewards the dense neural networks and penalises LEAR's many
 small per-period fits. On this platform it is the decisive practical
-difference between two otherwise-tied models. The DNN buys equal accuracy at
-around a fortieth of the compute. The Transformer, refitted weekly, carries a
+difference between two otherwise-tied models. The Transformer, refitted weekly, carries a
 comparably low amortised cost but does not convert it into competitive accuracy.
 
 % -----------------------------------------------------------------------------
