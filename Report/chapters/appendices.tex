@@ -7,14 +7,14 @@
   \item[LEAR] Lasso Estimated AutoRegressive ensemble for day-ahead electricity
         price forecasting, the primary baseline model from Lago et al.\
         \cite{lago2021}.
-  \item[DNN] Deep neural network; in this chapter, a multi-layer perceptron
+  \item[DNN] Deep neural network. In this chapter, a multi-layer perceptron
         ensemble whose final prediction is the arithmetic mean of
         \texttt{n\_dnn\_ensemble} replicates trained with distinct random seeds.
   \item[EPF] Electricity price forecasting: the task of predicting day-ahead
         wholesale electricity prices for a given bidding zone from historical
         prices and exogenous signals.
   \item[ENTSO-E] European Network of Transmission System Operators for
-        Electricity; the body that operates the Transparency Platform API from
+        Electricity, the body that operates the Transparency Platform API from
         which the platform ingests price, load, and generation data.
   \item[Lasso] Least Absolute Shrinkage and Selection Operator, an
         L1-regularised linear regression that simultaneously shrinks
@@ -48,24 +48,24 @@ The full per-item ML Test Score worksheet of Breck et
 al.~\cite{breck2017mltestscore} follows. Each item is scored $0$ / $0.5$ / $1$ by
 the rule in Table~\ref{tab:ef-mlts-rules}, with one line of evidence pointing into
 the repository. The section sums are Data $2.5$, Model development $3.0$, ML
-infrastructure $4.0$, and Monitoring $4.0$; the final score is their minimum,
+infrastructure $4.0$, and Monitoring $4.0$. The final score is their minimum,
 $\mathbf{2.5}$ (\S\ref{sec:res-mlts}).
 
 \begin{table}[h]
   \centering
   \footnotesize
-  \caption{Section 1 --- Data tests (sum 2.5 / 7).}
+  \caption{Section 1: Data tests (sum 2.5 / 7).}
   \begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{3.9cm} c X@{}}
     \toprule
     \textbf{\#} & \textbf{Test} & \textbf{Score} & \textbf{Evidence} \\
     \midrule
-    1 & Feature expectations in a schema & 1 & \texttt{enforce\_schema()} in \texttt{domain/curves.py}; raises on dtype/column mismatch; tested in \texttt{tests/domain/} \\
+    1 & Feature expectations in a schema & 1 & \texttt{enforce\_schema()} in \texttt{domain/curves.py}, raises on dtype/column mismatch, tested in \texttt{tests/domain/} \\
     2 & All features are beneficial & 0 & No systematic ablation documenting each feature's contribution (\texttt{forecast-cli ablate} exists but was not used for this) \\
-    3 & No feature costs too much & 0 & No per-transformer latency/compute-cost analysis; no documented cost threshold \\
+    3 & No feature costs too much & 0 & No per-transformer latency/compute-cost analysis, no documented cost threshold \\
     4 & Features meet meta-level requirements & 0 & No regulatory/contractual/fairness requirements apply to wholesale price data \\
-    5 & Pipeline has privacy controls & 0 & ENTSO-E data is public market data with no PII; n/a domain, scored 0 \\
-    6 & New features added quickly & 0.5 & \texttt{FeatureTransformer} ABC documented in \texttt{CONTRIBUTING.md}; manual process, no scaffold/SLA \\
-    7 & All input feature code is tested & 1 & \texttt{tests/.../test\_transformers.py} covers every transformer; runs in CI \\
+    5 & Pipeline has privacy controls & 0 & ENTSO-E data is public market data with no PII, n/a domain, scored 0 \\
+    6 & New features added quickly & 0.5 & \texttt{FeatureTransformer} ABC documented in \texttt{CONTRIBUTING.md}, manual process, no scaffold/SLA \\
+    7 & All input feature code is tested & 1 & \texttt{tests/.../test\_transformers.py} covers every transformer, runs in CI \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -73,18 +73,18 @@ $\mathbf{2.5}$ (\S\ref{sec:res-mlts}).
 \begin{table}[h]
   \centering
   \footnotesize
-  \caption{Section 2 --- Model development tests (sum 3.0 / 7).}
+  \caption{Section 2: Model development tests (sum 3.0 / 7).}
   \begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{3.9cm} c X@{}}
     \toprule
     \textbf{\#} & \textbf{Test} & \textbf{Score} & \textbf{Evidence} \\
     \midrule
-    1 & Model specs reviewed and submitted & 0.5 & \texttt{configs/*.py} are first-class Git files under PR review; no automated spec-schema gate \\
-    2 & Offline and online metrics correlate & 0.5 & Reconciliation computes the same MAE/RMSE/sMAPE on live predictions as backtesting; no formal correlation study \\
-    3 & All hyperparameters tuned & 0.5 & DNN: 6 HPs via Optuna; LEAR $\lambda$ cross-validated; windows from the paper; Transformer partly manual \\
-    4 & Impact of model staleness known & 0.5 & Daily refit bounds staleness $<24$\,h; no documented degradation experiment at 48\,h / 7\,d \\
-    5 & A simpler model is not better & 0.5 & LEAR vs DNN vs Transformer tracked; rMAE vs weekly-naive; not an automated gate \\
-    6 & Model quality sufficient on slices & 0.5 & Per-area backtests; \texttt{compute\_metrics\_per\_hour}; no automated per-slice gate \\
-    7 & Model tested for inclusion (fairness) & 0 & n/a domain --- no demographic groups; scored 0 \\
+    1 & Model specs reviewed and submitted & 0.5 & \texttt{configs/*.py} are first-class Git files under PR review, no automated spec-schema gate \\
+    2 & Offline and online metrics correlate & 0.5 & Reconciliation computes the same MAE/RMSE/sMAPE on live predictions as backtesting, no formal correlation study \\
+    3 & All hyperparameters tuned & 0.5 & DNN tuned with 6 HPs via Optuna, LEAR $\lambda$ cross-validated, windows from the paper, Transformer partly manual \\
+    4 & Impact of model staleness known & 0.5 & Daily refit bounds staleness $<24$\,h, no documented degradation experiment at 48\,h / 7\,d \\
+    5 & A simpler model is not better & 0.5 & LEAR vs DNN vs Transformer tracked, rMAE vs weekly-naive, not an automated gate \\
+    6 & Model quality sufficient on slices & 0.5 & Per-area backtests, \texttt{compute\_metrics\_per\_hour}, no automated per-slice gate \\
+    7 & Model tested for inclusion (fairness) & 0 & n/a domain, no demographic groups, scored 0 \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -92,18 +92,18 @@ $\mathbf{2.5}$ (\S\ref{sec:res-mlts}).
 \begin{table}[h]
   \centering
   \footnotesize
-  \caption{Section 3 --- ML infrastructure tests (sum 4.0 / 7).}
+  \caption{Section 3: ML infrastructure tests (sum 4.0 / 7).}
   \begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{3.9cm} c X@{}}
     \toprule
     \textbf{\#} & \textbf{Test} & \textbf{Score} & \textbf{Evidence} \\
     \midrule
-    1 & Training is reproducible & 0.5 & \texttt{experiment\_runs} carries \texttt{git\_sha} + data windows + \texttt{model\_artifact\_id}; LEAR deterministic; GPU non-determinism not suppressed \\
+    1 & Training is reproducible & 0.5 & \texttt{experiment\_runs} carries \texttt{git\_sha} + data windows + \texttt{model\_artifact\_id}, LEAR deterministic, GPU non-determinism not suppressed \\
     2 & Model specs are unit tested & 1 & \texttt{test\_models.py}, \texttt{test\_transformer\_model.py}, \texttt{test\_dnn\_ensemble.py} in CI \\
     3 & Full pipeline integration tested & 1 & LEAR smoke test plus full Compose-stack smoke in \texttt{pr\_smoke.yml} \\
     4 & Quality validated before serving & 0 & No quality gate before predictions are written to \texttt{experiment\_predictions} \\
-    5 & Debuggable by observing steps & 0.5 & Loki structured logging; W\&B per-epoch loss; no per-layer step-through \\
-    6 & Tested via a canary process & 0.5 & \texttt{cd\_deploy} \texttt{smoke\_run} triggers a forecast post-deploy; checks completion, not quality \\
-    7 & Quick and safe rollback & 0.5 & Artifact blobs in \texttt{model\_artifacts}; image rollback via build + restart; no automated rollback command \\
+    5 & Debuggable by observing steps & 0.5 & Loki structured logging, W\&B per-epoch loss, no per-layer step-through \\
+    6 & Tested via a canary process & 0.5 & \texttt{cd\_deploy} \texttt{smoke\_run} triggers a forecast post-deploy, checks completion, not quality \\
+    7 & Quick and safe rollback & 0.5 & Artifact blobs in \texttt{model\_artifacts}, image rollback via build + restart, no automated rollback command \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -111,17 +111,17 @@ $\mathbf{2.5}$ (\S\ref{sec:res-mlts}).
 \begin{table}[h]
   \centering
   \footnotesize
-  \caption{Section 4 --- Monitoring tests (sum 4.0 / 7).}
+  \caption{Section 4: Monitoring tests (sum 4.0 / 7).}
   \begin{tabularx}{\linewidth}{@{}c >{\raggedright\arraybackslash}p{3.9cm} c X@{}}
     \toprule
     \textbf{\#} & \textbf{Test} & \textbf{Score} & \textbf{Evidence} \\
     \midrule
-    1 & Dependency changes notified & 0 & \texttt{uv.lock} tracked in Git; no Dependabot/Renovate notification \\
-    2 & Data invariants hold train \& serve & 0.5 & \texttt{enforce\_schema} at construction; shared preprocessor; not independently monitored/alerted \\
-    3 & Train/serve features compute alike & 1 & A single \texttt{DataPreprocessor} used by both \texttt{BacktestRunner} and \texttt{LiveRunner} --- a structural guarantee \\
-    4 & Models are not too stale & 0.5 & Daily refit $<24$\,h; Grafana \texttt{data-staleness} alert on inputs; no dedicated model-age alert \\
-    5 & The model is numerically stable & 0.5 & \texttt{asinh} scaler; Transformer gradient clipping; no automated NaN/inf assertion on outputs \\
-    6 & Compute has not regressed & 0.5 & \texttt{training\_duration\_seconds} tracked per run and in W\&B; no automated threshold alert \\
+    1 & Dependency changes notified & 0 & \texttt{uv.lock} tracked in Git, no Dependabot/Renovate notification \\
+    2 & Data invariants hold train \& serve & 0.5 & \texttt{enforce\_schema} at construction, shared preprocessor, not independently monitored/alerted \\
+    3 & Train/serve features compute alike & 1 & A single \texttt{DataPreprocessor} used by both \texttt{BacktestRunner} and \texttt{LiveRunner}, a structural guarantee \\
+    4 & Models are not too stale & 0.5 & Daily refit $<24$\,h, Grafana \texttt{data-staleness} alert on inputs, no dedicated model-age alert \\
+    5 & The model is numerically stable & 0.5 & \texttt{asinh} scaler, Transformer gradient clipping, no automated NaN/inf assertion on outputs \\
+    6 & Compute has not regressed & 0.5 & \texttt{training\_duration\_seconds} tracked per run and in W\&B, no automated threshold alert \\
     7 & Prediction quality not regressed & 1 & \texttt{\_maybe\_alert\_accuracy\_degradation} (MAE $>1.5\times$ 30-day median) and the \texttt{reconciliation-missed} rule, both automated \\
     \bottomrule
   \end{tabularx}

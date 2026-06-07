@@ -13,32 +13,32 @@ auction. The task has grown harder over the past decade. The expansion of wind
 and solar generation introduces supply-side volatility that statistical models
 struggle to capture, and the coupling of European bidding zones propagates price
 shocks across borders in ways historical data may not reflect. The resulting
-price series are heavy-tailed and spike-prone and, increasingly under high
-renewable infeed, admit negative prices --- a regime that rules out modelling
-choices, such as a logarithmic price transform, that presume positivity
+price series are heavy-tailed and spike-prone. Under high renewable infeed they
+increasingly admit negative prices, a regime that rules out modelling choices
+that presume positivity, such as a logarithmic price transform
 \cite{weron2014}.
 
 \section{The gap between forecasting research and operation}
 
 Research on EPF has produced increasingly accurate models, spanning statistical,
-reduced-form, and machine-learning approaches, and the field has been surveyed
-comprehensively \cite{weron2014, nowotarski2018}. A turning point was the
-open-access benchmark of Lago et al.\ \cite{lago2021}, which documented how
-severe the evaluation problem had become --- new methods compared on private
-datasets, over test periods too short to be conclusive, and against baselines
-too weak to be informative --- and responded by standardising both a pair of
-benchmark models and a methodology for comparing them rigorously.
+reduced-form, and machine-learning approaches, and the field has been surveyed in
+depth \cite{weron2014, nowotarski2018}. The open-access benchmark of Lago et al.\
+\cite{lago2021} was an important step. It documented how severe the evaluation
+problem had become. New methods were compared on private datasets, over test
+periods too short to be conclusive, and against baselines too weak to be
+informative. In response, Lago et al.\ standardised both a pair of benchmark
+models and a methodology for comparing them.
 
 Yet even the most careful EPF contributions stop at the boundary of offline
-evaluation: they standardise how models are \emph{compared}, but not how they
+evaluation. They standardise how models are \emph{compared}, but not how they
 are \emph{run}. Ingesting data on a schedule, versioning experiments, detecting
 model degradation, and retraining on fresh data are left unaddressed. This gap
-between building a model and operating it is precisely the one that Machine
-Learning Operations (MLOps) emerged to close, by carrying DevOps principles ---
-automation, reproducibility, and monitoring --- into machine-learning systems.
+between building a model and operating it is the one that Machine Learning
+Operations (MLOps) emerged to close, by carrying DevOps principles such as
+automation, reproducibility, and monitoring into machine-learning systems.
 Zarour et al.\ \cite{zarour2025} synthesise the MLOps literature into a
 systematic review of nine core practices and an accompanying maturity model. The
-two bodies of work rarely meet: EPF research treats forecasting as a problem
+two bodies of work rarely meet. EPF research treats forecasting as a problem
 that ends when predictions are produced, while MLOps research is largely
 domain-agnostic. The closest precedent for joining them is the work of
 Subramanya et al.\ \cite{subramanya2022devops2mlops}, who apply an MLOps pipeline
@@ -57,14 +57,14 @@ quality} of the models it serves, and the \emph{operational maturity} of the
 system that serves them. Three research questions structure the investigation.
 
 \begin{description}
-  \item[RQ1 (forecasting).] How do faithfully-replicated LEAR, DNN, and
+  \item[RQ1 (forecasting).] How do faithfully replicated LEAR, DNN, and
     Transformer day-ahead EPF models compare on recent ENTSO-E data for the DK1
-    and DE bidding zones --- against one another, a weekly-naive baseline, and
-    the rankings reported by Lago et al.\ \cite{lago2021} and Llorente and
+    and DE bidding zones, when set against one another, a weekly-naive baseline,
+    and the rankings reported by Lago et al.\ \cite{lago2021} and Llorente and
     Portela \cite{llorente2025transformer}?
   \item[RQ2 (engineering).] What engineering trade-offs and operational
     constraints emerge when embedding these benchmark models into a scheduled,
-    containerised, continuously-monitored production pipeline?
+    containerised, continuously monitored production pipeline?
   \item[RQ3 (maturity).] Assessed against the nine MLOps practices of Zarour et
     al.\ \cite{zarour2025} and the Google maturity model, which practices does
     the platform realise, which prove most critical, and where does a
@@ -78,8 +78,8 @@ This work makes four contributions.
 \begin{itemize}
   \item \textbf{A production EPF platform.} An end-to-end system that ingests
     live ENTSO-E data, recalibrates and forecasts on a daily schedule, monitors
-    data and model health, and records the full provenance of every run --- the
-    artefact that RQ2 and RQ3 are evaluated against.
+    data and model health, and records the full provenance of every run. This is
+    the artefact that RQ2 and RQ3 are evaluated against.
   \item \textbf{A faithful model replication.} LEAR and the DNN of Lago et al.\
     \cite{lago2021} and the Transformer of Llorente and Portela
     \cite{llorente2025transformer}, reimplemented to specification and compared
@@ -95,11 +95,11 @@ This work makes four contributions.
 \end{itemize}
 
 The scope is deliberately bounded. The work forecasts point prices, not
-probabilistic distributions; it is a single-case study of one platform, so its
-system-side findings support analytic rather than statistical generalisation;
-and, because the source papers' test periods predate the present price regime,
-the forecasting comparison is framed in relative terms (rMAE and rankings)
-rather than as a comparison of absolute errors.
+probabilistic distributions. It is a single-case study of one platform, so its
+system-side findings support analytic rather than statistical generalisation.
+Because the source papers' test periods predate the present price regime, the
+forecasting comparison is framed in relative terms (rMAE and rankings) and not as
+a comparison of absolute errors.
 
 \section{Report structure}
 
@@ -109,8 +109,8 @@ specifies the three forecasting models, their features, the recalibration
 scheme, and the metrics and significance tests used to compare them.
 Chapter~\ref{ch:system-implementation} documents the production system around
 those models, organised around Zarour's nine practices.
-Chapter~\ref{ch:eval-framework} sets out how the system is evaluated --- which
-tests are applied and why. Chapter~\ref{ch:results-models} reports the
+Chapter~\ref{ch:eval-framework} sets out how the system is evaluated, including
+which tests are applied and why. Chapter~\ref{ch:results-models} reports the
 forecasting comparison, and Chapter~\ref{ch:results-system} the system
 evaluation. Chapter~\ref{ch:discussion} answers the three research questions and
 draws the two threads together, and Chapter~\ref{ch:conclusion} concludes and

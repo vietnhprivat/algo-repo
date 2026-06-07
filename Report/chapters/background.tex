@@ -1,14 +1,15 @@
 \chapter{Background and Related Work}
 \label{ch:background}
 
-This chapter reviews the two literatures the thesis joins --- electricity price
-forecasting and MLOps --- together with the evaluation methodology it borrows
+This chapter reviews the two literatures the thesis joins, electricity price
+forecasting and MLOps, together with the evaluation methodology it borrows
 from empirical software engineering. Section~\ref{sec:bg-epf} covers day-ahead
-EPF and its statistical character; Section~\ref{sec:bg-lago} the open-access
-benchmark that anchors the modelling thread; Section~\ref{sec:bg-transformer}
-the Transformer approach that supplies the third model; Section~\ref{sec:bg-mlops}
-the MLOps practices and maturity models that structure the system thread; and
-Section~\ref{sec:bg-eval} the instruments used to evaluate the platform.
+EPF and its statistical character. Section~\ref{sec:bg-lago} introduces the
+open-access benchmark that anchors the modelling thread.
+Section~\ref{sec:bg-transformer} describes the Transformer approach that supplies
+the third model. Section~\ref{sec:bg-mlops} sets out the MLOps practices and
+maturity models behind the system thread. Section~\ref{sec:bg-eval} lists the
+instruments used to evaluate the platform.
 
 % -----------------------------------------------------------------------------
 \section{Day-ahead electricity price forecasting}
@@ -26,9 +27,9 @@ become routine: sharp drops, and outright negative prices, when inflexible
 must-run generation coincides with high renewable infeed and low demand. Weron's
 review \cite{weron2014} surveys the statistical and computational-intelligence
 methods developed for this problem, and Nowotarski and Weron
-\cite{nowotarski2018} extend the picture to probabilistic forecasting; both
-emphasise that EPF methodology --- not merely model choice --- determines whether
-reported gains are real.
+\cite{nowotarski2018} extend the picture to probabilistic forecasting. Both
+emphasise that the EPF methodology, and not only the choice of model, determines
+whether reported gains are real.
 
 % -----------------------------------------------------------------------------
 \section{The Lago et al.\ open-access benchmark}
@@ -40,12 +41,12 @@ Pool, PJM, and the EPEX zones BE, FR, and DE), two reference models, and the
 \texttt{epftoolbox} library that standardises data splits and evaluation. The
 first reference model, LEAR (Lasso Estimated AutoRegressive), fits an
 $L^1$-regularised linear model over a parameter-rich feature space of price lags,
-exogenous forecasts, and calendar dummies; the Lasso performs feature selection
+exogenous forecasts, and calendar dummies. The Lasso performs feature selection
 and coefficient estimation jointly, which keeps the rich input space tractable.
-The second is a deep neural network --- a multi-layer perceptron whose
+The second is a deep neural network, a multi-layer perceptron whose
 architecture and inputs are tuned per dataset. Despite its simplicity, LEAR
-matched or outperformed the deep alternative when evaluated rigorously over long
-test periods, which is why it serves as the modelling foundation of this thesis.
+matched or outperformed the deep alternative when evaluated over long test
+periods, which is why it serves as the modelling foundation of this thesis.
 
 Two methodological contributions of the benchmark are reused here directly.
 First, models are recalibrated on a rolling window and their forecasts averaged
@@ -64,23 +65,22 @@ for negative prices.
 \label{sec:bg-transformer}
 
 Attention-based architectures have more recently been applied to EPF. Llorente
-and Portela \cite{llorente2025transformer} propose an encoder-only Transformer
-that takes two inputs --- a sequence of the previous days' prices and the
-day-ahead exogenous forecasts --- embeds and attends over the price sequence, and
-combines the result with the exogenous representation through a final
-multi-layer perceptron. Benchmarked on the same open-access datasets, it
-provides the third model family compared in this work. Notably, the authors
-evaluate without retraining inside the test period, applying only a
-renormalisation step between days; this thesis instead places the Transformer in
-the same rolling-recalibration pipeline as the other models, a deviation
-documented in Chapter~\ref{ch:methods-models}.
+and Portela \cite{llorente2025transformer} propose an encoder-only Transformer.
+It takes two inputs, a sequence of the previous days' prices and the day-ahead
+exogenous forecasts. It embeds and attends over the price sequence, then combines
+the result with the exogenous representation through a final multi-layer
+perceptron. Benchmarked on the same open-access datasets, it provides the third
+model family compared in this work. The authors evaluate without retraining
+inside the test period, applying only a renormalisation step between days. This
+thesis instead places the Transformer in the same rolling-recalibration pipeline
+as the other models, a deviation documented in Chapter~\ref{ch:methods-models}.
 
 % -----------------------------------------------------------------------------
 \section{MLOps: practices and maturity}
 \label{sec:bg-mlops}
 
-MLOps applies DevOps principles --- automation, version control, continuous
-delivery, and monitoring --- to the particular demands of machine-learning
+MLOps applies DevOps principles such as automation, version control, continuous
+delivery, and monitoring to the particular demands of machine-learning
 systems, where data and models, not only code, evolve over time. Zarour et al.\
 \cite{zarour2025} consolidate the field in a systematic literature review that
 identifies nine recurring best practices: automating CI/CD, orchestrating
@@ -95,11 +95,11 @@ CMM/CMMI lineage: the Google three-level model, the Microsoft and GigaOm
 five-level models, the four-level model of John, Olsson and Bosch, and the
 five-level model of Mateo-Casal\'i et al. This work positions the platform
 against the Google model \cite{google_mlops_maturity}, whose three levels (manual
-process; ML-pipeline automation; CI/CD-pipeline automation) match the
-granularity of a single-host platform; the choice is justified in
+process, ML-pipeline automation, and CI/CD-pipeline automation) match the
+granularity of a single-host platform. That choice is justified in
 Chapter~\ref{ch:eval-framework}. The closest domain application is Subramanya et
 al.\ \cite{subramanya2022devops2mlops}, who build an MLOps pipeline for an
-electricity-market forecasting task and evaluate it as a case study --- the
+electricity-market forecasting task and evaluate it as a case study. This is the
 precedent this thesis follows in evaluating its own platform in its real
 operating context.
 
@@ -109,18 +109,18 @@ operating context.
 
 Because the platform is a single artefact rather than a sample, its system-side
 evaluation follows the single-case study methodology of Runeson and H\"ost
-\cite{runeson2009casestudy}, which supports \emph{analytic} generalisation ---
-extending findings to cases sharing the platform's characteristics --- rather
+\cite{runeson2009casestudy}. That method supports \emph{analytic} generalisation,
+extending findings to cases that share the platform's characteristics, rather
 than statistical generalisation to a population. Within that frame, several
 established instruments are composed. The ML Test Score of Breck et al.\
 \cite{breck2017mltestscore} is a 28-item rubric across four sections (data,
 model development, ML infrastructure, and monitoring) whose final score is the
 minimum of the four section sums, so the weakest area bounds the result.
-Reproducibility is treated in two senses: Gundersen and Kjensmo
+Reproducibility is treated in two senses. Gundersen and Kjensmo
 \cite{gundersen2018reproducibility} characterise degrees of reproducibility in
 AI research, while the ACM Artifact Review and Badging policy \cite{acm2020badging}
-supplies the standard vocabulary --- Available, Functional, Reusable, and
-Reproduced --- for claims about a research artefact. Delivery performance is
+supplies the standard vocabulary (Available, Functional, Reusable, and
+Reproduced) for claims about a research artefact. Delivery performance is
 measured with the DORA metrics popularised by Forsgren et al.\
 \cite{forsgren2018accelerate}, of which deployment frequency and lead time for
 changes capture throughput. Finally, the decision of whether drift should

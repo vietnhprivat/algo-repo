@@ -3,30 +3,30 @@
 
 This thesis took the benchmark electricity-price-forecasting models from the
 research literature and embedded them in an end-to-end production platform built
-along MLOps principles, then evaluated the result on two axes: the forecast
+along MLOps principles, then evaluated the result on two axes, the forecast
 quality of the models and the operational maturity of the system serving them.
 
 On the system axis, eight of Zarour et al.'s nine MLOps
-practices~\cite{zarour2025} are realised end-to-end in the platform, and one ---
-the feedback loop --- is minimally realised, scoped to two bidding zones behind an
+practices~\cite{zarour2025} are realised end-to-end in the platform, and one,
+the feedback loop, is minimally realised, scoped to two bidding zones behind an
 opt-in flag. Every realised practice is traced to a concrete repository artefact:
 a Prefect deployment, a ClickHouse migration, a GitHub Actions workflow, or a
 Grafana dashboard. The qualitative ``realised'' labels are backed by measured
-values --- an ML Test Score of 2.5 bound by data testing, provenance-triple
-coverage of 66.7\,\% supported by a re-run that reproduced a logged forecast to
-within $7\times10^{-6}$\,EUR/MWh, and DORA throughput of 20 deployments at a
-sub-minute lead time --- each recomputable on demand from the live system. On the
-forecasting axis, the faithful replication of LEAR, the DNN, and the Transformer
-across DK1 and DE, evaluated with paired significance tests on a shared recent
-window, is reported in Chapter~\ref{ch:results-models}:
-on both markets LEAR proved the most accurate model and the DNN
-its statistical equal---indistinguishable under the Giacomini--White
-test ($p>0.16$)---while both significantly outperformed the pure Transformer and
-all three beat the weekly-naive baseline. This ordering inverts the rankings of
-the source papers, in which the DNN edges LEAR~\cite{lago2021} and the
-Transformer leads the DNN~\cite{llorente2025transformer}; the inversion is
-attributable to the deep models' reduced tuning budget in this study rather than
-to any inherent weakness of their architectures.
+values, each recomputable on demand from the live system. They comprise an ML
+Test Score of 2.5 bound by data testing, provenance-triple coverage of
+66.7\,\% supported by a re-run that reproduced a logged forecast to within
+$7\times10^{-6}$\,EUR/MWh, and DORA throughput of 20 deployments at a sub-minute
+lead time. On the forecasting axis, the faithful replication of LEAR, the DNN,
+and the Transformer across DK1 and DE, evaluated with paired significance tests
+on a shared recent window, is reported in Chapter~\ref{ch:results-models}.
+On both markets LEAR proved the most accurate model and the DNN its statistical
+equal, indistinguishable under the Giacomini--White test ($p>0.16$), while both
+significantly outperformed the pure Transformer and all three beat the
+weekly-naive baseline. This ordering inverts the rankings of the source papers,
+in which the DNN edges LEAR~\cite{lago2021} and the Transformer leads the
+DNN~\cite{llorente2025transformer}. The inversion is attributable to the deep
+models' reduced tuning budget in this study rather than to any inherent weakness
+of their architectures.
 Together, the two threads constitute a production ML platform that ingests live
 market data, recalibrates and forecasts daily, monitors prediction quality and
 data drift, and maintains a complete audit trail from every forecast back to the
@@ -40,8 +40,8 @@ Several extensions follow directly from the limitations of
 \begin{itemize}
   \item \textbf{Modelling fidelity.} Restore the 1456-day calibration window and
     the LARS+AIC $\lambda$-selection of the original benchmark once the data
-    history is long enough; tune the Transformer per market rather than reusing
-    the paper defaults; and run an \texttt{epftoolbox} side-by-side on the
+    history is long enough. Tune the Transformer per market rather than reusing
+    the paper defaults. Run an \texttt{epftoolbox} side-by-side on the
     original 2016--2018 datasets to separate replication error from regime change.
   \item \textbf{Calibration-window sensitivity.} Use the \texttt{forecast-cli
     ablate} command to quantify how accuracy varies with calibration-window
@@ -53,7 +53,7 @@ Several extensions follow directly from the limitations of
     for the DNN and Transformer under controlled seeds with GPU non-determinism
     suppressed, extending the deterministic-LEAR demonstration.
   \item \textbf{Data-testing maturity.} Formalise the feature-benefit,
-    feature-cost, and privacy analyses and add a data-quality CI gate --- the
+    feature-cost, and privacy analyses and add a data-quality CI gate, the
     binding constraint on the ML Test Score.
   \item \textbf{Drift recalibration and coverage.} Recalibrate the drift detector,
     which currently flags every report, and extend forecasting and drift to the

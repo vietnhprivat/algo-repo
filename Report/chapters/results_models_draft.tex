@@ -6,15 +6,15 @@
 % Test window 2025-10-24..2026-05-31, hourly (24p), paper-exact features.
 % =============================================================================
 
-\chapter{Results --- Forecasting Models}
+\chapter{Results: Forecasting Models}
 \label{ch:results-models}
 
 This chapter reports the head-to-head comparison of the three forecasting
-models specified in Chapter~\ref{ch:methods-models}. Six backtests were
-run---LEAR, the DNN, and the Transformer, each on DK1 and DE---over a single
+models specified in Chapter~\ref{ch:methods-models}. Six backtests were run,
+covering LEAR, the DNN, and the Transformer, each on DK1 and DE, over a single
 shared hourly test window (2025-10-24 to 2026-05-31) with the paper-exact
 feature sets. Within each market the models are compared on the test days that
-all of them produced; because the Transformer's fourteen-day input sequence
+all of them produced. Because the Transformer's fourteen-day input sequence
 consumes more leading days than the other pipelines, this common set is 187 days
 on DK1 and 176 on DE. The chapter reports headline accuracy
 (\S\ref{sec:rm-headline}), statistical significance (\S\ref{sec:rm-significance}),
@@ -61,23 +61,24 @@ Naive (weekly) & 35.049 & 51.914 & 46.090 & 1.000 \\
 
 Tables~\ref{tab:results-dk1-headline} and~\ref{tab:results-de-headline} report
 the four accuracy metrics on the common test days. The ordering is the same in
-both markets and across MAE, rMAE, and sMAPE: LEAR is the most accurate, the DNN
+both markets and across MAE, rMAE, and sMAPE. LEAR is the most accurate, the DNN
 follows closely, and the Transformer is third, with all three improving
-substantially on the weekly-naive baseline---rMAE values of 0.469 (LEAR), 0.482
-(DNN), and 0.543 (Transformer) on DK1, and 0.376, 0.388, and 0.420 respectively
-on DE. Because rMAE normalises each model against the same-market naive error,
-these figures are comparable across markets: all three models sit markedly
-further below 1 on DE than on DK1, indicating that the German price was the more
-predictable of the two relative to its own naive benchmark over this window.
+substantially on the weekly-naive baseline. The rMAE values are 0.469 (LEAR),
+0.482 (DNN), and 0.543 (Transformer) on DK1, and 0.376, 0.388, and 0.420
+respectively on DE. Because rMAE normalises each model against the same-market
+naive error, these figures are comparable across markets. All three models sit
+markedly further below 1 on DE than on DK1, indicating that the German price was
+the more predictable of the two relative to its own naive benchmark over this
+window.
 
 The single metric that reorders the models is RMSE. The DNN attains the lowest
-RMSE in both markets (25.6 against LEAR's 26.9 on DK1; 22.5 against 25.0 on DE),
-and on DE LEAR in fact posts the highest RMSE of the three, behind even the
+RMSE in both markets (25.6 against LEAR's 26.9 on DK1, and 22.5 against 25.0 on
+DE), and on DE LEAR in fact posts the highest RMSE of the three, behind even the
 Transformer. As RMSE weights large deviations more heavily than MAE, this is
 evidence that the DNN suppresses the largest forecast errors more effectively
 than LEAR even on the days where LEAR's mean error is slightly lower. LEAR's
 advantage is thus specific to the absolute-error metrics that Lago et
-al.~\cite{lago2021}, \S5.4, designate as primary; on the squared-error criterion
+al.~\cite{lago2021}, \S5.4, designate as primary. On the squared-error criterion
 the DNN is preferable. Whether either difference is statistically meaningful is
 the subject of \S\ref{sec:rm-significance}.
 
@@ -122,17 +123,17 @@ establishes whether these differences are significant.
 Tables~\ref{tab:results-dk1-gw} and~\ref{tab:results-de-gw} give the pairwise
 p-values, where cell $(r,c)$ is the probability of a loss differential at least
 as large as the one observed under the null that column model $c$ is no more
-accurate than row model $r$ (the convention of~\cite{lago2021}, Fig.~5); a value
+accurate than row model $r$ (the convention of~\cite{lago2021}, Fig.~5). A value
 below 0.05 means that $c$ significantly outperforms $r$.
 
 The central result is that LEAR and the DNN are statistically indistinguishable
-on both markets: the hypothesis that LEAR is no more accurate than the DNN
+on both markets. The hypothesis that LEAR is no more accurate than the DNN
 cannot be rejected (DK1 $p=0.16$, DE $p=0.19$), and neither can its converse.
 LEAR's numerical lead in the headline tables therefore does not amount to a
 significant accuracy advantage, and the two models should be treated as
 equivalent in accuracy. Both, however, significantly outperform the
-Transformer---on DK1 at $p=0.001$ for each, and on DE at $p=0.012$ (LEAR) and
-$p=0.006$ (DNN)---and all three beat the weekly-naive baseline with $p\approx0$.
+Transformer (on DK1 at $p=0.001$ for each, and on DE at $p=0.012$ for LEAR and
+$p=0.006$ for the DNN), and all three beat the weekly-naive baseline with $p\approx0$.
 The comparison that survives significance testing is thus a two-way tie between
 LEAR and the DNN at the top, a significantly weaker Transformer, and a baseline
 that every model clears by a wide and significant margin, consistently across
@@ -150,27 +151,27 @@ DK1 and DE.
     \toprule
     \textbf{Model} & \textbf{DK1 s/day} & \textbf{DE s/day} & \textbf{Hardware / cadence} \\
     \midrule
-    LEAR        & 50.3 & 41.3 & CPU; one LassoCV per period $\times$ 3 windows, daily \\
-    DNN         & 0.9  & 1.6  & GPU; one MIMO net (single seed), daily \\
-    Transformer & 1.6  & 1.9  & GPU; one MIMO net, weekly refit \\
+    LEAR        & 50.3 & 41.3 & CPU, one LassoCV per period $\times$ 3 windows, daily \\
+    DNN         & 0.9  & 1.6  & GPU, one MIMO net (single seed), daily \\
+    Transformer & 1.6  & 1.9  & GPU, one MIMO net, weekly refit \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-Table~\ref{tab:results-cost} reports the amortised recalibration cost---the
-full-backtest wall-clock divided by the number of common test days---for each
+Table~\ref{tab:results-cost} reports the amortised recalibration cost, the
+full-backtest wall-clock divided by the number of common test days, for each
 model and market. The figures invert the cost ordering of Lago et al.~\cite{lago2021},
 Table~4, where on hourly CPU hardware LEAR trains in seconds and the DNN in
-minutes. Here the relationship is reversed: the GPU-trained MIMO networks
-recalibrate in one to two seconds per day, whereas LEAR---which fits an
+minutes. Here the relationship is reversed. The GPU-trained MIMO networks
+recalibrate in one to two seconds per day, whereas LEAR (which fits an
 independent cross-validated Lasso for each of the 24 delivery periods across
-three calibration windows, entirely on CPU---takes forty to fifty. The DNN is
+three calibration windows, entirely on CPU) takes forty to fifty. The DNN is
 therefore roughly 25 to 55 times cheaper per recalibration than LEAR while, as
 \S\ref{sec:rm-significance} showed, being its statistical equal in accuracy.
 This inversion is a property of the hardware rather than of the models or the
-markets---a GPU rewards the dense neural networks and penalises LEAR's many
-small per-period fits---but on this platform it is the decisive practical
-difference between two otherwise-tied models: the DNN buys equal accuracy at
+markets, since a GPU rewards the dense neural networks and penalises LEAR's many
+small per-period fits. On this platform it is the decisive practical
+difference between two otherwise-tied models. The DNN buys equal accuracy at
 around a fortieth of the compute. The Transformer, refitted weekly, carries a
 comparably low amortised cost but does not convert it into competitive accuracy.
 
@@ -179,7 +180,7 @@ comparably low amortised cost but does not convert it into competitive accuracy.
 \label{sec:rm-papers}
 
 A direct comparison of error levels with the source papers is complicated by the
-shift in price regime: the benchmarks of Lago et al.~\cite{lago2021} were struck
+shift in price regime. The benchmarks of Lago et al.~\cite{lago2021} were struck
 on 2016--2018 data, whereas this study covers 2025--2026, so only rMAE levels and
 rankings are comparable, never absolute errors (\cite{lago2021}, \S5.4).
 Table~\ref{tab:results-vs-paper} sets the ensemble rMAE values against the
@@ -187,7 +188,7 @@ paper's Table~3 figures for the corresponding markets.
 
 \begin{table}[h]
   \centering
-  \caption{Our ensemble rMAE vs published (\cite{lago2021} Table~3). Periods differ; rankings/levels only.}
+  \caption{Our ensemble rMAE vs published (\cite{lago2021} Table~3). Periods differ, rankings/levels only.}
   \label{tab:results-vs-paper}
   \begin{tabularx}{\linewidth}{@{}l r r r r@{}}
     \toprule
@@ -210,14 +211,14 @@ a modest validation of the replication in its own right.
 The rankings, however, invert both source papers. Lago et al.~\cite{lago2021}
 report the DNN as at least the equal of LEAR, and Llorente and
 Portela~\cite{llorente2025transformer} report their Transformer ahead of the
-DNN; the ordering here is the reverse on both counts, LEAR $\ge$ DNN $\ge$
+DNN. The ordering here is the reverse on both counts, LEAR $\ge$ DNN $\ge$
 Transformer. As \S\ref{sec:rm-significance} showed, the LEAR--DNN inversion is
-only numerical---the two are statistically tied, which is itself consistent with
-Lago et al.'s observation that the gap is often insignificant---but the
-Transformer's third place is genuine and significant. The likeliest cause is
-that the deep models are under-optimised relative to LEAR in this study rather
-than inherently weaker, a point developed in \S\ref{sec:rm-validity}: the DNN was
-given 30 tuning trials against the paper's 1500, and the Transformer reused the
+only numerical, since the two are statistically tied, which is itself consistent
+with Lago et al.'s observation that the gap is often insignificant. The
+Transformer's third place, by contrast, is genuine and significant. The likeliest
+cause is that the deep models are under-optimised relative to LEAR in this study
+rather than inherently weaker, a point developed in \S\ref{sec:rm-validity}. The
+DNN was given 30 tuning trials against the paper's 1500, and the Transformer reused the
 paper's Nord Pool hyperparameters without per-market retuning and was adapted
 into the rolling-refit pipeline rather than run in its native
 train-once-and-renormalise mode (Chapter~\ref{ch:methods-models},
@@ -234,15 +235,15 @@ specifications. The test window is 31 weeks, short of the one-to-two years the
 source papers recommend, because the usable price history begins only in March
 2022 and the validation and calibration windows consume the remainder. Each
 deep-model configuration is evaluated from a single backtest run at a fixed
-seed: the DNN's four-seed averaging is applied only on the production serving
+seed. The DNN's four-seed averaging is applied only on the production serving
 path and does not enter the reported backtest, and the Transformer is likewise a
-single seed, so both deep models carry the seed variance of one draw---a caveat
+single seed, so both deep models carry the seed variance of one draw, a caveat
 that bears most heavily on the Transformer's third-place finish. The deep models are, as noted, tuned far less than LEAR
 (Chapter~\ref{ch:methods-models}, Table~\ref{tab:mm-deviations}), so the rankings
 should be read as contingent on the tuning budget. Finally, the 2025--2026
 regime contains negative-price and high-renewable-infeed days largely absent from
 the papers' data, and both fifteen-minute markets are downsampled to an hourly
-mean for comparability; these choices affect every model identically and so do
+mean for comparability. These choices affect every model identically and so do
 not bias the paired tests, but they do limit comparability with the original
 studies.
 
@@ -252,15 +253,16 @@ studies.
 
 The most direct extension is to give the deep models a tuning budget
 commensurate with LEAR's effective one before any architectural conclusion is
-drawn: a full-scale TPE search for the DNN, approaching the paper's 1500 trials,
-and a per-market hyperparameter search for the Transformer in place of the reused
-Nord Pool defaults. Beyond tuning, three further directions follow from the
-deviations documented in Chapter~\ref{ch:methods-models}: running the Transformer
-in its native train-once-and-renormalise mode~\cite{llorente2025transformer}
-rather than the calibration-window refit used here; restoring the 1456-day LEAR
-window and the LARS+AIC penalty selection of the original specification once the
-data history is long enough to support them; and extending the point forecasts to
-probabilistic ones evaluated by pinball loss or CRPS. A per-hour
+drawn. That means a full-scale TPE search for the DNN, approaching the paper's
+1500 trials, and a per-market hyperparameter search for the Transformer in place
+of the reused Nord Pool defaults. Beyond tuning, three further directions follow
+from the deviations documented in Chapter~\ref{ch:methods-models}. The first is
+to run the Transformer in its native train-once-and-renormalise
+mode~\cite{llorente2025transformer} rather than the calibration-window refit used
+here. The second is to restore the 1456-day LEAR window and the LARS+AIC penalty
+selection of the original specification once the data history is long enough to
+support them. The third is to extend the point forecasts to probabilistic ones
+evaluated by pinball loss or CRPS. A per-hour
 Diebold--Mariano profile, in place of the single daily-aggregate statistic, would
 further localise where in the day the models diverge.
 

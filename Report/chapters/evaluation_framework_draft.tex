@@ -10,21 +10,21 @@
 \section{Approach}
 \label{sec:ef-approach}
 
-This chapter sets out how the \emph{system} is evaluated --- which tests are
-applied and why --- while the numbers themselves are reported in
+This chapter sets out how the \emph{system} is evaluated, that is, which tests
+are applied and why, while the numbers themselves are reported in
 Chapter~\ref{ch:results-system}. It is concerned with operational maturity, not
-forecast accuracy: the modelling-side evaluation (MAE, RMSE, sMAPE, rMAE, and the
+forecast accuracy. The modelling-side evaluation (MAE, RMSE, sMAPE, rMAE, and the
 Diebold--Mariano and Giacomini--White significance tests) is defined in
 Chapter~\ref{ch:methods-models} and reported in Chapter~\ref{ch:results-models},
 so the two threads of the thesis each carry their own evaluation. Following the
 single-case study methodology of Runeson and H\"ost~\cite{runeson2009casestudy},
-the platform is evaluated as one system in its real operating context; there is
-no controlled comparison against a second platform. The honesty boundary is
-stated up front: the figures reported are indicative of the system over the
+the platform is evaluated as one system in its real operating context, with no
+controlled comparison against a second platform. The honesty boundary is
+stated up front. The figures reported are indicative of the system over the
 study window, not claims about long-run production operation. A distinction that
 runs through the chapter, and that matters for the validity discussion, is
-between \emph{objective measurements} --- numbers produced by reproducible scripts
---- and a single \emph{structured self-assessment}, the ML Test Score
+between \emph{objective measurements} (numbers produced by reproducible scripts)
+and a single \emph{structured self-assessment}, the ML Test Score
 (Table~\ref{tab:ef-test-types}).
 
 \begin{table}[h]
@@ -35,8 +35,8 @@ between \emph{objective measurements} --- numbers produced by reproducible scrip
     \toprule
     \textbf{Type} & \textbf{What it produces} & \textbf{Auditable how?} \\
     \midrule
-    Objective measurement   & A number computed by a script over code, git history, or the database & Re-run the script — same inputs, same number \\
-    Structured self-assessment & A rubric score with one-line evidence per item & Read the evidence column; agree or contest each item \\
+    Objective measurement   & A number computed by a script over code, git history, or the database & Re-run the script with the same inputs to get the same number \\
+    Structured self-assessment & A rubric score with one-line evidence per item & Read the evidence column, then agree or contest each item \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -60,9 +60,9 @@ instrument that produces it, and the reason it is included.
     \midrule
     ML Test Score              & Self-assessment & 28-item rubric, scored 0 / 0.5 / 1, min-of-sections & \cite{breck2017mltestscore} \\
     Provenance coverage        & Objective       & SQL aggregate over \texttt{algo.experiment\_runs} & \cite{gundersen2018reproducibility} \\
-    Re-run demonstration       & Objective       & \texttt{scripts/report/reproduce\_run.py} — re-execute logged run, compare to stored prediction & \cite{gundersen2018reproducibility} \\
+    Re-run demonstration       & Objective       & \texttt{scripts/report/reproduce\_run.py}, which re-executes a logged run and compares it to the stored prediction & \cite{gundersen2018reproducibility} \\
     DORA delivery throughput   & Objective       & \texttt{gh}/git mining of \texttt{cd\_deploy.yml} history & \cite{forsgren2018accelerate} \\
-    Drift monitoring counts    & Objective       & SQL aggregate over \texttt{algo.drift\_reports} & --- \\
+    Drift monitoring counts    & Objective       & SQL aggregate over \texttt{algo.drift\_reports} & n/a \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -76,7 +76,7 @@ practices but produces no single quantitative aggregate against which a platform
 can be scored. Rather than invent one, this work composes a small set of tests
 that each address a measurable face of one or more practices. Between them, the
 five tests evidence eight of Zarour's nine practices, as mapped in
-Table~\ref{tab:ef-mapping}; the ninth, collaboration and communication, is
+Table~\ref{tab:ef-mapping}. The ninth, collaboration and communication, is
 qualitative by nature and is documented in the System Implementation chapter
 (Chapter~\ref{ch:system-implementation}) rather than measured here.
 
@@ -92,11 +92,11 @@ qualitative by nature and is documented in the System Implementation chapter
     P2 Orchestrating workflows           & ML Test Score (Infra) \\
     P3 Ensuring reproducibility          & ML Test Score (Infra), Provenance coverage, Re-run demonstration \\
     P4 Versioning                        & ML Test Score (Data, Infra), Provenance coverage \\
-    P5 Collaboration and communication   & \emph{not measured here — qualitative, see Ch.~\ref{ch:system-implementation}} \\
+    P5 Collaboration and communication   & \emph{not measured here, qualitative (see Ch.~\ref{ch:system-implementation})} \\
     P6 Continuously train and evaluate   & ML Test Score (Model) \\
     P7 Track and log ML metadata         & ML Test Score (Model), Provenance coverage \\
     P8 Continuous monitoring             & ML Test Score (Monitoring), Drift counts \\
-    P9 Implementing feedback loops       & Drift counts (re-framed as monitoring; see \S\ref{sec:res-drift}) \\
+    P9 Implementing feedback loops       & Drift counts (re-framed as monitoring, see \S\ref{sec:res-drift}) \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -106,14 +106,14 @@ qualitative by nature and is documented in the System Implementation chapter
 \label{sec:ef-mlts}
 
 The ML Test Score of Breck et al.~\cite{breck2017mltestscore} is a rubric of 28
-tests across four sections --- data, model development, ML infrastructure, and
-monitoring --- each scored on the scale $\{0, 0.5, 1\}$ defined in
+tests across four sections (data, model development, ML infrastructure, and
+monitoring), each scored on the scale $\{0, 0.5, 1\}$ defined in
 Table~\ref{tab:ef-mlts-rules}. The final score is the \emph{minimum} of the four
-section sums, not their total: because the four sections guard against different
-and non-substitutable failure modes (Table~\ref{tab:ef-mlts-sections}), the
-weakest section bounds the platform's production-readiness, and the rule rewards
-balance rather than breadth. The assessment is conducted as a structured
-self-assessment: every item is walked against the codebase, one line of evidence
+section sums rather than their total. Because the four sections guard against
+different and non-substitutable failure modes (Table~\ref{tab:ef-mlts-sections}),
+the weakest section bounds the platform's production-readiness, and the rule
+rewards balance rather than breadth. The assessment is conducted as a structured
+self-assessment. Every item is walked against the codebase, one line of evidence
 is recorded for it, and a score is assigned by the explicit rule. The full
 per-item evidence is committed to \texttt{Report/metrics/ml\_test\_score.md} so
 that each score can be checked or contested independently.
@@ -149,11 +149,11 @@ that each score can be checked or contested independently.
   \end{tabularx}
 \end{table}
 
-One honesty rule is applied throughout: no point is awarded without written
+One honesty rule is applied throughout. No point is awarded without written
 evidence, and items that are genuinely not applicable to wholesale-price
 forecasting (for example, demographic-fairness tests) are scored zero rather than
 excused. That the rubric is self-administered is itself a threat to construct
-validity; it is named as such in \S\ref{sec:ef-validity} and mitigated by the
+validity. It is named as such in \S\ref{sec:ef-validity} and mitigated by the
 recorded per-item evidence.
 
 % -----------------------------------------------------------------------------
@@ -162,10 +162,10 @@ recorded per-item evidence.
 
 Reproducibility is measured in two complementary senses, following the
 reproducibility-degrees framing of Gundersen and Kjensmo
-\cite{gundersen2018reproducibility} and defined in Table~\ref{tab:ef-repro-tests}:
-\emph{coverage}, a system-wide property asking whether every run carries enough
-metadata to be reproduced, and \emph{demonstration}, a worked existence proof in
-which one logged run is regenerated from scratch.
+\cite{gundersen2018reproducibility} and defined in Table~\ref{tab:ef-repro-tests}.
+The first is \emph{coverage}, a system-wide property asking whether every run
+carries enough metadata to be reproduced. The second is \emph{demonstration}, a
+worked existence proof in which one logged run is regenerated from scratch.
 
 \begin{table}[h]
   \centering
@@ -176,19 +176,19 @@ which one logged run is regenerated from scratch.
     \textbf{Test} & \textbf{Definition} \\
     \midrule
     Provenance coverage   & \% of live runs in \texttt{algo.experiment\_runs} that carry the complete triple: \texttt{git\_sha}, (\texttt{data\_start\_utc}, \texttt{data\_end\_utc}), \texttt{model\_artifact\_id} \\
-    Re-run demonstration  & Take one logged run; using only its committed config + target date, re-execute \texttt{LiveRunner}; report the max absolute difference vs the stored prediction \\
+    Re-run demonstration  & Take one logged run, using only its committed config + target date, re-execute \texttt{LiveRunner}, report the max absolute difference vs the stored prediction \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-Both are reported because they answer different questions: coverage asks whether
+Both are reported because they answer different questions. Coverage asks whether
 the system \emph{could} reproduce any run, while the demonstration shows that it
 \emph{does} for a concrete one. The deterministic LEAR configuration is used for
-the demonstration because, given a fixed data window, it reproduces exactly;
-the DNN and Transformer carry seed and ensemble stochasticity whose controlled
+the demonstration because, given a fixed data window, it reproduces exactly. The
+DNN and Transformer carry seed and ensemble stochasticity whose controlled
 re-run is left to future work. Against the ACM Artifact Review and Badging
 vocabulary~\cite{acm2020badging}, the artefact can be claimed Available,
-Functional, and Reusable by self-review; the independent ``Reproduced'' badge,
+Functional, and Reusable by self-review. The independent ``Reproduced'' badge,
 which requires an external reviewer, is not claimed.
 
 % -----------------------------------------------------------------------------
@@ -198,8 +198,8 @@ which requires an external reviewer, is not claimed.
 Delivery performance is reported using the throughput half of the DORA
 metrics~\cite{forsgren2018accelerate}. One deployment is defined as one
 successful run of \texttt{cd\_deploy.yml} on \texttt{main}, and lead time is the
-wall-clock interval from the merge commit to the start of that run --- the
-interval under the platform's automated control, rather than the time a feature
+wall-clock interval from the merge commit to the start of that run, the
+interval under the platform's automated control rather than the time a feature
 spends in development. Table~\ref{tab:ef-dora-scope} records which DORA metrics
 are reported and which are deliberately withheld, with the reason in each case.
 
@@ -212,10 +212,10 @@ are reported and which are deliberately withheld, with the reason in each case.
     \textbf{Metric} & \textbf{Reported?} & \textbf{Why / why not} \\
     \midrule
     Deployment frequency      & Yes & Mineable from git/CI history alone~\cite{forsgren2018accelerate} \\
-    Lead time for changes     & Yes & Same; throughput metric \\
+    Lead time for changes     & Yes & Same, throughput metric \\
     Change failure rate       & \emph{No} & Requires an incident corpus the study window does not provide \\
     Mean time to restore      & \emph{No} & Same: needs labelled production incidents \\
-    DORA tier placement       & \emph{No} & Tier thresholds are re-clustered yearly; unsafe to assign on a short window \\
+    DORA tier placement       & \emph{No} & Tier thresholds are re-clustered yearly, unsafe to assign on a short window \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -230,10 +230,10 @@ flagged \texttt{drift\_detected = 1}. Deliberately, it does \emph{not} report a
 drift-to-retrain latency. Under the reframing argued in
 Chapter~\ref{ch:results-system} (\S\ref{sec:res-drift}), drift detection on this
 platform serves monitoring and alerting rather than triggering, so a latency to
-retrain is not a meaningful metric. That reframing is conditional: it holds while
+retrain is not a meaningful metric. That reframing is conditional. It holds while
 retraining stays cheap, and would flip for expensive multi-year
-retraining~\cite{mahadevan2024costaware} --- a boundary condition surfaced again
-where the counts are reported.
+retraining~\cite{mahadevan2024costaware}. This is a boundary condition surfaced
+again where the counts are reported.
 
 % -----------------------------------------------------------------------------
 \section{Maturity-model positioning}
@@ -241,7 +241,7 @@ where the counts are reported.
 
 The platform's per-practice maturity levels are reported in the qualitative
 practice-by-practice table in the Results chapter
-(Chapter~\ref{ch:results-system}, Table~\ref{tab:maturity}); this section
+(Chapter~\ref{ch:results-system}, Table~\ref{tab:maturity}). This section
 justifies the prior question of \emph{which} maturity model those levels are
 assigned against. Zarour et al.~\cite{zarour2025} review five MLOps maturity
 models (Table~\ref{tab:ef-maturity-candidates}), all descended from the
@@ -266,16 +266,16 @@ model.
 \end{table}
 
 Google is chosen for three reasons. Its granularity matches the single-host MVP
-scope: three levels avoid over-claiming distinctions --- such as those between
-Microsoft's Levels 2--4 --- that a single deployment target cannot meaningfully
+scope. Three levels avoid over-claiming distinctions, such as those between
+Microsoft's Levels 2--4, that a single deployment target cannot meaningfully
 differentiate. Its top level, CI/CD-pipeline automation, is plausibly attainable
 for this platform, whereas Microsoft's Level 4 (``full MLOps automated
 operations'') would require multi-environment claims the platform does not make.
 And it is an open, widely cited industry whitepaper~\cite{google_mlops_maturity},
 the most-cited maturity reference in the Zarour review, giving the assignment an
-external touchpoint a reviewer can check. The limitation is disclosed plainly:
-all five models are descriptive ordinals that support \emph{positioning}, not
-\emph{measurement}; the instruments of \S\ref{sec:ef-mlts}--\S\ref{sec:ef-drift}
+external touchpoint a reviewer can check. The limitation is disclosed plainly.
+All five models are descriptive ordinals that support \emph{positioning} rather
+than \emph{measurement}. The instruments of \S\ref{sec:ef-mlts}--\S\ref{sec:ef-drift}
 carry the measurement load.
 
 % -----------------------------------------------------------------------------
@@ -283,21 +283,21 @@ carry the measurement load.
 \label{sec:ef-validity}
 
 The detailed validity discussion accompanies the results in
-\S\ref{sec:res-validity}; previewed here, with one line per threat type framed
+\S\ref{sec:res-validity}. Previewed here, with one line per threat type framed
 per Runeson and H\"ost~\cite{runeson2009casestudy}, are the threats the
 evaluation must defend against (Table~\ref{tab:ef-validity}).
 
 \begin{table}[h]
   \centering
-  \caption{Threats to validity at a glance; each is discussed under \S\ref{sec:res-validity}.}
+  \caption{Threats to validity at a glance, each discussed under \S\ref{sec:res-validity}.}
   \label{tab:ef-validity}
   \begin{tabularx}{\linewidth}{@{}l X X@{}}
     \toprule
     \textbf{Threat} & \textbf{Source in this work} & \textbf{Mitigation} \\
     \midrule
     Construct       & ML Test Score is self-administered & Per-item evidence in \texttt{ml\_test\_score.md} \\
-    Internal        & Single-system observation; drift conclusion conditional & State the boundary condition; objective measurements carry main load \\
-    External        & Single-case design & Analytic generalisation only; no statistical claim about MLOps platforms \\
+    Internal        & Single-system observation, drift conclusion conditional & State the boundary condition, objective measurements carry main load \\
+    External        & Single-case design & Analytic generalisation only, no statistical claim about MLOps platforms \\
     Reliability     & Would another evaluator score the same? & Explicit scoring rules + recorded evidence per item \\
     \bottomrule
   \end{tabularx}
@@ -319,12 +319,12 @@ reasonably expect but which the study window or design cannot support.
     \toprule
     \textbf{Not claimed} & \textbf{Why} \\
     \midrule
-    Long-run uptime / availability       & Prometheus tier is only days old; passive uptime over a short window is uninformative \\
+    Long-run uptime / availability       & Prometheus tier is only days old, passive uptime over a short window is uninformative \\
     Change failure rate / MTTR           & No incident corpus in the window (see \S\ref{sec:ef-dora}) \\
-    DORA tier placement                  & Tier thresholds re-clustered yearly; unsafe on a short window \\
-    Comparison vs another MLOps platform & Single-case design; no controlled comparison \\
+    DORA tier placement                  & Tier thresholds re-clustered yearly, unsafe on a short window \\
+    Comparison vs another MLOps platform & Single-case design, no controlled comparison \\
     Long-run forecasting accuracy        & Belongs to the modelling-side chapter (Ch.~\ref{ch:results-models}), not this framework \\
-    Statistical generalisation           & Single case; only analytic generalisation per~\cite{runeson2009casestudy} \\
+    Statistical generalisation           & Single case, only analytic generalisation per~\cite{runeson2009casestudy} \\
     \bottomrule
   \end{tabularx}
 \end{table}
