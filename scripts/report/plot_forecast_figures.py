@@ -27,6 +27,11 @@ matplotlib.use("Agg")  # headless: no display needed
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
+# Match the thesis body font (Liberation Sans, the Arial-metric DTU font) so the
+# rendered figures are typographically consistent with the surrounding text.
+plt.rcParams["font.family"] = "sans-serif"
+plt.rcParams["font.sans-serif"] = ["Liberation Sans", "Arial", "DejaVu Sans"]
+
 from price_forecasting.evaluation.summary import build_dm_matrix  # noqa: E402
 from scripts.report.extract_model_comparison import (  # noqa: E402
     MARKETS,
@@ -70,7 +75,6 @@ def plot_gw_heatmap(forecasts_by_model, actuals, out_path: Path) -> None:
                 j, i, "--" if np.isnan(value) else f"{round(float(value), 4):.3f}",
                 ha="center", va="center", fontsize=8,
             )
-    ax.set_title("GW p-value (column better than row)", fontsize=9)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.tight_layout()
     fig.savefig(out_path)
@@ -89,7 +93,7 @@ def plot_forecast_week(forecasts_by_model, actuals, out_path: Path, days: int = 
         ax.axvline(day * n_periods, color="grey", lw=0.4, ls=":")
     ax.set_xlabel("hour of week")
     ax.set_ylabel("price (EUR/MWh)")
-    ax.legend(ncol=4, fontsize=8)
+    ax.legend(ncol=4, fontsize=8, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)

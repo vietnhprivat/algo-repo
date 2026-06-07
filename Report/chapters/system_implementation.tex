@@ -38,9 +38,8 @@ Chapter~\ref{ch:results-system}.
 \section{System at a Glance}
 
 Before examining each Zarour practice in detail, this section presents the
-platform as a whole, covering its host-level topology, the data plane,
-the complete inventory of scheduled deployments, and the technology choices that
-underpin every layer.
+platform as a whole, covering its host-level topology, the data plane, and the
+complete inventory of scheduled deployments.
 
 \subsection{Host-level architecture}
 
@@ -128,35 +127,6 @@ Zarour practice it primarily realises.
     drift-detection-de  & DE  & 0 19 * * * & {\itshape (as above)} & Drift, 90d ref vs 7d (Evidently) & P8, P9 \\
     \bottomrule
   \end{tabularx}
-\end{table}
-
-\subsection{Technology stack}
-
-Table~\ref{tab:tech-stack} lists each tool and its role; the rationale for each
-choice is given in the practice section where the tool appears.
-
-\begin{table}[H]
-  \centering
-  \caption{Technology in use and its role. The rationale for each choice is given in the practice section where the tool appears; tools evaluated but not adopted (MLflow, Kubernetes, DVC) are discussed there too.}
-  \label{tab:tech-stack}
-  \renewcommand{\arraystretch}{1.3}
-  \begin{tabular}{@{}l l@{}}
-    \toprule
-    \textbf{Tool} & \textbf{Role} \\
-    \midrule
-    Prefect          & Orchestration \\
-    ClickHouse       & OLAP store + model-artifact blob \\
-    Docker Compose   & Container runtime + infrastructure-as-code \\
-    Loki             & Log aggregation \\
-    Prometheus       & Metrics time-series store \\
-    Grafana          & Dashboards and file-based alerts \\
-    Evidently AI     & In-process drift detection \\
-    W\&B             & Research + production tracking \\
-    GitHub Actions   & CI/CD \\
-    Tailscale        & Deploy-host network access \\
-    Optuna           & Hyperparameter search (TPE) \\
-    \bottomrule
-  \end{tabular}
 \end{table}
 
 % ─────────────────────────────────────────────────────────────────────────────
