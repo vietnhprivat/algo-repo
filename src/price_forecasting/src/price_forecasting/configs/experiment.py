@@ -40,6 +40,12 @@ class ExperimentConfig:
     # e.g. ["TotalLoad", "Generation", "Solar"]
     exogenous_curve_types: list[str] = field(default_factory=list)
 
+    # Aggregate exogenous series summed from raw curves at load time, e.g.
+    # {"Wind": ["WindOnshore", "WindOffshore"]} produces one "Wind" column.
+    # Keeps the papers' exactly-two-exogenous spec (Lago 2021 §3) while the
+    # DB stores only raw ENTSOE curves.
+    exogenous_aggregates: Dict[str, List[str]] = field(default_factory=dict)
+
     """Specific args passed to the model class (e.g. {'alpha': 0.1} or {'layers': [256, 24]})"""
     model_params: Dict[str, Any] = field(default_factory=dict)
 
@@ -50,6 +56,13 @@ class ExperimentConfig:
     # Target scaler — "standard" (default, backwards compatible) or "asinh"
     # (Lago et al. 2021 §4.2, recommended for LEAR).
     target_scaler: str = "standard"
+
+    # When True, the loaded price+exogenous frame is downsampled to an
+    # arithmetic hourly mean before feature construction, forcing 24 periods
+    # regardless of native resolution. Used to model 15-min markets (DE; DK1
+    # since 2025-10-01) at hourly resolution for cross-market comparability
+    # and alignment with the hourly reference benchmarks.
+    resample_to_hourly: bool = False
 
     # Number of DNN replicates to average at serving time (Lago §4.4).
     # Only used for model_type == "dnn".
@@ -65,3 +78,9 @@ class ExperimentConfig:
 
     # Custom W&B tags applied to runs logged from this config.
     wandb_tags: List[str] = field(default_factory=list)
+
+    @property
+    def exogenous_columns(self) -> List[str]:
+        """All exogenous column names after loading: raw curve types followed
+        by aggregate names. This is what the feature pipeline sees."""
+        return list(self.exogenous_curve_types) + list(self.exogenous_aggregates)

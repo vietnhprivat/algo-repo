@@ -5,25 +5,30 @@ config = ExperimentConfig(
     area="DE",
     model_type="dnn",
     results_dir="results",
+    # Shared final-benchmark test window — see configs/dk1_lear.py.
     test_start_date="2025-10-24",
-    test_end_date="2026-05-19",
+    test_end_date="2026-05-31",
     val_start_date="2025-01-01",
     val_end_date="2025-10-23",
     calibration_windows=[730],
     refit_interval_days=1,
+    # Paper-exact exogenous (Lago §3.6, EPEX-DE): load + wind & solar.
     exogenous_curve_types=["TotalLoad"],
+    exogenous_aggregates={
+        "Renewables": ["WindOnshore", "WindOffshore", "Solar"]
+    },
     target_scaler="asinh",
-    # Tuned via `forecast-cli tune de_dnn -n 50 --study-name de_dnn_tune_v4`
-    # (val MAE 20.50 on trial 18). Optimum found early and stable: a 50-trial
-    # TPE search did not improve on the value first located at trial 18.
-    # See algo.hyperparam_trials for the full study.
+    resample_to_hourly=True,
+    # Tuned via `forecast-cli tune de_dnn --study-name de_dnn_tune_v5_paperexog`
+    # on paper-exact exogenous (TotalLoad + Renewables) at hourly resolution.
+    # 30-trial TPE; best = trial 11, val MAE 12.212. algo.hyperparam_trials.
     model_params={
-        "hidden_units": 58,
-        "activation": "elu",
-        "dropout": 0.13216185974066028,
-        "learning_rate": 0.004855834388063902,
-        "batch_norm": False,
-        "l1_reg": 0.0005710947096868873,
+        "hidden_units": 373,
+        "activation": "relu",
+        "dropout": 0.2039415317758791,
+        "learning_rate": 0.0006927908325618224,
+        "batch_norm": True,
+        "l1_reg": 7.115104131682743e-07,
         "epochs": 200,
         "early_stopping_patience": 20,
     },

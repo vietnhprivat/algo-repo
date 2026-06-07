@@ -35,8 +35,8 @@ def backtest(
     typer.echo(f"  Area:      {config.area}")
     typer.echo(f"  Model:     {config.model_type}")
     typer.echo(f"  Windows:   {config.calibration_windows}")
-    if config.exogenous_curve_types:
-        typer.echo(f"  Exogenous: {', '.join(config.exogenous_curve_types)}")
+    if config.exogenous_columns:
+        typer.echo(f"  Exogenous: {', '.join(config.exogenous_columns)}")
     typer.echo(f"  Split:     {config.train_ratio}/{config.validation_ratio}/{config.test_ratio}")
     typer.echo("")
 

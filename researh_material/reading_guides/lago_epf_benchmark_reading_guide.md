@@ -4,7 +4,7 @@
 **Toolbox:** https://github.com/jeslago/epftoolbox
 **This is the foundational paper your codebase is built on.**
 
-**Last refreshed:** 2026-05-21 — scorecard updated to reflect commits through PR #70 (pre-freeze cleanup).
+**Last refreshed:** 2026-06-05 — checklist #2 closed: full LEAR/DNN/Transformer benchmark on DK1+DE shipped (13/13 PASS).
 
 ---
 
@@ -31,7 +31,7 @@ This is the paper's Section 7 checklist — the gold standard for rigorous EPF r
 | # | Requirement | Your Status | Details |
 |---|------------|-------------|---------|
 | 1 | Test dataset >= 1 year | **PASS** | `ExperimentConfig.test_start_date/test_end_date` supports arbitrary ranges; your configs use multi-month periods |
-| 2 | Test against state-of-the-art open-access models | **PARTIAL** | You have LEAR (the paper's recommended benchmark). DNN is a stub. No comparison against epftoolbox models directly |
+| 2 | Test against state-of-the-art open-access models | **PASS** | LEAR, DNN, and Transformer benchmarked head-to-head on DK1 + DE over a shared hourly test window with GW significance tests (see `Report/metrics/model_comparison.md`, `Report/chapters/results_models_draft.tex`). LEAR ≈ DNN (not significant); both significantly beat the Transformer; all beat weekly-naive. |
 | 3 | Computational cost evaluated | **PASS** | `training_duration_seconds` column in `algo.experiment_runs` (migration 006); per-run timing captured by `LiveRunner.run_live_with_metadata()` and persisted via `insert_experiment_run` |
 | 4 | Datasets are open-access | **PASS** | ENTSOE data is freely available; your pipeline fetches from the public API |
 | 5 | Multiple markets tested | **PASS** | `configs/dk1_lear.py` + `configs/de_lear.py` both deployed via `deploy_forecast.py::FORECAST_CONFIGS`. DK1 (Nord Pool) and DE (EPEX) covered. Other zones (FR, BE, NL, PL) ingested but not modeled — future work. |
@@ -44,9 +44,9 @@ This is the paper's Section 7 checklist — the gold standard for rigorous EPF r
 | 12 | No data contamination | **PASS** | `split_by_dates()` ensures chronological split; `BacktestEngine._slice_data()` uses only past data for training |
 | 13 | State-of-the-art free toolboxes | **PASS** | scikit-learn for LEAR, Polars/Pandas for data, ClickHouse for storage |
 
-### Score: 12 PASS, 1 PARTIAL, 0 FAIL out of 13
+### Score: 13 PASS, 0 PARTIAL, 0 FAIL out of 13
 
-The remaining PARTIAL is #2 (state-of-the-art comparison): the DNN model exists in the registry but is not currently deployed against LEAR in a published benchmark — gated on the `forecast-cli tune` path being run and the resulting `model_params` committed. Documented as out-of-scope for this thesis.
+Checklist #2 closed (2026-06-05): the final benchmark runs LEAR, DNN (Optuna-tuned, 4-seed ensemble), and the Transformer head-to-head on DK1 + DE over the shared 2025-10-24→2026-05-31 hourly test window with paper-exact features and multivariate GW significance testing. Results in `Report/metrics/model_comparison.md` and Ch. `results_models_draft.tex`.
 
 ---
 
@@ -157,7 +157,6 @@ This is more complex than a simple `nn.Linear` stack — it requires Bayesian hy
 
 | Gap | Paper Section | Impact | Effort |
 |-----|-------------|--------|--------|
-| **DNN not deployed against LEAR** | 4.3 | Can't publish a head-to-head benchmark; only PARTIAL on checklist #2 | High — needs `forecast-cli tune` run and committed `model_params` |
 | **No MAPE deprecation warning** | 6.4.2 | Users might rely on misleading metric | Low — add warning in output |
 | **No LARS+AIC for lambda selection** | 4.2.2 | `LassoCV` is valid but slower than the paper's LARS approach | Low — optional optimization |
 
@@ -266,7 +265,7 @@ Key findings:
 - DNN ensemble significantly outperforms all others in 4/5 markets (GW test)
 
 ### Section 7 — Checklist (read and grade yourself)
-13 requirements — see the scorecard above. You score 12/13 PASS (1 PARTIAL: state-of-the-art DNN benchmark not yet deployed).
+13 requirements — see the scorecard above. You score 13/13 PASS (the state-of-the-art DNN/Transformer benchmark shipped 2026-06-05).
 
 ---
 
@@ -315,12 +314,12 @@ Key findings:
 
 ### Where you fall short (needs work)
 
-1. **No deployed DNN baseline** — The paper's DNN is the target to beat. `DNNModel` exists in the registry and the Optuna search space is wired up, but it is not yet deployed against LEAR in a published benchmark. This is why checklist #2 remains PARTIAL.
+1. **Deep models under-tuned relative to LEAR** — the head-to-head benchmark shipped (checklist #2 PASS), but the DNN used a 30-trial TPE search (vs the paper's 1500) and the Transformer reused the paper's Nord-Pool hyperparameters un-retuned. LEAR ≈ DNN (not significant) and both beat the Transformer; a full-budget tune is needed before drawing architectural conclusions. See `Report/chapters/results_models_draft.tex` §future work.
 
 2. **MAPE still in default output** — The paper explicitly warns against MAPE. Consider removing it from `compute_metrics_summary()` or adding a deprecation note.
 
 ### Maturity Score
 
-Using the paper's 13-point checklist: **12/13 PASS (92%)**
+Using the paper's 13-point checklist: **13/13 PASS (100%)**
 
-The only remaining PARTIAL is #2 (state-of-the-art comparison), pending DNN deployment. Computation-time tracking, multi-market coverage, DM/GW statistical testing, and the ex-ante validation split all shipped during the pre-freeze cleanup. Overall, the codebase is now fully aligned with the paper's LEAR-baseline recommendations; the remaining work is on the model-diversity axis (deploy DNN, benchmark against LEAR).
+Checklist #2 closed 2026-06-05 with the LEAR/DNN/Transformer head-to-head on DK1 + DE (shared hourly test window, paper-exact features, GW significance). Computation-time tracking, multi-market coverage, DM/GW statistical testing, and the ex-ante validation split shipped earlier. The codebase is now fully aligned with the paper's recommendations; remaining model-side work is depth not coverage (full-budget DNN tuning, per-market Transformer search — see `Report/chapters/results_models_draft.tex` §future work).

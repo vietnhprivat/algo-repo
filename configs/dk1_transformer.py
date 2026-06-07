@@ -8,7 +8,12 @@ Defaults below follow the paper's Nord Pool / EPEX search ranges.
 from price_forecasting import ExperimentConfig
 from price_forecasting.data import default_transformers_for_transformer
 
-_EXOG = ["TotalLoad", "Generation"]
+# Paper-exact exogenous (the paper benchmarks on the Lago open-access
+# datasets; Nord Pool = load + wind): TotalLoad + Wind aggregate.
+# NOTE: _EXOG must equal config.exogenous_columns (curve types + aggregate
+# names, in order) — the wide feature layout is positional. If you change
+# exogenous_curve_types/exogenous_aggregates below, update _EXOG to match.
+_EXOG = ["TotalLoad", "Wind"]
 _SEQ = 14  # m days of past prices (paper search: m in {14, 28})
 
 config = ExperimentConfig(
@@ -16,12 +21,15 @@ config = ExperimentConfig(
     area="DK1",
     model_type="transformer",
     results_dir="results",
-    test_start_date="2026-01-01",
-    test_end_date="2026-03-22",
+    # Shared final-benchmark test window — see configs/dk1_lear.py.
+    test_start_date="2025-10-24",
+    test_end_date="2026-05-31",
     calibration_windows=[1092],
     refit_interval_days=7,
-    exogenous_curve_types=_EXOG,
+    exogenous_curve_types=["TotalLoad"],
+    exogenous_aggregates={"Wind": ["WindOnshore", "WindOffshore"]},
     target_scaler="asinh",
+    resample_to_hourly=True,
     feature_transformers=default_transformers_for_transformer(
         exogenous_columns=_EXOG,
         sequence_length_days=_SEQ,

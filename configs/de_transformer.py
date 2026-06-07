@@ -8,7 +8,11 @@ defined in src/schedules/src/schedules/deploy_forecast.py:FORECAST_CONFIGS.
 from price_forecasting import ExperimentConfig
 from price_forecasting.data import default_transformers_for_transformer
 
-_EXOG = ["TotalLoad", "Generation"]
+# Paper-exact exogenous (Lago EPEX-DE: load + aggregated wind & solar).
+# NOTE: _EXOG must equal config.exogenous_columns (curve types + aggregate
+# names, in order) — the wide feature layout is positional. If you change
+# exogenous_curve_types/exogenous_aggregates below, update _EXOG to match.
+_EXOG = ["TotalLoad", "Renewables"]
 _SEQ = 14  # m days of past prices (paper search: m in {14, 28})
 
 config = ExperimentConfig(
@@ -16,16 +20,21 @@ config = ExperimentConfig(
     area="DE",
     model_type="transformer",
     results_dir="results",
-    test_start_date="2026-01-01",
-    test_end_date="2026-03-22",
-    # DE's 15-min resolution + DST gaps cascade through the sequence-based
-    # Transformer preprocessing, leaving only ~481 usable rows (vs DK1's
-    # 1226). 365d is the largest window that fits. Asymmetric vs
-    # dk1_transformer's 1092 — documented data-sparsity footnote in thesis.
-    calibration_windows=[365],
+    # Shared final-benchmark test window — see configs/dk1_lear.py.
+    test_start_date="2025-10-24",
+    test_end_date="2026-05-31",
+    # Window verified against usable sequence rows before test start
+    # (plan Task 4 step 7, measured 2026-06-04: 1265 rows >= 1092). With
+    # wind/solar backfilled to 2022-03 the previous 365d data-sparsity cap
+    # no longer binds.
+    calibration_windows=[1092],
     refit_interval_days=7,
-    exogenous_curve_types=_EXOG,
+    exogenous_curve_types=["TotalLoad"],
+    exogenous_aggregates={
+        "Renewables": ["WindOnshore", "WindOffshore", "Solar"]
+    },
     target_scaler="asinh",
+    resample_to_hourly=True,
     feature_transformers=default_transformers_for_transformer(
         exogenous_columns=_EXOG,
         sequence_length_days=_SEQ,

@@ -5,13 +5,20 @@ config = ExperimentConfig(
     area="DE",
     model_type="lear",
     results_dir="results",
-    test_start_date="2026-01-01",
-    test_end_date="2026-05-19",
-    val_start_date="2025-03-13",
-    val_end_date="2025-12-31",
+    # Shared final-benchmark test window — see configs/dk1_lear.py.
+    test_start_date="2025-10-24",
+    test_end_date="2026-05-31",
+    val_start_date="2025-01-01",
+    val_end_date="2025-10-23",
     calibration_windows=[56, 84, 1092],
     refit_interval_days=1,
+    # Paper-exact exogenous (Lago §3.6, EPEX-DE): zonal load + aggregated
+    # wind & solar generation forecasts.
     exogenous_curve_types=["TotalLoad"],
+    exogenous_aggregates={
+        "Renewables": ["WindOnshore", "WindOffshore", "Solar"]
+    },
     target_scaler="asinh",
+    resample_to_hourly=True,
     model_params={"alpha": "auto"},
 )
