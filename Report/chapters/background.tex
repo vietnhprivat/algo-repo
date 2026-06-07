@@ -97,7 +97,7 @@ five-level model of Mateo-Casal\'i et al. This work positions the platform
 against the Google model \cite{google_mlops_maturity}, whose three levels (manual
 process, ML-pipeline automation, and CI/CD-pipeline automation) match the
 granularity of a single-host platform. That choice is justified in
-Chapter~\ref{ch:eval-framework}. The closest domain application is Subramanya et
+Chapter~\ref{ch:results-system}. The closest domain application is Subramanya et
 al.\ \cite{subramanya2022devops2mlops}, who build an MLOps pipeline for an
 electricity-market forecasting task and evaluate it as a case study. This is the
 precedent this thesis follows in evaluating its own platform in its real
@@ -118,14 +118,9 @@ model development, ML infrastructure, and monitoring) whose final score is the
 minimum of the four section sums, so the weakest area bounds the result.
 Reproducibility is treated in two senses. Gundersen and Kjensmo
 \cite{gundersen2018reproducibility} characterise degrees of reproducibility in
-AI research, while the ACM Artifact Review and Badging policy \cite{acm2020badging}
-supplies the standard vocabulary (Available, Functional, Reusable, and
-Reproduced) for claims about a research artefact. Delivery performance is
-measured with the DORA metrics popularised by Forsgren et al.\
-\cite{forsgren2018accelerate}, of which deployment frequency and lead time for
-changes capture throughput. Finally, the decision of whether drift should
+AI research. Finally, the decision of whether drift should
 trigger retraining is informed by the cost-aware analysis of Mahadevan and
 Mathioudakis \cite{mahadevan2024costaware}, who show that triggered retraining
 earns its keep mainly when retraining is expensive. How these instruments are
 applied, and why each was chosen, is the subject of
-Chapter~\ref{ch:eval-framework}.
+Chapter~\ref{ch:results-system}.

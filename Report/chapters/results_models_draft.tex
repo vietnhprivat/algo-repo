@@ -19,9 +19,7 @@ consumes more leading days than the other pipelines, this common set is 187 days
 on DK1 and 176 on DE. The chapter reports headline accuracy
 (\S\ref{sec:rm-headline}), statistical significance (\S\ref{sec:rm-significance}),
 and computation cost (\S\ref{sec:rm-cost}), then sets the results against the
-published benchmarks (\S\ref{sec:rm-papers}) and closes with the modelling-side
-threats to validity (\S\ref{sec:rm-validity}) and future work
-(\S\ref{sec:rm-future}).
+published benchmarks (\S\ref{sec:rm-papers}).
 
 % -----------------------------------------------------------------------------
 \section{Headline accuracy}
@@ -31,6 +29,7 @@ threats to validity (\S\ref{sec:rm-validity}) and future work
   \centering
   \caption{DK1: final benchmark metrics (test 2025-10-24--2026-05-31, common days).}
   \label{tab:results-dk1-headline}
+\renewcommand{\arraystretch}{1.3}
 \begin{tabular}{lrrrr}
 \toprule
  & MAE & RMSE & sMAPE & rMAE \\
@@ -47,6 +46,7 @@ Naive (weekly) & 36.899 & 51.385 & 50.110 & 1.000 \\
   \centering
   \caption{DE: final benchmark metrics (test 2025-10-24--2026-05-31, common days).}
   \label{tab:results-de-headline}
+\renewcommand{\arraystretch}{1.3}
 \begin{tabular}{lrrrr}
 \toprule
  & MAE & RMSE & sMAPE & rMAE \\
@@ -90,6 +90,7 @@ the subject of \S\ref{sec:rm-significance}.
   \centering
   \caption{DK1: GW multivariate p-values (column model better than row model).}
   \label{tab:results-dk1-gw}
+\renewcommand{\arraystretch}{1.3}
 \begin{tabular}{lrrrr}
 \toprule
  & LEAR & DNN & Transformer & Naive (weekly) \\
@@ -106,6 +107,7 @@ Naive (weekly) & 0.000 & 0.000 & 0.000 & -- \\
   \centering
   \caption{DE: GW multivariate p-values (column model better than row model).}
   \label{tab:results-de-gw}
+\renewcommand{\arraystretch}{1.3}
 \begin{tabular}{lrrrr}
 \toprule
  & LEAR & DNN & Transformer & Naive (weekly) \\
@@ -147,7 +149,8 @@ DK1 and DE.
   \centering
   \caption{Amortised recalibration cost (full-backtest wall-clock / common test day). Full timings in \texttt{Report/metrics/run\_timings.md}.}
   \label{tab:results-cost}
-  \begin{tabularx}{\linewidth}{@{}l r r X@{}}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabularx}{\linewidth}{@{}l r r >{\raggedright\arraybackslash}X@{}}
     \toprule
     \textbf{Model} & \textbf{DK1 s/day} & \textbf{DE s/day} & \textbf{Hardware / cadence} \\
     \midrule
@@ -181,34 +184,10 @@ comparably low amortised cost but does not convert it into competitive accuracy.
 
 A direct comparison of error levels with the source papers is complicated by the
 shift in price regime. The benchmarks of Lago et al.~\cite{lago2021} were struck
-on 2016--2018 data, whereas this study covers 2025--2026, so only rMAE levels and
-rankings are comparable, never absolute errors (\cite{lago2021}, \S5.4).
-Table~\ref{tab:results-vs-paper} sets the ensemble rMAE values against the
-paper's Table~3 figures for the corresponding markets.
+on 2016--2018 data, whereas this study covers 2025--2026, so the comparison is
+read through model rankings rather than absolute errors (\cite{lago2021}, \S5.4).
 
-\begin{table}[h]
-  \centering
-  \caption{Our ensemble rMAE vs published (\cite{lago2021} Table~3). Periods differ, rankings/levels only.}
-  \label{tab:results-vs-paper}
-  \begin{tabularx}{\linewidth}{@{}l r r r r@{}}
-    \toprule
-    & \textbf{DK1 ours} & \textbf{NP \cite{lago2021}} & \textbf{DE ours} & \textbf{EPEX-DE \cite{lago2021}} \\
-    \midrule
-    LEAR & 0.469 & 0.420 & 0.376 & 0.433 \\
-    DNN  & 0.482 & 0.407 & 0.388 & 0.374 \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
-
-The levels are broadly in line with the published benchmark. On DK1 both models
-are somewhat less accurate than the paper's Nord Pool figures (0.469 against
-0.420 for LEAR, 0.482 against 0.407 for the DNN), whereas on DE the LEAR ensemble
-is actually more accurate than the paper's EPEX-DE result (0.376 against 0.433)
-and the DNN is marginally above it (0.388 against 0.374). That the absolute rMAE
-levels land in the same range as a benchmark struck on entirely different data is
-a modest validation of the replication in its own right.
-
-The rankings, however, invert both source papers. Lago et al.~\cite{lago2021}
+The rankings invert both source papers. Lago et al.~\cite{lago2021}
 report the DNN as at least the equal of LEAR, and Llorente and
 Portela~\cite{llorente2025transformer} report their Transformer ahead of the
 DNN. The ordering here is the reverse on both counts, LEAR $\ge$ DNN $\ge$
@@ -217,7 +196,7 @@ only numerical, since the two are statistically tied, which is itself consistent
 with Lago et al.'s observation that the gap is often insignificant. The
 Transformer's third place, by contrast, is genuine and significant. The likeliest
 cause is that the deep models are under-optimised relative to LEAR in this study
-rather than inherently weaker, a point developed in \S\ref{sec:rm-validity}. The
+rather than inherently weaker. The
 DNN was given 30 tuning trials against the paper's 1500, and the Transformer reused the
 paper's Nord Pool hyperparameters without per-market retuning and was adapted
 into the rolling-refit pipeline rather than run in its native
@@ -225,46 +204,11 @@ train-once-and-renormalise mode (Chapter~\ref{ch:methods-models},
 Table~\ref{tab:mm-deviations}), while LEAR re-selects its penalty by
 cross-validation at every recalibration and so sits near its achievable best.
 
-% -----------------------------------------------------------------------------
-\section{Threats to validity (modelling side)}
-\label{sec:rm-validity}
-
-Several constraints bound the strength of these conclusions, all of them
-stemming from data availability or compute budget rather than from the model
-specifications. The test window is 31 weeks, short of the one-to-two years the
-source papers recommend, because the usable price history begins only in March
-2022 and the validation and calibration windows consume the remainder. Each
-deep-model configuration is evaluated from a single backtest run at a fixed
-seed. The DNN's four-seed averaging is applied only on the production serving
-path and does not enter the reported backtest, and the Transformer is likewise a
-single seed, so both deep models carry the seed variance of one draw, a caveat
-that bears most heavily on the Transformer's third-place finish. The deep models are, as noted, tuned far less than LEAR
-(Chapter~\ref{ch:methods-models}, Table~\ref{tab:mm-deviations}), so the rankings
-should be read as contingent on the tuning budget. Finally, the 2025--2026
-regime contains negative-price and high-renewable-infeed days largely absent from
-the papers' data, and both fifteen-minute markets are downsampled to an hourly
-mean for comparability. These choices affect every model identically and so do
-not bias the paired tests, but they do limit comparability with the original
-studies.
-
-% -----------------------------------------------------------------------------
-\section{Future work (modelling side)}
-\label{sec:rm-future}
-
-The most direct extension is to give the deep models a tuning budget
-commensurate with LEAR's effective one before any architectural conclusion is
-drawn. That means a full-scale TPE search for the DNN, approaching the paper's
-1500 trials, and a per-market hyperparameter search for the Transformer in place
-of the reused Nord Pool defaults. Beyond tuning, three further directions follow
-from the deviations documented in Chapter~\ref{ch:methods-models}. The first is
-to run the Transformer in its native train-once-and-renormalise
-mode~\cite{llorente2025transformer} rather than the calibration-window refit used
-here. The second is to restore the 1456-day LEAR window and the LARS+AIC penalty
-selection of the original specification once the data history is long enough to
-support them. The third is to extend the point forecasts to probabilistic ones
-evaluated by pinball loss or CRPS. A per-hour
-Diebold--Mariano profile, in place of the single daily-aggregate statistic, would
-further localise where in the day the models diverge.
+% =============================================================================
+% Modelling-side limitations now live in the Discussion (Limitations); modelling
+% future work lives in the Conclusion. Per-chapter threats/future-work removed to
+% avoid triplication.
+% =============================================================================
 
 % =============================================================================
 % END DRAFT

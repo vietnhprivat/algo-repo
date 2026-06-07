@@ -66,7 +66,7 @@ recalibration and so sits close to its achievable best. The inversion is
 therefore better read as a measure of how much tuning the deep models need to
 express their reported advantage than as evidence that their architectures are
 weaker. Narrowing that gap is the leading item of modelling future work
-(Chapter~\ref{ch:results-models}, \S\ref{sec:rm-future}).
+(Chapter~\ref{ch:conclusion}).
 
 % -----------------------------------------------------------------------------
 \section{RQ2: Engineering trade-offs of productionising an EPF benchmark}
@@ -139,12 +139,13 @@ recommend, a consequence of the data history. The DNN hyperparameters are tuned
 on an architecture-only search space, with Lago's ten binary feature-selector
 hyperparameters left as fixed config decisions because the preprocessor exposes
 no toggles for them. The Transformer reuses the paper's search-range defaults
-rather than per-market optima. The work forecasts point prices, not
-probabilistic distributions. On the system side, the evaluation is a single-case
-study with no controlled comparison, the ML Test Score is self-administered (its
-per-item evidence in Appendix~\ref{app:mlts-worksheet} is the mitigation),
-forecasting and drift cover only DK1 and DE, the ClickHouse blob artifact store
-will not scale to large neural weights, and the drift detector over-flags. These
-are revisited as concrete future work in Chapter~\ref{ch:conclusion}, and the
-modelling-specific items are detailed alongside the results in
-Chapter~\ref{ch:results-models}.
+rather than per-market optima, and each deep model is evaluated from a single
+seeded backtest run, so its result carries the variance of one draw, a caveat
+that bears most on the Transformer's third place. The work forecasts point
+prices, not probabilistic distributions. On the system side, the evaluation is a
+single-case study with no controlled comparison, the ML Test Score is
+self-administered and mitigated by the per-item evidence in
+Appendix~\ref{app:mlts-worksheet}, forecasting and drift cover only DK1 and DE,
+the ClickHouse blob artifact store will not scale to large neural weights, and
+the drift detector over-flags. These are revisited as concrete future work in
+Chapter~\ref{ch:conclusion}.

@@ -54,7 +54,8 @@ of models is compared on the same delivery days.
   \centering
   \caption{Datasets. Both markets span 2022-03-10 to 2026-05-31 (ENTSO-E Transparency Platform).}
   \label{tab:mm-datasets}
-  \begin{tabularx}{\linewidth}{@{}l l l X@{}}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabularx}{\linewidth}{@{}l l l >{\raggedright\arraybackslash}X@{}}
     \toprule
     \textbf{Market} & \textbf{Resolution} & \textbf{Exogenous (paper-exact)} & \textbf{Paper analogue} \\
     \midrule
@@ -99,6 +100,7 @@ resolution ($n{=}96$).
   Eq.~\eqref{eq:mm-featurecount}. Every lagged series contributes one column per
   delivery period ($=n$), so $10\times24+7=247$.}
   \label{tab:mm-features}
+  \renewcommand{\arraystretch}{1.3}
   \begin{tabular}{@{}l l r@{}}
     \toprule
     \textbf{Feature block} & \textbf{Lag} & \textbf{\# columns ($=n$)} \\
@@ -157,7 +159,8 @@ per-market DNN hyperparameters.
   \centering
   \caption{Model setups (one row per model, identical across both markets unless noted).}
   \label{tab:mm-models}
-  \begin{tabularx}{\linewidth}{@{}l X X l@{}}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X l@{}}
     \toprule
     \textbf{Model} & \textbf{Specification} & \textbf{Calibration} & \textbf{Refit} \\
     \midrule
@@ -240,7 +243,7 @@ distinct random seeds, following Lago et al.~\cite{lago2021}, \S4.4; this
 four-seed averaging is applied only on the production serving path. The rolling
 backtest behind the Chapter~\ref{ch:results-models} results trains a single
 network per recalibration at a fixed seed, so the reported DNN metrics carry the
-seed variance of one draw (revisited in \S\ref{sec:rm-validity}). The six
+seed variance of one draw. The six
 architecture hyperparameters (hidden-layer width, activation, dropout, learning
 rate, the batch-normalisation flag, and the L1 penalty) are selected per market
 by the tuning protocol of \S\ref{sec:mm-tuning}; Table~\ref{tab:mm-dnn-hp} lists
@@ -250,7 +253,8 @@ the values in force.
   \centering
   \caption{Tuned DNN hyperparameters per market. Selected by the protocol of \S\ref{sec:mm-tuning} on the ex-ante validation window. The architecture-only search is re-run whenever the feature set changes, so these values are refreshed by the paper-exogenous re-tune that accompanies the final benchmark.}
   \label{tab:mm-dnn-hp}
-  \begin{tabularx}{\linewidth}{@{}l l l l l l X@{}}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabularx}{\linewidth}{@{}l l l l l l >{\raggedright\arraybackslash}X@{}}
     \toprule
     \textbf{Market} & \textbf{Width} & \textbf{Activation} & \textbf{Dropout} & \textbf{Learning rate} & \textbf{Batch norm} & \textbf{L1 penalty} \\
     \midrule
@@ -402,7 +406,8 @@ and none changes the model class or the feature definition.
   \centering
   \caption{Documented deviations from~\cite{lago2021} and~\cite{llorente2025transformer}.}
   \label{tab:mm-deviations}
-  \begin{tabularx}{\linewidth}{@{}l X X@{}}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
     \toprule
     \textbf{Aspect} & \textbf{Paper} & \textbf{This work (reason)} \\
     \midrule

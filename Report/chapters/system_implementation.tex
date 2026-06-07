@@ -102,7 +102,8 @@ Zarour practice it primarily realises.
   \caption{Operational inventory of Prefect deployments. Cron strings are UTC; the seven backfill deployments and six forecast deployments share one flow definition apiece.}
   \label{tab:inventory}
   \setlength{\tabcolsep}{4pt}
-  \begin{tabularx}{\linewidth}{@{}l l l l X l@{}}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabularx}{\linewidth}{@{}l l l l >{\raggedright\arraybackslash}X l@{}}
     \toprule
     \textbf{Deployment} & \textbf{Area / model} & \textbf{Cron} & \textbf{Flow} & \textbf{Purpose} & \textbf{Zarour} \\
     \midrule
@@ -138,6 +139,7 @@ choice is given in the practice section where the tool appears.
   \centering
   \caption{Technology in use and its role. The rationale for each choice is given in the practice section where the tool appears; tools evaluated but not adopted (MLflow, Kubernetes, DVC) are discussed there too.}
   \label{tab:tech-stack}
+  \renewcommand{\arraystretch}{1.3}
   \begin{tabular}{@{}l l@{}}
     \toprule
     \textbf{Tool} & \textbf{Role} \\
@@ -384,80 +386,87 @@ a safe re-insert rather than a mutable \texttt{UPDATE}.
 
 \subsection{Continuous monitoring}
 
-Continuous monitoring requires instrumenting the production system across at
-least three axes, namely data quality, model performance, and system health, so
-that degradation is detected automatically and surfaced without manual
-inspection \cite{zarour2025}.
+Continuous monitoring instruments the platform across Zarour's three axes,
+namely data quality, model performance, and system health, so that degradation
+surfaces automatically rather than by manual inspection \cite{zarour2025}.
+Table~\ref{tab:monitoring-coverage} maps each axis to the surface that presents
+it and the store it reads. Structured logs from every Prefect flow and
+infrastructure module are pushed straight to Loki through a
+\texttt{python-logging-loki} handler, and Grafana
+auto-provisions three dashboards over ClickHouse, Prometheus, and Loki from
+\texttt{grafana/dashboards/}. The division of surfaces is deliberate. Grafana
+owns platform-and-data-health and W\&B owns model quality, and both read from
+the same ClickHouse tables.
 
-Structured log events from every Prefect flow and infrastructure module are
-pushed directly to Loki via a \texttt{python-logging-loki} handler, with no
-Promtail sidecar.
-Three Grafana dashboards auto-provision from \texttt{grafana/dashboards/}. The
-Data Quality dashboard covers coverage and freshness of \texttt{algo.timeseries}
-and \texttt{algo.forecasts}. The Operational dashboard presents the Loki log
-stream filtered by \texttt{job=algo-repo}. The System Health dashboard is
-backed by Prometheus, which scrapes ClickHouse's native \texttt{/metrics}
-endpoint, Grafana's \texttt{/metrics} endpoint, and itself on a 15-second
-cadence and retains 120 days of series. The model-quality metrics MAE, RMSE, and
-sMAPE, computed per reconciled day, area, and config, do not live in Grafana.
-They are owned by the W\&B \texttt{algo-prod} project, which the W\&B tracker
-updates from the reconciliation flow.
-The split is deliberate. Grafana hosts platform-and-data-health concerns, W\&B
-hosts model-quality concerns, and both read from the same ClickHouse tables.
+\begin{table}[H]
+  \centering
+  \small
+  \renewcommand{\arraystretch}{1.3}
+  \setlength{\tabcolsep}{6pt}
+  \caption{Monitoring coverage. The first three rows are Zarour's P8 axes; \emph{Operational} is the shared structured-log stream beneath them. Grafana and W\&B both read from ClickHouse.}
+  \label{tab:monitoring-coverage}
+  \begin{tabularx}{\linewidth}{@{}l l l >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    \textbf{Axis / role} & \textbf{Surface} & \textbf{Source} & \textbf{What it watches} \\
+    \midrule
+    Data quality      & Grafana \emph{Data Quality}  & ClickHouse & Freshness, daily row counts, and missing price hours in \texttt{algo.timeseries} and \texttt{algo.forecasts} \\
+    System health     & Grafana \emph{System Health} & Prometheus & Service uptime, scrape status, query rate, memory, and merge backlog \\
+    Model performance & W\&B \texttt{algo-prod}       & ClickHouse & MAE, RMSE, and sMAPE per reconciled day, area, and config \\
+    Operational logs  & Grafana \emph{Operational}   & Loki       & Log stream by \texttt{job=algo-repo}, plus error rate and logs by service \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
 
-File-based alert rules in \texttt{grafana/provisioning/alerting/rules.yaml}
-define four conditions. \texttt{data-staleness} fires when \texttt{algo.timeseries}
-has received no new row in twelve hours. \texttt{drift-detected-today} fires when
-any row in \texttt{algo.drift\_reports} for the current day carries
-\texttt{drift\_detected = 1}. \texttt{reconciliation-missed} fires when no
-\texttt{reconcile-predictions} run has completed in the last 36 hours.
-\texttt{clickhouse-down} fires when the Prometheus \texttt{up\{job="clickhouse"\}}
-liveness metric is zero. In addition, an accuracy-degradation check in the
-reconciliation flow raises an alert whenever today's MAE exceeds 1.5\,$\times$ the
-30-day median over \texttt{algo.experiment\_runs}.
+Five conditions raise an alert, listed in Table~\ref{tab:alert-rules}.
 
-Loki was chosen over the ELK stack because it is a single binary with
-substantially lower memory and operational overhead, proportionate to a
-single-host deployment, and Promtail was rejected in favour of direct Python
-push, which removes a moving part from the logging pipeline. Prometheus sits
-alongside Loki as the metrics tier to Loki's logs tier, with Grafana the single
-dashboard and alerting surface above both. The three monitoring axes match
-Zarour's P8 decomposition and ensure an alert is raised at whichever layer first
-shows a problem.
+\begin{table}[H]
+  \centering
+  \small
+  \renewcommand{\arraystretch}{1.3}
+  \setlength{\tabcolsep}{6pt}
+  \caption{Alert rules and their severities. The first four are file-provisioned Grafana rules in \texttt{grafana/provisioning/alerting/rules.yaml}, evaluated over ClickHouse except \texttt{clickhouse-down}, which reads the Prometheus liveness metric. \texttt{accuracy-degradation} is a Slack check inside the reconciliation flow.}
+  \label{tab:alert-rules}
+  \begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X l@{}}
+    \toprule
+    \textbf{Alert} & \textbf{Fires when} & \textbf{Severity} \\
+    \midrule
+    \texttt{data-staleness}        & No fresh price row in twelve hours                      & warning  \\
+    \texttt{drift-detected-today}  & A \texttt{drift\_reports} row is flagged today          & warning  \\
+    \texttt{reconciliation-missed} & No reconciled run in the last 36 hours                  & error    \\
+    \texttt{clickhouse-down}       & \texttt{up\{job="clickhouse"\}} is zero for five minutes & critical \\
+    \texttt{accuracy-degradation}  & Today's MAE exceeds $1.5\times$ the 30-day median       & warning  \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Loki was chosen over the ELK stack as a single binary with far lower memory and
+operational overhead, proportionate to a single host. Prometheus sits alongside
+Loki as the metrics
+tier to its logs tier, scraping ClickHouse, Grafana, and itself every 15 seconds
+and retaining 120 days of series, with Grafana the single dashboard and alerting
+surface above both.
 
 \subsection{Implementing feedback loops}
 
-The feedback-loop practice requires that the production system detect when its
-inputs or outputs have shifted sufficiently to degrade prediction quality and
-respond automatically, rather than waiting for a human to notice on a dashboard
-\cite{zarour2025}. Zarour et al.\ identify the absence of an automated feedback
-loop as a common maturity gap.
+The feedback-loop practice asks that a system detect when its inputs or outputs
+have shifted enough to degrade quality and respond automatically, rather than
+waiting for a human to notice \cite{zarour2025}. This is the least developed of
+the nine practices on the platform and one of its weaker points. Drift detection
+itself runs daily and in-process, inside the \texttt{drift-detection-dk1} and
+\texttt{drift-detection-de} deployments, via Evidently's \texttt{DataDriftPreset}
+comparing a 90-day reference window against a 7-day current window on each area's
+price series. Every result is written to \texttt{algo.drift\_reports}, and a
+detected event posts a warning to Loki and raises an alert.
 
-Drift detection runs in-process inside the \texttt{drift-detection-dk1} and
-\texttt{drift-detection-de} deployments via Evidently's \texttt{DataDriftPreset},
-which compares a 90-day reference window against a 7-day current window on each
-area's price series and auto-selects the statistical test by sample size, using
-a Kolmogorov--Smirnov test for small samples and the Wasserstein distance for
-larger ones. Each drift result, comprising its score, threshold, the test
-applied, and the boolean \texttt{drift\_detected} flag, is written to
-\texttt{algo.drift\_reports}, and a detected event posts a warning to Loki and
-raises an alert. When a config carries \texttt{retrain\_on\_drift=True}, the flow
-additionally enqueues a triggered-retrain flow, which writes a \texttt{running}
-audit row to \texttt{algo.retrain\_events}, calls the daily-forecast flow
-synchronously,
-and closes the row with a \texttt{completed} or \texttt{failed} status and a
-strictly later \texttt{updated\_utc} so the \texttt{ReplacingMergeTree(updated\_utc)}
-engine retains the terminal row.
-
-Evidently was deployed in-process rather than as a separate service so the
-check inherits the flow's retry policy and is re-run via the Prefect UI without
-managing another endpoint. Arize and WhyLabs were rejected as cloud-hosted
-dependencies unjustified at single-host scope. Making the retrain trigger
-conditional on \texttt{retrain\_on\_drift} keeps every retraining event
-auditable. Each triggered run links to the specific \texttt{drift\_report\_id}
-that caused it, so the full chain from detected drift to updated model is
-recoverable from ClickHouse alone. Whether drift \emph{should} trigger
-retraining at all, given the cheap daily refit, is examined in
+The automatic response, however, is wired but inactive. A drift event triggers a
+retraining run only when a forecast config sets \texttt{retrain\_on\_drift=True},
+which none of the six production configs does, so the flag stays false everywhere
+and drift in practice serves as a monitoring and alerting signal rather than a
+closed loop. The retrain path is nonetheless implemented and auditable, namely a
+triggered flow that records an audit row in \texttt{algo.retrain\_events} and
+links the resulting run to the \texttt{drift\_report\_id} that caused it. Whether
+closing the loop is worthwhile at all, given the cheap daily refit that already
+retrains every model from scratch, is examined in
 Chapter~\ref{ch:results-system}.
 
 % ─────────────────────────────────────────────────────────────────────────────
