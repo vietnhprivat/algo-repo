@@ -14,7 +14,8 @@ a Prefect deployment, a ClickHouse migration, a GitHub Actions workflow, or a
 Grafana dashboard. The qualitative ``realised'' labels are backed by measured
 values, each recomputable on demand from the live system. They comprise an ML
 Test Score of 2.5 bound by data testing, and provenance coverage of
-66.7\,\% supported by a re-run that reproduced a logged forecast to within
+100\,\% from the first continuously-deployed run, 66.7\,\% across the full
+window, supported by a re-run that reproduced a logged forecast to within
 $7\times10^{-6}$\,EUR/MWh. Embedding the models also exposed the engineering
 trade-offs this raised, which mostly aligned the demands of a faithful benchmark
 with those of a small production platform. On the forecasting axis, the faithful replication of LEAR, the DNN,
@@ -50,7 +51,8 @@ Chapter~\ref{ch:discussion}.
     ablate} command to quantify how accuracy varies with calibration-window
     length, an ablation the present fixed-window matrix does not cover.
   \item \textbf{Probabilistic forecasting.} Extend the point forecasts to
-    predictive distributions and evaluate with pinball loss or CRPS, the
+    predictive distributions and evaluate with pinball loss or the continuous
+    ranked probability score (CRPS), the
     direction surveyed by Nowotarski and Weron~\cite{nowotarski2018}.
   \item \textbf{Reproducibility of stochastic models.} Demonstrate the re-run
     for the DNN and Transformer under controlled seeds with GPU non-determinism

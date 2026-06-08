@@ -7,7 +7,7 @@
   \item[LEAR] Lasso Estimated AutoRegressive ensemble for day-ahead electricity
         price forecasting, the primary baseline model from Lago et al.\
         \cite{lago2021}.
-  \item[DNN] Deep neural network. In this chapter, a multi-layer perceptron
+  \item[DNN] Deep neural network. In this thesis, a multi-layer perceptron
         ensemble whose final prediction is the arithmetic mean of
         \texttt{n\_dnn\_ensemble} replicates trained with distinct random seeds.
   \item[EPF] Electricity price forecasting, the task of predicting day-ahead
@@ -108,7 +108,7 @@ $\mathbf{2.5}$ (\S\ref{sec:res-mlts}).
     4 & Quality validated before serving & 0 & No quality gate before predictions are written to \texttt{experiment\_predictions} \\
     5 & Debuggable by observing steps & 0.5 & Loki structured logging, W\&B per-epoch loss, no per-layer step-through \\
     6 & Tested via a canary process & 0.5 & \texttt{cd\_deploy} \texttt{smoke\_run} triggers a forecast post-deploy, checks completion, not quality \\
-    7 & Quick and safe rollback & 0.5 & Artifact blobs in \texttt{model\_artifacts}, image rollback via build + restart, no automated rollback command \\
+    7 & Quick and safe rollback & 0.5 & Artefact blobs in \texttt{model\_artifacts}, image rollback via build + restart, no automated rollback command \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -126,7 +126,7 @@ $\mathbf{2.5}$ (\S\ref{sec:res-mlts}).
     2 & Data invariants hold train \& serve & 0.5 & \texttt{enforce\_schema} at construction, shared preprocessor, not independently monitored/alerted \\
     3 & Train/serve features compute alike & 1 & A single \texttt{DataPreprocessor} used by both \texttt{BacktestRunner} and \texttt{LiveRunner}, a structural guarantee \\
     4 & Models are not too stale & 0.5 & Daily refit $<24$\,h, Grafana \texttt{data-staleness} alert on inputs, no dedicated model-age alert \\
-    5 & The model is numerically stable & 0.5 & \texttt{asinh} scaler, Transformer gradient clipping, no automated NaN/inf assertion on outputs \\
+    5 & The model is numerically stable & 0.5 & \texttt{asinh} scaler stabilises spikes and negatives, no automated NaN/inf assertion on outputs \\
     6 & Compute has not regressed & 0.5 & \texttt{training\_duration\_seconds} tracked per run and in W\&B, no automated threshold alert \\
     7 & Prediction quality not regressed & 1 & \texttt{\_maybe\_alert\_accuracy\_degradation} (MAE $>1.5\times$ 30-day median) and the \texttt{reconciliation-missed} rule, both automated \\
     \bottomrule

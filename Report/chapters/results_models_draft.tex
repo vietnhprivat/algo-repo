@@ -84,7 +84,7 @@ the DNN is preferable. Whether either difference is statistically meaningful is
 the subject of \S\ref{sec:rm-significance}.
 
 Figure~\ref{fig:rm-forecast-week} makes these orderings concrete and explains the
-Transformer's standing. It contrasts a calm winter week, in which all three
+Transformer's standing. It contrasts a calm low-renewable week, in which all three
 models track the price closely, with a high-renewable week in late May whose
 negative-price hours and sharp peak the Transformer smooths over while LEAR and
 the DNN follow them. The effect is not merely that volatile weeks carry larger
@@ -156,10 +156,12 @@ day.
     \caption{DE}
     \label{fig:rm-gw-de}
   \end{subfigure}
-  \caption{Giacomini--White multivariate p-values, one heatmap per market. Each
-  cell is the pairwise p-value; green marks a significant win for the column
-  model over the row model ($p<0.05$), red a non-significant difference. LEAR and
-  the DNN are indistinguishable, both significantly beat the Transformer, and
+  \caption{Giacomini--White multivariate p-values, one heatmap per market. Cell
+  $(r,c)$ is the pairwise p-value that column model $c$ is no more accurate than
+  row model $r$, shaded on a continuous scale from green at $p=0$ to red at $p=1$,
+  with the value printed in each cell and the undefined diagonal shown as
+  \texttt{--}. A value below 0.05 marks a significant win for $c$ over $r$. LEAR
+  and the DNN are indistinguishable, both significantly beat the Transformer, and
   every model beats the weekly-naive baseline.}
   \label{fig:rm-gw}
 \end{figure}
@@ -174,10 +176,10 @@ below 0.05 means that $c$ significantly outperforms $r$.
 
 The central result is that LEAR and the DNN are statistically indistinguishable
 on both markets. The hypothesis that LEAR is no more accurate than the DNN
-cannot be rejected (DK1 $p=0.16$, DE $p=0.19$), and neither can its converse.
+cannot be rejected (DK1 $p=0.16$, DE $p=0.19$).
 LEAR's numerical lead in the headline tables therefore does not amount to a
-significant accuracy advantage, and the two models should be treated as
-equivalent in accuracy. Both, however, significantly outperform the
+significant accuracy advantage, and on this test window neither model can be
+shown to be the more accurate. Both, however, significantly outperform the
 Transformer (on DK1 at $p=0.001$ for each, and on DE at $p=0.012$ for LEAR and
 $p=0.006$ for the DNN), and all three beat the weekly-naive baseline with $p\approx0$.
 The comparison that survives significance testing is thus a two-way tie between

@@ -24,28 +24,27 @@ both DK1 and DE (rMAE 0.469 and 0.376). The DNN follows closely (0.482 and
 0.388), and the Transformer is third (0.543 and 0.420), with all three improving
 substantially on the weekly-naive baseline. The Giacomini--White test, however,
 cannot distinguish LEAR from the DNN on either market. The hypothesis that LEAR
-is no more accurate than the DNN gives $p=0.16$ on DK1 and $p=0.19$ on DE, and
-neither can its converse be rejected. LEAR's numerical lead is therefore not a
-significant accuracy advantage, and the two models are best regarded as
-equivalent. The same test confirms that LEAR and the DNN each significantly
-outperform the Transformer ($p\le0.012$) and that every model beats the naive
+is no more accurate than the DNN gives $p=0.16$ on DK1 and $p=0.19$ on DE.
+LEAR's numerical lead is therefore not a
+significant accuracy advantage, and over this window neither model can be shown
+to be the more accurate. The same test confirms that LEAR and the DNN each significantly
+outperform the Transformer ($p\le0.013$) and that every model beats the naive
 forecast ($p\approx0$). The answer to RQ1 is thus a statistical tie between
 LEAR and the DNN at the top, a significantly weaker Transformer, and a wide,
 significant margin over the naive benchmark, a pattern that holds identically
-on DK1 and DE.
+on DK1 and DE. Both deep models are evaluated from a single seeded backtest, so
+their accuracy figures carry the variance of one training draw.
 
 Two refinements qualify this headline. First, the ranking depends on the error
-metric. Although LEAR leads on the absolute-error measures, the DNN achieves the
-lowest RMSE in both markets, and on DE LEAR posts the highest RMSE of the three
-models. Because RMSE penalises large errors more heavily than MAE, the DNN
-evidently controls the worst misforecasts better than LEAR even where its mean
+metric. As \S\ref{sec:rm-headline} showed, the DNN attains the lowest RMSE in
+both markets while LEAR leads on the absolute-error measures, so the DNN
+controls the worst misforecasts better than LEAR even where its mean
 error is marginally larger, a distinction that matters whenever large
 individual errors are disproportionately costly. Second, the accuracy tie does
 not extend to cost. On the platform's GPU the DNN recalibrates in about a second
 per day against LEAR's forty to fifty (Table~\ref{tab:results-cost}), so it
 delivers statistically equal accuracy for far less compute. Where two
-models are tied on accuracy, this asymmetry becomes the deciding practical
-factor, and it favours the DNN.
+models are tied on accuracy, this asymmetry favours the DNN.
 
 Measured against the source papers, the comparison replicates one result and
 inverts two. It reproduces the finding of Lago et al.~\cite{lago2021} that the
@@ -62,7 +61,7 @@ retuning, adapted into the rolling calibration-window-and-weekly-refit pipeline
 of the other models rather than its native train-once-and-renormalise scheme
 (Chapter~\ref{ch:methods-models}, Table~\ref{tab:mm-deviations}). LEAR, by
 contrast, re-selects its penalty by cross-validation at every daily
-recalibration and so sits close to its achievable best. The inversion is
+recalibration and so has little remaining tuning headroom. The inversion is
 therefore better read as a measure of how much tuning the deep models need to
 express their reported advantage than as evidence that their architectures are
 weaker. Narrowing that gap is the leading item of modelling future work
@@ -82,8 +81,8 @@ redundant. Co-locating training and prediction in a single Prefect flow trades a
 small amount of recomputation for the guarantee that the served model always
 matches the forecast it produced, removing a class of coordination failure. Using
 ClickHouse as the single store for time-series, predictions, metrics, and model
-artifacts makes day-after reconciliation one query rather than a cross-system
-join, at the cost of a base64-blob artifact representation that will not scale to
+artefacts makes day-after reconciliation one query rather than a cross-system
+join, at the cost of a base64-blob artefact representation that will not scale to
 large neural weights. And serving the paper-strict feature set in production,
 rather than a separate, richer operational feature set, keeps the deployed
 models bit-faithful to the benchmark, at the cost of forgoing features that might
@@ -104,12 +103,15 @@ DevOps-inherited ones (CI/CD automation, versioning, containerised
 reproducibility, and monitoring), because they transfer directly from software
 engineering, whereas the ML-specific data-quality discipline (feature-benefit,
 feature-cost, and slice analyses) is where the platform is weakest and where
-further investment would most raise its maturity. The practices that proved most
+further investment would most raise its maturity. Monitoring carries one
+qualification of its own. The drift detector flagged every report over the
+window (\S\ref{sec:res-drift}), so although the practice is wired end-to-end its
+drift signal is currently uninformative and needs recalibration. The practices that proved most
 critical, by contrast, were reproducibility and metadata tracking, since the
 provenance they provide is what lets any forecast be reconstructed and audited,
 and it is on that provenance that the platform's cross-thread trustworthiness
 rests. The single-host scope reaches
-its limit at three points. The artifact store suits LEAR's hundred-kilobyte
+its limit at three points. The artefact store suits LEAR's hundred-kilobyte
 blobs but not multi-megabyte neural weights; there is no model-quality gate
 before serving; and forecasting and drift reach only two of the seven ingested
 bidding zones. Each is a bounded MVP choice with a named adoption trigger
@@ -120,9 +122,9 @@ bidding zones. Each is a bounded MVP choice with a named adoption trigger
 
 The two threads are mutually reinforcing, not independent. Several
 modelling decisions are only defensible because of the system around them.
-Downsampling both markets to an hourly grid is what makes the cross-market and
-cross-paper comparison valid, and the cheap, scheduled daily refit is what
-licenses treating drift detection as monitoring rather than as a retraining
+Downsampling both markets to an hourly grid validates the cross-market and
+cross-paper comparison, and the cheap, scheduled daily refit licenses treating
+drift detection as monitoring rather than as a retraining
 trigger, following the cost-aware argument of Mahadevan and
 Mathioudakis~\cite{mahadevan2024costaware}. Conversely, the system's central
 claim, that any forecast can be reconstructed from its logged provenance,
@@ -130,7 +132,7 @@ is what makes the forecasting replication itself trustworthy. The worked re-run
 that reproduced a logged LEAR forecast to within $7\times10^{-6}$\,EUR/MWh
 (\S\ref{sec:res-repro}) is evidence about the modelling thread as much as the
 system thread. The forecasting work exercises the platform under real operating
-conditions, and the platform's provenance logging is what lets those forecasts
+conditions, and the platform's provenance logging lets those forecasts
 be checked and rerun.
 
 % -----------------------------------------------------------------------------
@@ -149,6 +151,6 @@ prices, not probabilistic distributions. On the system side, the evaluation is a
 single-case study with no controlled comparison, the ML Test Score is
 self-administered and mitigated by the per-item evidence in
 Appendix~\ref{app:mlts-worksheet}, forecasting and drift cover only DK1 and DE,
-the ClickHouse blob artifact store will not scale to large neural weights, and
+the ClickHouse blob artefact store will not scale to large neural weights, and
 the drift detector over-flags. These are revisited as concrete future work in
 Chapter~\ref{ch:conclusion}.

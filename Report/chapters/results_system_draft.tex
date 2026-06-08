@@ -111,14 +111,17 @@ onward, all four components are present.
 For the demonstration, the only inputs supplied were the run's committed config
 \texttt{dk1\_lear} and its target date 2026-03-22, from which
 \texttt{scripts.report.reproduce\_run} regenerated the forecast and compared it
-against the stored prediction in \texttt{algo.experiment\_predictions}. For this
+against the stored prediction in \texttt{algo.experiment\_\allowbreak predictions}. For this
 deterministic LEAR configuration the maximum absolute difference across all 24
 delivery periods was $7\times10^{-6}$\,EUR/MWh, far below any economically
 meaningful price unit, so the regenerated and stored forecasts are numerically
 identical up to solver-level floating-point tolerance. LEAR is used for the
 headline demonstration because it is deterministic given a fixed data window. The
 DNN and Transformer carry seed and ensemble stochasticity whose controlled re-run
-is left to future work.
+is left to future work. Beyond any single run, the runtime environment is pinned
+in \texttt{uv.lock} and the full stack is declared as infrastructure-as-code in
+\texttt{docker-compose.yml}, so the platform that produced these results can be
+rebuilt from the repository alone.
 
 % -----------------------------------------------------------------------------
 \section{Drift detection as monitoring, not a retraining trigger}
@@ -172,7 +175,7 @@ the ML Test Score and reproducibility results above.
     P4 Versioning                    & Realised & 2 & Git tracks \texttt{configs/}, numbered migrations, dashboards and alert rules all version-controlled \\
     P5 Collaboration \& communication & Realised & 1 & \texttt{CLAUDE.md}, \texttt{REPO\_OVERVIEW.md}, \texttt{RUNBOOK.md}, \texttt{CONTRIBUTING.md}, plus Slack alerts \\
     P6 Continuously train \& evaluate & Realised & 1 & Six \texttt{daily-forecast} deployments refit at 06:00 UTC, reconciliation scores live forecasts \\
-    P7 Track \& log ML metadata      & Realised & 1 & \texttt{algo.experiment\_runs} + predictions + artifacts, plus the W\&B research surface \\
+    P7 Track \& log ML metadata      & Realised & 1 & \texttt{algo.experiment\_runs} + predictions + artefacts, plus the W\&B research surface \\
     P8 Continuous monitoring         & Realised & 2 & Loki plus three Grafana dashboards (Data Quality, Operational, System Health) and four file-based alert rules, with model metrics in W\&B \texttt{algo-prod} \\
     P9 Implementing feedback loops   & Minimal  & 1 & Drift-triggered retrain behind a config flag, two areas only \\
     \bottomrule

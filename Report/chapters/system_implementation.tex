@@ -14,7 +14,7 @@ architecture, the asinh price transformation, or the Giacomini--White statistica
 tests (Chapter~\ref{ch:methods-models}). The
 exception is where a modelling decision directly motivates or constrains an
 MLOps practice. Operational how-to material such as running backfills, adding
-new bidding areas, or re-deploying Prefect flows is kept in the repository's
+new bidding zones, or re-deploying Prefect flows is kept in the repository's
 \texttt{RUNBOOK.md} and \texttt{CONTRIBUTING.md} and is not repeated here.
 
 \subsection{Structuring the chapter around Zarour's practices}
@@ -46,7 +46,7 @@ complete inventory of scheduled deployments.
 The platform runs entirely within a single Docker Compose stack on one
 dedicated host, keeping operational complexity proportionate to the MVP scope.
 Six long-lived services form the persistent backbone of that stack. ClickHouse
-stores all time-series data and ML artifacts. The Prefect server exposes the
+stores all time-series data and ML artefacts. The Prefect server exposes the
 orchestration API and web UI. The Prefect worker polls for scheduled runs and
 manages a Docker work pool. Loki receives structured log streams from Python via
 \texttt{python-logging-loki}, and Prometheus scrapes service metrics from
@@ -68,7 +68,7 @@ logs back to Loki before being removed automatically on completion.
 
 Data enters the platform through the ENTSO-E Transparency Platform API, where
 four fetch functions retrieve energy prices, total-load forecasts, generation
-forecasts, and wind and solar forecasts for each configured bidding area.
+forecasts, and wind and solar forecasts for each configured bidding zone.
 The raw XML responses are parsed by typed mapper functions that produce
 \texttt{Observations} and \texttt{Forecast} domain objects, which are then
 ingested into ClickHouse tables \texttt{algo.timeseries} and
@@ -79,7 +79,7 @@ call \texttt{drop\_duplicates} on the loaded DataFrame to ensure correctness. A
 preprocessor loads this data, pivots it to a daily-wide feature matrix through a
 configurable sequence of feature transformers, and feeds it to either the
 backtest engine for offline evaluation or the live runner for day-ahead
-production forecasting. Predictions and trained model artifacts are persisted to
+production forecasting. Predictions and trained model artefacts are persisted to
 \texttt{algo.experiment\_runs}, \texttt{algo.experiment\_predictions}, and
 \texttt{algo.model\_artifacts}, from where the reconciliation flow back-fills
 actuals the following day and the drift-detection flow compares the recent price
@@ -225,12 +225,14 @@ git SHA and the data window it used, which together fix the code version and the
 data behind any run. The \texttt{GIT\_SHA} is baked into the image at
 build time rather than resolved at runtime, because the deploy host holds only
 the built image and not the source tree, and local runs emit an empty string so
-a dirty tree never stamps a misleading SHA. Third, the modelling pipeline is itself deterministic given the
-config. Calibration windows and the \texttt{AsinhScaler} target transform are
-fixed in the committed configs, and the DNN ensemble averages
+a dirty tree never stamps a misleading SHA. Third, the modelling pipeline is driven entirely by the committed config.
+The calibration windows and the \texttt{AsinhScaler} target transform are
+fixed there, and the DNN ensemble averages
 \texttt{n\_dnn\_ensemble} replicates with distinct, enumerated random seeds, so
-the trained ensemble is fully described by the config and a deterministic seed
-sequence.
+the training inputs and seed sequence are fully pinned. LEAR is deterministic
+and reproduces to solver tolerance, while the deep models' controlled re-run is
+left to future work, since GPU-kernel non-determinism is not yet suppressed
+(\S\ref{sec:res-repro}).
 
 Docker Compose, not Kubernetes, runs the container runtime. At single-host
 scope, a control plane, etcd, and Helm charts are unjustified overhead
@@ -337,7 +339,7 @@ for production reconciliation; \texttt{WANDB\_MODE=disabled} no-ops it in CI and
 local development.
 
 A filesystem model store was rejected. Storing artefacts as blobs in
-\texttt{algo.model\_artifacts} keeps them attached to the experiment row rather
+\texttt{algo.model\_\allowbreak artifacts} keeps them attached to the experiment row rather
 than in a separately managed path. MLflow was evaluated and deferred until the
 experiment-config count exceeds ten. At the current scale ClickHouse and W\&B
 together cover the audit-log and research-surface roles without adding a service
@@ -442,7 +444,7 @@ reconciliation-and-drift loop that closes back onto the store.
 \begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{f2-data-plane}
-  \caption{Data plane (high level). ENTSO-E data is ingested into ClickHouse; the forecasting pipeline loads it, builds features, and trains and serves the models, writing predictions and artifacts back. The daily reconciliation-and-drift loop reads those predictions, writes back actuals and metrics, and raises alerts or retraining.}
+  \caption{Data plane (high level). ENTSO-E data is ingested into ClickHouse; the forecasting pipeline loads it, builds features, and trains and serves the models, writing predictions and artefacts back. The daily reconciliation-and-drift loop reads those predictions, writes back actuals and metrics, and raises alerts or retraining.}
   \label{fig:f2-data-plane}
 \end{figure}
 
