@@ -26,6 +26,7 @@ import matplotlib
 matplotlib.use("Agg")  # headless: no display needed
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
 # Match the thesis body font (Liberation Sans, the Arial-metric DTU font) so the
 # rendered figures are typographically consistent with the surrounding text.
@@ -71,27 +72,38 @@ def plot_gw_heatmap(forecasts_by_model, actuals, out_path: Path) -> None:
     for i in range(len(labels)):
         for j in range(len(labels)):
             value = data[i, j]
-            ax.text(
-                j, i, "--" if np.isnan(value) else f"{round(float(value), 4):.3f}",
-                ha="center", va="center", fontsize=8,
-            )
+            if np.isnan(value):
+                txt, color = "--", "black"
+            else:
+                r, g, b, _ = im.cmap(im.norm(value))
+                txt = f"{round(float(value), 4):.3f}"
+                # white text on dark cells (very low / very high p), black on light
+                color = "white" if (0.299 * r + 0.587 * g + 0.114 * b) < 0.5 else "black"
+            ax.text(j, i, txt, ha="center", va="center", fontsize=8, color=color)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
 
 
-def plot_forecast_week(forecasts_by_model, actuals, out_path: Path, days: int = 7) -> None:
-    selected = actuals.index[:days]
+def plot_forecast_week(forecasts_by_model, actuals, out_path: Path, start=None, days: int = 7) -> None:
+    if start is None:
+        selected = actuals.index[:days]
+    else:
+        start = pd.Timestamp(start)
+        selected = actuals.index[(actuals.index >= start) & (actuals.index < start + pd.Timedelta(days=days))]
     n_periods = actuals.shape[1]
     x = np.arange(len(selected) * n_periods)
     fig, ax = plt.subplots(figsize=(9.0, 3.2))
     ax.plot(x, actuals.loc[selected].to_numpy(float).reshape(-1), color="black", lw=1.6, label="Actual")
     for name, frame in forecasts_by_model.items():
         ax.plot(x, frame.loc[selected].to_numpy(float).reshape(-1), lw=1.0, alpha=0.85, label=name)
+    ax.axhline(0, color="0.6", lw=0.6, zorder=0)
     for day in range(1, len(selected)):
         ax.axvline(day * n_periods, color="grey", lw=0.4, ls=":")
-    ax.set_xlabel("hour of week")
+    day_centres = [d * n_periods + n_periods / 2 for d in range(len(selected))]
+    ax.set_xticks(day_centres)
+    ax.set_xticklabels([d.strftime("%a\n%d %b") for d in selected], fontsize=7)
     ax.set_ylabel("price (EUR/MWh)")
     ax.legend(ncol=4, fontsize=8, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False)
     fig.tight_layout()
@@ -106,7 +118,7 @@ def plot_mae_by_hour(forecasts_by_model, actuals, out_path: Path) -> None:
     for name, frame in forecasts_by_model.items():
         mae = np.mean(np.abs(actual - frame.to_numpy(float)), axis=0)
         ax.plot(range(n_periods), mae, marker="o", ms=2.5, lw=1.0, label=name)
-    ax.set_xlabel("delivery period")
+    ax.set_xlabel("hour of day")
     ax.set_ylabel("MAE (EUR/MWh)")
     ax.legend(fontsize=8)
     fig.tight_layout()
@@ -129,9 +141,12 @@ def main() -> None:
             continue
         forecasts_by_model, actuals = _market_frames(experiments, args.results_dir)
         plot_gw_heatmap(forecasts_by_model, actuals, args.out_dir / f"gw_heatmap_{slug}.pdf")
-        plot_forecast_week(forecasts_by_model, actuals, args.out_dir / f"forecast_week_{slug}.pdf")
         plot_mae_by_hour(forecasts_by_model, actuals, args.out_dir / f"mae_by_hour_{slug}.pdf")
-        print(f"wrote 3 figures for {market} -> {args.out_dir}")
+        if market == "DK1":
+            # Forecast-week contrast: a calm low-renewable week vs a high-renewable week.
+            plot_forecast_week(forecasts_by_model, actuals, args.out_dir / "forecast_calm_dk1.pdf", start="2026-02-02")
+            plot_forecast_week(forecasts_by_model, actuals, args.out_dir / "forecast_renew_dk1.pdf", start="2026-05-25")
+        print(f"wrote figures for {market} -> {args.out_dir}")
 
 
 if __name__ == "__main__":

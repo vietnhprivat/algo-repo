@@ -38,8 +38,7 @@ feature sets, recalibration scheme, metrics, and statistical tests as the papers
 on current data. Relative accuracy is then measured through the relative mean
 absolute error (rMAE) that Lago et al.~\cite{lago2021} designed for cross-period
 and cross-market comparison, alongside the ordinal ranking of the models against
-the rankings the papers report. Head-to-head significance is tested last, with
-paired Diebold--Mariano~\cite{diebold1995dm} and
+the rankings the papers report. Head-to-head significance is tested last, with paired
 Giacomini--White~\cite{giacomini2006gw} tests across the three models and a
 weekly-naive baseline, per market, on identical test days. Because all six
 experimental runs, three models across two markets, share a single test window,
@@ -189,7 +188,7 @@ supplied by the multi-window recalibration scheme of
 
 \subsection{Deep neural network}
 
-The DNN is a multilayer perceptron with two hidden layers that maps the feature
+The DNN is a multi-layer perceptron with two hidden layers that maps the feature
 vector of Eq.~\eqref{eq:mm-featurecount} to all $n$ delivery periods in a single
 forward pass, a multiple-input multiple-output design (Fig.~\ref{fig:mm-dnn}).
 
@@ -197,7 +196,7 @@ forward pass, a multiple-input multiple-output design (Fig.~\ref{fig:mm-dnn}).
   \centering
   \includegraphics[width=0.82\linewidth]{f-dnn-architecture}
   \caption{The DNN, after Lago et al.~\cite{lago2021}, Fig.~4, a fully-connected
-  multilayer perceptron from the feature vector of Eq.~\eqref{eq:mm-featurecount}
+  multi-layer perceptron from the feature vector of Eq.~\eqref{eq:mm-featurecount}
   to the $n$ delivery periods. The two hidden layers share a single tuned width
   (Table~\ref{tab:mm-dnn-hp}, 191 for DK1 and 373 for DE); the number of units drawn
   is schematic.}
@@ -205,7 +204,7 @@ forward pass, a multiple-input multiple-output design (Fig.~\ref{fig:mm-dnn}).
 \end{figure}
 
 It is trained to minimise the mean absolute error with the Adam optimiser, with
-optional L1 weight regularisation, optional batch normalisation, and early
+optional $L^1$ weight regularisation, optional batch normalisation, and early
 stopping (the best weights, by validation loss, restored from memory). The
 serving prediction is the arithmetic mean of four replicates trained from
 distinct random seeds, following Lago et al.~\cite{lago2021}, \S4.4; this
@@ -214,7 +213,7 @@ backtest behind the Chapter~\ref{ch:results-models} results trains a single
 network per recalibration at a fixed seed, so the reported DNN metrics carry the
 seed variance of one draw. The six
 architecture hyperparameters (hidden-layer width, activation, dropout, learning
-rate, the batch-normalisation flag, and the L1 penalty) are selected per market
+rate, the batch-normalisation flag, and the $L^1$ penalty) are selected per market
 by the tuning protocol of \S\ref{sec:mm-tuning}; Table~\ref{tab:mm-dnn-hp} lists
 the values in force.
 
@@ -225,7 +224,7 @@ the values in force.
   \renewcommand{\arraystretch}{1.3}
   \begin{tabularx}{\linewidth}{@{}l l l l l l >{\raggedright\arraybackslash}X@{}}
     \toprule
-    \textbf{Market} & \textbf{Width} & \textbf{Activation} & \textbf{Dropout} & \textbf{Learning rate} & \textbf{Batch norm} & \textbf{L1 penalty} \\
+    \textbf{Market} & \textbf{Width} & \textbf{Activation} & \textbf{Dropout} & \textbf{Learning rate} & \textbf{Batch norm} & \textbf{$L^1$ penalty} \\
     \midrule
     DK1 & 191 & tanh & 0.203 & $4.8\times10^{-4}$ & no  & $6.8\times10^{-8}$ \\
     DE  & 373 & relu & 0.204 & $6.9\times10^{-4}$ & yes & $7.1\times10^{-7}$ \\
@@ -334,8 +333,7 @@ the daily loss differential
 is formed over the $n$ delivery periods of day $t$ (the $L^1$ norm of the
 errors), and the test statistic $\bar{d}/\hat{\sigma}_{\bar d}$ is computed with
 a Newey--West heteroskedasticity- and autocorrelation-consistent standard error
-using a lag of $\lfloor T^{1/4}\rfloor$ over the $T$ test days. The univariate
-Diebold--Mariano test~\cite{diebold1995dm} is reported as a complement. Models
+using a lag of $\lfloor T^{1/4}\rfloor$ over the $T$ test days. Models
 are compared on the test days that all of them produced, since the different
 feature pipelines drop gap and daylight-saving days slightly differently across
 model families. Finally, computation cost is reported as the training time per
@@ -351,7 +349,7 @@ Transformer reuses the paper optimum (Table~\ref{tab:mm-models}). Its six
 architecture hyperparameters are searched with Optuna's Tree-structured Parzen
 Estimator over hidden-layer width ($16$--$512$, log), activation
 (relu, tanh, elu, softplus, or sigmoid), dropout ($0$--$0.5$), learning rate
-($10^{-5}$--$10^{-1}$, log), the batch-normalisation flag, and the L1 penalty
+($10^{-5}$--$10^{-1}$, log), the batch-normalisation flag, and the $L^1$ penalty
 ($10^{-8}$--$10^{-2}$, log). The objective is the mean MAE over a strictly
 ex-ante validation window (2025-01-01 to 2025-10-23, the 42 weeks before the test
 window; \cite{lago2021}, \S4.3.2), scored under the same walk-forward engine as
@@ -381,7 +379,7 @@ and none changes the model class or the feature definition.
     \textbf{Aspect} & \textbf{Paper} & \textbf{This work (reason)} \\
     \midrule
     Test length            & $\geq$ 1--2 years            & 31 weeks (price history starts 2022-03, and validation and calibration consume the rest) \\
-    DNN tuning budget      & 1500 TPE iterations          & 30 trials (compute, with the optimum stable early in prior studies) \\
+    DNN tuning budget      & 1500 TPE iterations          & 30 trials (compute budget, architecture-only search space) \\
     DNN search space       & architecture + feature selectors & architecture only (feature set fixed to the paper specification) \\
     LEAR windows           & 56 / 84 / 1092 / 1456\,d     & 56 / 84 / 1092\,d (1456 predates the data) \\
     DNN window             & 4 years                      & 730\,d (data and compute constraint) \\

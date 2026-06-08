@@ -14,9 +14,10 @@ models specified in Chapter~\ref{ch:methods-models}. Six backtests were run,
 covering LEAR, the DNN, and the Transformer, each on DK1 and DE, over a single
 shared hourly test window (2025-10-24 to 2026-05-31) with the paper-exact
 feature sets. Within each market the models are compared on the test days that
-all of them produced. Because the Transformer's fourteen-day input sequence
-consumes more leading days than the other pipelines, this common set is 187 days
-on DK1 and 176 on DE. The chapter reports headline accuracy
+all of them produced. After warmup, gap, and daylight-saving days are dropped,
+LEAR and the DNN retain 204 test days on DK1 and 201 on DE, and the Transformer's
+fourteen-day input sequence consumes more leading days still, so the common set
+is 187 days on DK1 and 176 on DE. The chapter reports headline accuracy
 (\S\ref{sec:rm-headline}), statistical significance (\S\ref{sec:rm-significance}),
 and computation cost (\S\ref{sec:rm-cost}), then sets the results against the
 published benchmarks (\S\ref{sec:rm-papers}).
@@ -82,28 +83,37 @@ al.~\cite{lago2021}, \S5.4, designate as primary. On the squared-error criterion
 the DNN is preferable. Whether either difference is statistically meaningful is
 the subject of \S\ref{sec:rm-significance}.
 
-Figures~\ref{fig:rm-forecast-week} and~\ref{fig:rm-mae-hour} make these orderings
-concrete, showing the forecasts against realised prices over a sample week and
-the absolute error broken down by delivery period.
+Figure~\ref{fig:rm-forecast-week} makes these orderings concrete and explains the
+Transformer's standing. It contrasts a calm winter week, in which all three
+models track the price closely, with a high-renewable week in late May whose
+negative-price hours and sharp peak the Transformer smooths over while LEAR and
+the DNN follow them. The effect is not merely that volatile weeks carry larger
+prices. Relative to the weekly-naive baseline, LEAR's and the DNN's monthly rMAE
+stays roughly flat across the window, whereas the Transformer's climbs in the
+renewable-heavy months, reaching 0.92 on DK1 in May, which is what accounts for
+its third place. Figure~\ref{fig:rm-mae-hour} breaks the error down by hour of
+day.
 
 \begin{figure}[h]
   \centering
   \begin{subfigure}{\linewidth}
     \centering
-    \includegraphics[width=\linewidth]{forecast_week_dk1}
-    \caption{DK1}
-    \label{fig:rm-forecast-week-dk1}
+    \includegraphics[width=\linewidth]{forecast_calm_dk1}
+    \caption{Calm low-renewable week (2--8 February 2026)}
+    \label{fig:rm-forecast-calm}
   \end{subfigure}\\[6pt]
   \begin{subfigure}{\linewidth}
     \centering
-    \includegraphics[width=\linewidth]{forecast_week_de}
-    \caption{DE}
-    \label{fig:rm-forecast-week-de}
+    \includegraphics[width=\linewidth]{forecast_renew_dk1}
+    \caption{Volatile high-renewable week (25--31 May 2026)}
+    \label{fig:rm-forecast-renew}
   \end{subfigure}
-  \caption{Day-ahead forecasts against realised prices over the opening seven
-  days of each market's test window (from 2025-10-24), with dotted lines marking
-  day boundaries. The three models track the daily price cycle; LEAR overshoots
-  the sharpest DK1 peaks and the Transformer the German ones.}
+  \caption{DK1 day-ahead forecasts against realised prices in a calm
+  low-renewable week and a volatile high-renewable week, with vertical lines
+  marking day boundaries and the grey line at zero. In the calm week all three
+  models track the price closely. In the high-renewable week, with negative-price
+  hours and a sharp scarcity peak, the Transformer smooths over both extremes
+  while LEAR and the DNN follow them.}
   \label{fig:rm-forecast-week}
 \end{figure}
 
@@ -121,10 +131,10 @@ the absolute error broken down by delivery period.
     \caption{DE}
     \label{fig:rm-mae-hour-de}
   \end{subfigure}
-  \caption{Mean absolute error by delivery period (hour of day) across the test
-  window. Error is smallest overnight and largest on the morning and evening
-  ramps, and the Transformer's error exceeds LEAR's and the DNN's at most
-  periods.}
+  \caption{Mean absolute error by hour of day across the full test window
+  (2025-10-24 to 2026-05-31). Error is smallest overnight and largest on the
+  morning and evening ramps, and the Transformer's error exceeds LEAR's and the
+  DNN's at most periods.}
   \label{fig:rm-mae-hour}
 \end{figure}
 

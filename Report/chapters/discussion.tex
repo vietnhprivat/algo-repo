@@ -1,7 +1,7 @@
 \chapter{Discussion}
 \label{ch:discussion}
 
-This chapter answers the three research questions of \S\ref{ch:introduction} and
+This chapter answers the three research questions of Chapter~\ref{ch:introduction} and
 then draws the forecasting and system threads together. The forecasting answer
 (RQ1) rests on results reported in Chapter~\ref{ch:results-models}. The
 engineering and maturity answers (RQ2, RQ3) synthesise the system implementation
@@ -12,7 +12,7 @@ and its evaluation.
 
 The head-to-head comparison of LEAR, the DNN, and the Transformer across DK1 and
 DE is reported in Chapter~\ref{ch:results-models}, on a single shared test window
-with paired Diebold--Mariano and Giacomini--White tests, and against both a
+with paired Giacomini--White tests, and against both a
 weekly-naive baseline and the rankings of Lago et al.~\cite{lago2021} and
 Llorente and Portela~\cite{llorente2025transformer}. Because the source papers'
 test periods predate the present price regime, the comparison is read through
@@ -104,7 +104,11 @@ DevOps-inherited ones (CI/CD automation, versioning, containerised
 reproducibility, and monitoring), because they transfer directly from software
 engineering, whereas the ML-specific data-quality discipline (feature-benefit,
 feature-cost, and slice analyses) is where the platform is weakest and where
-further investment would most raise its maturity. The single-host scope reaches
+further investment would most raise its maturity. The practices that proved most
+critical, by contrast, were reproducibility and metadata tracking, since the
+provenance they provide is what lets any forecast be reconstructed and audited,
+and it is on that provenance that the platform's cross-thread trustworthiness
+rests. The single-host scope reaches
 its limit at three points. The artifact store suits LEAR's hundred-kilobyte
 blobs but not multi-megabyte neural weights; there is no model-quality gate
 before serving; and forecasting and drift reach only two of the seven ingested

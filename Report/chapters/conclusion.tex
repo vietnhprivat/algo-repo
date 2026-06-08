@@ -13,9 +13,11 @@ opt-in flag. Every realised practice is traced to a concrete repository artefact
 a Prefect deployment, a ClickHouse migration, a GitHub Actions workflow, or a
 Grafana dashboard. The qualitative ``realised'' labels are backed by measured
 values, each recomputable on demand from the live system. They comprise an ML
-Test Score of 2.5 bound by data testing, and provenance-triple coverage of
+Test Score of 2.5 bound by data testing, and provenance coverage of
 66.7\,\% supported by a re-run that reproduced a logged forecast to within
-$7\times10^{-6}$\,EUR/MWh. On the forecasting axis, the faithful replication of LEAR, the DNN,
+$7\times10^{-6}$\,EUR/MWh. Embedding the models also exposed the engineering
+trade-offs this raised, which mostly aligned the demands of a faithful benchmark
+with those of a small production platform. On the forecasting axis, the faithful replication of LEAR, the DNN,
 and the Transformer across DK1 and DE, evaluated with paired significance tests
 on a shared recent window, is reported in Chapter~\ref{ch:results-models}.
 On both markets LEAR proved the most accurate model and the DNN its statistical

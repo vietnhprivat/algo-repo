@@ -17,16 +17,17 @@ framing that matches comparable MLOps evaluations in the electricity-forecasting
 domain~\cite{subramanya2022devops2mlops}. No controlled comparison against a
 second platform is attempted.
 
-The evaluation composes four established instruments introduced in
-\S\ref{sec:bg-eval}, three objective measurements and one structured
+The evaluation composes three established instruments introduced in
+\S\ref{sec:bg-eval}, two objective measurements and one structured
 self-assessment. An objective measurement is a number a script recomputes on
 demand from code, git history, or the database, via
 \texttt{scripts/report/extract\_metrics.py} and \texttt{reproduce\_run.py}. The
 self-assessment is the ML Test Score, a rubric whose every item carries one line
-of evidence a reader can check or contest. Between them the four instruments
-evidence eight of Zarour et al.'s nine practices~\cite{zarour2025}. The ninth,
-collaboration and communication, is qualitative and is documented in the system
-chapter (Chapter~\ref{ch:system-implementation}) rather than measured here. Each
+of evidence a reader can check or contest. The maturity placement of
+\S\ref{sec:res-maturity} then positions all nine of Zarour et al.'s
+practices~\cite{zarour2025} against this evidence and the system chapter
+(Chapter~\ref{ch:system-implementation}). Of the nine, collaboration and
+communication is evidenced qualitatively, not by a recomputed number. Each
 instrument is applied below and its result reported.
 
 % -----------------------------------------------------------------------------
@@ -66,10 +67,12 @@ the data section the system scores for enforcing strict input schemas
 does not formally document the
 feature-benefit, feature-cost, or privacy analyses the rubric also rewards, and
 has no data-quality CI gate. This is the system's primary remaining
-investment area. The score is conservative. Two data items could each be argued to 0.5, that the Lasso performs feature
-selection and that the feature set is grounded in Lago et al.~\cite{lago2021},
-which would lift the data section to 3.0 and the headline to 3.0. They are left
-at zero absent a documented analysis, so the reported score is a lower bound.
+investment area. The score is conservative. One data item, that all features are beneficial,
+could be argued to 0.5 on two grounds, namely that the Lasso performs feature
+selection and that the feature set is grounded in Lago et al.~\cite{lago2021}.
+Either argument would lift the data section to 3.0 and the headline to 3.0. The
+item is left at zero absent a documented analysis, so the reported score is a
+lower bound.
 
 % -----------------------------------------------------------------------------
 \section{Reproducibility}
@@ -81,7 +84,7 @@ Kjensmo~\cite{gundersen2018reproducibility}.
 
 \begin{table}[h]
   \centering
-  \caption{Provenance triple coverage across 15 live runs in the window.}
+  \caption{Provenance coverage across 15 live runs in the window.}
   \label{tab:res-repro-coverage}
   \renewcommand{\arraystretch}{1.3}
   \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X r@{}}
@@ -93,12 +96,12 @@ Kjensmo~\cite{gundersen2018reproducibility}.
     \texttt{data\_end\_utc}                    & 100.0\,\% (15 / 15) \\
     \texttt{model\_artifact\_id}               & 100.0\,\% (15 / 15) \\
     \midrule
-    \textbf{Full triple (all four)}             & \textbf{66.7\,\% (10 / 15)} \\
+    \textbf{Full set (all four)}                & \textbf{66.7\,\% (10 / 15)} \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-Of the 15 live runs in the window, 66.7\,\% carry the complete provenance triple
+Of the 15 live runs in the window, 66.7\,\% carry the complete provenance set
 (Table~\ref{tab:res-repro-coverage}). The shortfall is entirely on
 \texttt{git\_sha}. The data-window and artefact columns are populated for every
 run from day one, while five early runs predate the CD pipeline that bakes
@@ -147,7 +150,7 @@ a Google level to each of Zarour's nine practices, with one line of evidence
 apiece. The three status labels map to the evidence already presented. A practice
 is \emph{Realised} when a concrete, production-running artefact closes it
 end-to-end, and \emph{Minimal} when the mechanism exists but its scope is
-limited by design. Eight of the nine are Realised. The ninth, the feedback
+limited by design. Eight of the nine are Realised. The exception, P9 the feedback
 loop, is Minimal, since drift-triggered retraining exists but is scoped to two
 areas behind an opt-in flag, consistent with the monitoring-not-trigger argument
 of \S\ref{sec:res-drift}. The levels themselves are descriptive ordinals and
@@ -161,9 +164,9 @@ the ML Test Score and reproducibility results above.
   \renewcommand{\arraystretch}{1.3}
   \begin{tabularx}{\linewidth}{@{}l l c >{\raggedright\arraybackslash}X@{}}
     \toprule
-    \textbf{Practice} & \textbf{Status} & \textbf{Google level} & \textbf{One-line evidence} \\
+    \textbf{Practice} & \textbf{Status} & \textbf{Level} & \textbf{One-line evidence} \\
     \midrule
-    P1 Automating CI/CD              & Realised & 2 & \texttt{pr\_test}/\texttt{pr\_ruff-lint}/\texttt{pr\_smoke} PR gates, \texttt{cd\_deploy} on every merge to \texttt{main}, 20 production deploys over the window at about 1.56 per week \\
+    P1 Automating CI/CD              & Realised & 2 & \texttt{pr\_test} / \texttt{pr\_ruff-lint} / \texttt{pr\_smoke} PR gates, \texttt{cd\_deploy} on every merge to \texttt{main} \\
     P2 Orchestrating workflows       & Realised & 2 & Prefect flows with per-area deployments on a Docker work pool \\
     P3 Ensuring reproducibility      & Realised & 2 & \texttt{GIT\_SHA} + data-window columns per run, containerised runtime in \texttt{docker-compose.yml} \\
     P4 Versioning                    & Realised & 2 & Git tracks \texttt{configs/}, numbered migrations, dashboards and alert rules all version-controlled \\

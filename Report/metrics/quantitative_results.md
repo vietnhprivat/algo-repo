@@ -32,11 +32,3 @@ _Window: last 90 days. Generated: 2026-06-04T15:07:16+00:00._
 
 - Drift reports written: **49**
 - Drift detections (`drift_detected = 1`): **49**
-
-## DORA delivery throughput
-
-- Successful deployments in window: **20**
-- Deploy frequency: **1.56/week**
-- Lead time PR-merge → cd_deploy start (p50): **0.1 min**
-- Lead time (p95): **0.1 min**
-- Change failure rate / MTTR: **not reported** (no incident corpus in window)

@@ -10,8 +10,8 @@ That system comprises the orchestration layer, infrastructure choices,
 observability stack, and CI/CD pipeline that together let the platform run
 reliably in production. It
 does not cover the modelling research itself, such as LEAR hyperparameters, DNN
-architecture, the asinh price transformation, or the Diebold--Mariano and
-Giacomini--White statistical tests (Chapter~\ref{ch:methods-models}). The
+architecture, the asinh price transformation, or the Giacomini--White statistical
+tests (Chapter~\ref{ch:methods-models}). The
 exception is where a modelling decision directly motivates or constrains an
 MLOps practice. Operational how-to material such as running backfills, adding
 new bidding areas, or re-deploying Prefect flows is kept in the repository's
@@ -98,33 +98,33 @@ Zarour practice it primarily realises.
 \begin{table}[H]
   \centering
   \scriptsize
-  \caption{Operational inventory of Prefect deployments. Cron strings are UTC; the seven backfill deployments and six forecast deployments share one flow definition apiece.}
+  \caption{Operational inventory of Prefect deployments. Cron strings are UTC; the seven backfill deployments and six forecast deployments are per-area instances of a single shared flow definition apiece.}
   \label{tab:inventory}
   \setlength{\tabcolsep}{4pt}
   \renewcommand{\arraystretch}{1.2}
-  \begin{tabularx}{\linewidth}{@{}l l l l >{\raggedright\arraybackslash}X l@{}}
+  \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{2.8cm} l l >{\raggedright\arraybackslash}X l@{}}
     \toprule
-    \textbf{Deployment} & \textbf{Area / model} & \textbf{Cron} & \textbf{Flow} & \textbf{Purpose} & \textbf{Zarour} \\
+    \textbf{Deployment} & \textbf{Area / model} & \textbf{Cron} & \textbf{Purpose} & \textbf{Zarour} \\
     \midrule
-    entsoe-backfill-dk1 & DK1 & 0 * * * * & \texttt{entsoe\_backfill\_flow} & Hourly ENTSO-E ingest & P2 \\
-    entsoe-backfill-dk2 & DK2 & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P2 \\
-    entsoe-backfill-nl  & NL  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P2 \\
-    entsoe-backfill-be  & BE  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P2 \\
-    entsoe-backfill-de  & DE  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P2 \\
-    entsoe-backfill-fr  & FR  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P2 \\
-    entsoe-backfill-pl  & PL  & 0 * * * * & {\itshape (as above)} & Hourly ENTSO-E ingest & P2 \\
+    entsoe-backfill-dk1 & DK1 & 0 * * * * & Hourly ENTSO-E ingest & P2 \\
+    entsoe-backfill-dk2 & DK2 & 0 * * * * & Hourly ENTSO-E ingest & P2 \\
+    entsoe-backfill-nl  & NL  & 0 * * * * & Hourly ENTSO-E ingest & P2 \\
+    entsoe-backfill-be  & BE  & 0 * * * * & Hourly ENTSO-E ingest & P2 \\
+    entsoe-backfill-de  & DE  & 0 * * * * & Hourly ENTSO-E ingest & P2 \\
+    entsoe-backfill-fr  & FR  & 0 * * * * & Hourly ENTSO-E ingest & P2 \\
+    entsoe-backfill-pl  & PL  & 0 * * * * & Hourly ENTSO-E ingest & P2 \\
     \midrule
-    daily-forecast-dk1\_lear        & DK1 / LEAR        & 0 6 * * * & \texttt{daily\_forecast\_flow} & Daily refit + forecast & P6 \\
-    daily-forecast-de\_lear         & DE / LEAR         & 0 6 * * * & {\itshape (as above)} & Daily refit + forecast & P6 \\
-    daily-forecast-dk1\_dnn         & DK1 / DNN         & 0 6 * * * & {\itshape (as above)} & Daily refit + forecast & P6 \\
-    daily-forecast-de\_dnn          & DE / DNN          & 0 6 * * * & {\itshape (as above)} & Daily refit + forecast & P6 \\
-    daily-forecast-dk1\_transformer & DK1 / Transformer & 0 6 * * * & {\itshape (as above)} & Daily refit + forecast & P6 \\
-    daily-forecast-de\_transformer  & DE / Transformer  & 0 6 * * * & {\itshape (as above)} & Daily refit + forecast & P6 \\
+    daily-forecast-dk1\_lear        & DK1 / LEAR        & 0 6 * * * & Daily refit + forecast & P6 \\
+    daily-forecast-de\_lear         & DE / LEAR         & 0 6 * * * & Daily refit + forecast & P6 \\
+    daily-forecast-dk1\_dnn         & DK1 / DNN         & 0 6 * * * & Daily refit + forecast & P6 \\
+    daily-forecast-de\_dnn          & DE / DNN          & 0 6 * * * & Daily refit + forecast & P6 \\
+    daily-forecast-dk1\_transformer & DK1 / Transformer & 0 6 * * * & Daily refit + forecast & P6 \\
+    daily-forecast-de\_transformer  & DE / Transformer  & 0 6 * * * & Daily refit + forecast & P6 \\
     \midrule
-    reconcile-predictions & all & 0 18 * * * & \texttt{reconcile\_predictions\_flow} & Day-after reconciliation & P7, P8 \\
+    reconcile-predictions & all & 0 18 * * * & Day-after reconciliation & P7, P8 \\
     \midrule
-    drift-detection-dk1 & DK1 & 0 19 * * * & \texttt{drift\_detection\_flow} & Drift, 90d ref vs 7d (Evidently) & P8, P9 \\
-    drift-detection-de  & DE  & 0 19 * * * & {\itshape (as above)} & Drift, 90d ref vs 7d (Evidently) & P8, P9 \\
+    drift-detection-dk1 & DK1 & 0 19 * * * & Drift, 90d ref vs 7d (Evidently) & P8, P9 \\
+    drift-detection-de  & DE  & 0 19 * * * & Drift, 90d ref vs 7d (Evidently) & P8, P9 \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -300,7 +300,7 @@ forecast. For DNN configurations
 it fits \texttt{n\_dnn\_ensemble} seed replicates and averages them, following
 Lago et al.\ \cite{lago2021}. The trained models are serialised to
 \texttt{algo.model\_artifacts}. The evaluation half of the practice is the
-reconciliation flow (\S P7--P8). The day after each forecast, realised prices
+reconciliation flow (P7--P8). The day after each forecast, realised prices
 are joined to the stored predictions and the same MAE, RMSE, and sMAPE used in
 backtesting are computed on the live forecast, so offline and online evaluation
 use one metric implementation.
