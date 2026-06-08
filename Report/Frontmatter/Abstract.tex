@@ -1,0 +1,29 @@
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+Research on day-ahead electricity price forecasting (EPF) has produced accurate
+benchmark models but evaluates them only offline, away from the concerns that
+arise once a model runs in production, such as scheduled retraining, monitoring,
+and reproducibility. This thesis addresses that gap by embedding the benchmark
+EPF models of Lago et al., the LEAR ensemble and a deep neural network, together
+with the Transformer of Llorente and Portela, in an end-to-end MLOps platform,
+and by evaluating both the forecasts and the system that serves them.
+The platform ingests ENTSO-E data on a schedule, stores it in ClickHouse,
+recalibrates and forecasts daily for the DK1 and DE bidding zones, monitors data
+and model health, and records the provenance of every run. The three models are
+replicated to specification and compared on a shared recent test window with
+paired Giacomini--White significance tests. LEAR and a
+tuned DNN are statistically tied as the most accurate models on both markets
+($p>0.16$), both significantly outperform the pure Transformer ($p\le0.013$), and
+all three beat the weekly-naive baseline. The source papers' model rankings do
+not replicate under the reduced tuning budget used here. The system is assessed
+against the nine MLOps practices of Zarour et al. Eight are realised end-to-end
+and one is minimally realised. Building the platform around the benchmark models
+surfaced engineering trade-offs that largely aligned the needs of a faithful
+replication with those of a single-host production system. The assessment is
+supported by an ML Test Score
+of 2.5 bound by data testing, and provenance coverage of 100\,\% from the
+first continuously-deployed run, 66.7\,\% across the full window, backed by a
+re-run that reproduced a logged forecast to within $7\times10^{-6}$\,EUR/MWh. The
+result is a
+reproducible, monitored EPF platform and a faithful, significance-tested model
+comparison on current market data.

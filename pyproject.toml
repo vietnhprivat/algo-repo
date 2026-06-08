@@ -83,4 +83,5 @@ explicit = true
 dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "tabulate>=0.10.0",
 ]

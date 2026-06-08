@@ -1,0 +1,156 @@
+\chapter{Discussion}
+\label{ch:discussion}
+
+This chapter answers the three research questions of Chapter~\ref{ch:introduction} and
+then draws the forecasting and system threads together. The forecasting answer
+(RQ1) rests on results reported in Chapter~\ref{ch:results-models}. The
+engineering and maturity answers (RQ2, RQ3) synthesise the system implementation
+and its evaluation.
+
+% -----------------------------------------------------------------------------
+\section{RQ1, Comparing the forecasting models}
+
+The head-to-head comparison of LEAR, the DNN, and the Transformer across DK1 and
+DE is reported in Chapter~\ref{ch:results-models}, on a single shared test window
+with paired Giacomini--White tests, and against both a
+weekly-naive baseline and the rankings of Lago et al.~\cite{lago2021} and
+Llorente and Portela~\cite{llorente2025transformer}. Because the source papers'
+test periods predate the present price regime, the comparison is read through
+rMAE and model rankings rather than absolute errors.
+
+Across both bidding zones the three models fall into two tiers. LEAR records
+the lowest mean absolute error, and with it the lowest rMAE and sMAPE, on
+both DK1 and DE (rMAE 0.469 and 0.376). The DNN follows closely (0.482 and
+0.388), and the Transformer is third (0.543 and 0.420), with all three improving
+substantially on the weekly-naive baseline. The Giacomini--White test, however,
+cannot distinguish LEAR from the DNN on either market. The hypothesis that LEAR
+is no more accurate than the DNN gives $p=0.16$ on DK1 and $p=0.19$ on DE.
+LEAR's numerical lead is therefore not a
+significant accuracy advantage, and over this window neither model can be shown
+to be the more accurate. The same test confirms that LEAR and the DNN each significantly
+outperform the Transformer ($p\le0.013$) and that every model beats the naive
+forecast ($p\approx0$). The answer to RQ1 is thus a statistical tie between
+LEAR and the DNN at the top, a significantly weaker Transformer, and a wide,
+significant margin over the naive benchmark, a pattern that holds identically
+on DK1 and DE. Both deep models are evaluated from a single seeded backtest, so
+their accuracy figures carry the variance of one training draw.
+
+Two refinements qualify this headline. First, the ranking depends on the error
+metric. As \S\ref{sec:rm-headline} showed, the DNN attains the lowest RMSE in
+both markets while LEAR leads on the absolute-error measures, so the DNN
+controls the worst misforecasts better than LEAR even where its mean
+error is marginally larger, a distinction that matters whenever large
+individual errors are disproportionately costly. Second, the accuracy tie does
+not extend to cost. On the platform's GPU the DNN recalibrates in about a second
+per day against LEAR's forty to fifty (Table~\ref{tab:results-cost}), so it
+delivers statistically equal accuracy for far less compute. Where two
+models are tied on accuracy, this asymmetry favours the DNN.
+
+Measured against the source papers, the comparison replicates one result and
+inverts two. It reproduces the finding of Lago et al.~\cite{lago2021} that the
+accuracy gap between LEAR and the DNN is frequently insignificant. Here the two
+are statistically tied. It does not reproduce the papers' point rankings. Lago
+et al.\ place the DNN at least level with LEAR, yet here LEAR is numerically
+ahead (though tied), and Llorente and Portela~\cite{llorente2025transformer}
+place their Transformer above the DNN, yet here the Transformer is significantly
+the weakest model. The explanation is more likely procedural than
+architectural. The deep models were optimised far less than LEAR in this study.
+The DNN was tuned for 30 TPE trials against the paper's 1500, and the
+Transformer reused the paper's Nord Pool hyperparameters without per-market
+retuning, adapted into the rolling calibration-window-and-weekly-refit pipeline
+of the other models rather than its native train-once-and-renormalise scheme
+(Chapter~\ref{ch:methods-models}, Table~\ref{tab:mm-deviations}). LEAR, by
+contrast, re-selects its penalty by cross-validation at every daily
+recalibration and so has little remaining tuning headroom. The inversion is
+therefore better read as a measure of how much tuning the deep models need to
+express their reported advantage than as evidence that their architectures are
+weaker. Narrowing that gap is the leading item of modelling future work
+(Chapter~\ref{ch:conclusion}).
+
+% -----------------------------------------------------------------------------
+\section{RQ2, Engineering trade-offs of productionising an EPF benchmark}
+
+Embedding the benchmark models in a scheduled, containerised pipeline surfaced a
+series of trade-offs, each resolved in favour of the single-host MVP scope. The
+most consequential is the choice of a full refit from scratch on every daily run
+over warm-start or incremental learning. Because the daily data increment is
+small relative to the calibration windows, a clean refit is cheap and avoids
+accumulated approximation error, and, as RQ3 and the drift discussion show,
+it also makes the model fresh enough that drift-triggered retraining becomes
+redundant. Co-locating training and prediction in a single Prefect flow trades a
+small amount of recomputation for the guarantee that the served model always
+matches the forecast it produced, removing a class of coordination failure. Using
+ClickHouse as the single store for time-series, predictions, metrics, and model
+artefacts makes day-after reconciliation one query rather than a cross-system
+join, at the cost of a base64-blob artefact representation that will not scale to
+large neural weights. And serving the paper-strict feature set in production,
+rather than a separate, richer operational feature set, keeps the deployed
+models bit-faithful to the benchmark, at the cost of forgoing features that might
+help operationally but would break the replication. In most cases the needs of a
+faithful benchmark and of a small production platform lined up, both favouring
+simplicity, determinism, and a single source of truth.
+
+% -----------------------------------------------------------------------------
+\section{RQ3, Critical practices and the limits of a single-host platform}
+
+Of Zarour's nine practices, eight are realised end-to-end and one, the
+feedback loop, is minimally realised (Table~\ref{tab:maturity}). The
+quantitative evaluation locates the binding constraint precisely. The ML Test
+Score of 2.5 is bound by the data-testing section, not by infrastructure or
+monitoring, which both score higher. In other words, for this platform the
+practices that proved easiest to realise to a high level were the
+DevOps-inherited ones (CI/CD automation, versioning, containerised
+reproducibility, and monitoring), because they transfer directly from software
+engineering, whereas the ML-specific data-quality discipline (feature-benefit,
+feature-cost, and slice analyses) is where the platform is weakest and where
+further investment would most raise its maturity. Monitoring carries one
+qualification of its own. The drift detector flagged every report over the
+window (\S\ref{sec:res-drift}), so although the practice is wired end-to-end its
+drift signal is currently uninformative and needs recalibration. The practices that proved most
+critical, by contrast, were reproducibility and metadata tracking, since the
+provenance they provide is what lets any forecast be reconstructed and audited,
+and it is on that provenance that the platform's cross-thread trustworthiness
+rests. The single-host scope reaches
+its limit at three points. The artefact store suits LEAR's hundred-kilobyte
+blobs but not multi-megabyte neural weights; there is no model-quality gate
+before serving; and forecasting and drift reach only two of the seven ingested
+bidding zones. Each is a bounded MVP choice with a named adoption trigger
+(Chapter~\ref{ch:system-implementation}), not an oversight.
+
+% -----------------------------------------------------------------------------
+\section{Tying the threads together}
+
+The two threads are mutually reinforcing, not independent. Several
+modelling decisions are only defensible because of the system around them.
+Downsampling both markets to an hourly grid validates the cross-market and
+cross-paper comparison, and the cheap, scheduled daily refit licenses treating
+drift detection as monitoring rather than as a retraining
+trigger, following the cost-aware argument of Mahadevan and
+Mathioudakis~\cite{mahadevan2024costaware}. Conversely, the system's central
+claim, that any forecast can be reconstructed from its logged provenance,
+is what makes the forecasting replication itself trustworthy. The worked re-run
+that reproduced a logged LEAR forecast to within $7\times10^{-6}$\,EUR/MWh
+(\S\ref{sec:res-repro}) is evidence about the modelling thread as much as the
+system thread. The forecasting work exercises the platform under real operating
+conditions, and the platform's provenance logging lets those forecasts
+be checked and rerun.
+
+% -----------------------------------------------------------------------------
+\section{Limitations}
+
+The limitations span both threads and are collected here. On the modelling side,
+the test window is 31 weeks rather than the one-to-two years the source papers
+recommend, a consequence of the data history. The DNN hyperparameters are tuned
+on an architecture-only search space, with Lago's ten binary feature-selector
+hyperparameters left as fixed config decisions because the preprocessor exposes
+no toggles for them. The Transformer reuses the paper's search-range defaults
+rather than per-market optima, and each deep model is evaluated from a single
+seeded backtest run, so its result carries the variance of one draw, a caveat
+that bears most on the Transformer's third place. The work forecasts point
+prices, not probabilistic distributions. On the system side, the evaluation is a
+single-case study with no controlled comparison, the ML Test Score is
+self-administered and mitigated by the per-item evidence in
+Appendix~\ref{app:mlts-worksheet}, forecasting and drift cover only DK1 and DE,
+the ClickHouse blob artefact store will not scale to large neural weights, and
+the drift detector over-flags. These are revisited as concrete future work in
+Chapter~\ref{ch:conclusion}.

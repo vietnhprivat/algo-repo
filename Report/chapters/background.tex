@@ -1,0 +1,126 @@
+\chapter{Background and Related Work}
+\label{ch:background}
+
+This chapter reviews the two literatures the thesis joins, electricity price
+forecasting and MLOps, together with the evaluation methodology it borrows
+from empirical software engineering. Section~\ref{sec:bg-epf} covers day-ahead
+EPF and its statistical character. Section~\ref{sec:bg-lago} introduces the
+open-access benchmark that anchors the modelling thread.
+Section~\ref{sec:bg-transformer} describes the Transformer approach that supplies
+the third model. Section~\ref{sec:bg-mlops} sets out the MLOps practices and
+maturity models behind the system thread. Section~\ref{sec:bg-eval} lists the
+instruments used to evaluate the platform.
+
+% -----------------------------------------------------------------------------
+\section{Day-ahead electricity price forecasting}
+\label{sec:bg-epf}
+
+In a day-ahead market, participants submit bids for each delivery period of the
+following day and a uniform clearing price is set, once per day, at the
+intersection of aggregated supply and demand within each bidding zone. The
+clearing price is set by the marginal generator, so it inherits the cost
+structure of the generation mix and the topology of cross-border exchange.
+This mechanism produces a price series with pronounced multi-scale seasonality
+(daily, weekly, and annual), heavy tails, and sudden spikes driven by scarcity
+or congestion. As wind and solar capacity has grown, sharp drops and outright negative
+prices have become routine, occurring when inflexible must-run generation
+coincides with high renewable infeed and low demand. Weron's
+review \cite{weron2014} surveys the statistical and computational-intelligence
+methods developed for this problem, and Nowotarski and Weron
+\cite{nowotarski2018} extend the picture to probabilistic forecasting. Both
+emphasise that the EPF methodology, and not only the choice of model, determines
+whether reported gains are real.
+
+% -----------------------------------------------------------------------------
+\section{The Lago et al.\ open-access benchmark}
+\label{sec:bg-lago}
+
+Lago et al.\ \cite{lago2021} address the reproducibility problem in EPF directly,
+contributing an open-access benchmark comprising five market datasets (Nord
+Pool, PJM, and the EPEX zones BE, FR, and DE), two reference models, and the
+\texttt{epftoolbox} library that standardises data splits and evaluation. The
+first reference model, LEAR (Lasso Estimated AutoRegressive), fits an
+$L^1$-regularised linear model over a parameter-rich feature space of price lags,
+exogenous forecasts, and calendar dummies. The Lasso performs feature selection
+and coefficient estimation jointly, which keeps the rich input space tractable.
+The second is a deep neural network, a multi-layer perceptron whose
+architecture and inputs are tuned per dataset. Despite its simplicity, LEAR
+matched or outperformed the deep alternative when evaluated over long test
+periods, which is why it serves as the modelling foundation of this thesis.
+
+Two methodological contributions of the benchmark are reused here directly.
+First, models are recalibrated on a rolling window and their forecasts averaged
+across an ensemble of window lengths, rather than trained once. Second, the
+benchmark argues for the relative mean absolute error (rMAE), which normalises
+the model's error by that of a naive baseline so that results remain comparable
+across periods and markets, and for formal significance testing of accuracy
+differences via the Diebold--Mariano \cite{diebold1995dm} and multivariate
+Giacomini--White \cite{giacomini2006gw} tests. The benchmark also adopts the
+inverse-hyperbolic-sine (asinh) variance-stabilising transform of Uniejewski et
+al.\ \cite{uniejewski2018vst}, which compresses spikes while remaining defined
+for negative prices.
+
+% -----------------------------------------------------------------------------
+\section{Transformer approaches to EPF}
+\label{sec:bg-transformer}
+
+Attention-based architectures have more recently been applied to EPF. Llorente
+and Portela \cite{llorente2025transformer} propose an encoder-only Transformer.
+It takes two inputs, a sequence of the previous days' prices and the day-ahead
+exogenous forecasts. It embeds and attends over the price sequence, then combines
+the result with the exogenous representation through a final multi-layer
+perceptron. Benchmarked on the same open-access datasets, it provides the third
+model family compared in this work. The authors evaluate without retraining
+inside the test period, applying only a renormalisation step between days. This
+thesis instead places the Transformer in the same rolling-recalibration pipeline
+as the other models, a deviation documented in Chapter~\ref{ch:methods-models}.
+
+% -----------------------------------------------------------------------------
+\section{MLOps practices and maturity}
+\label{sec:bg-mlops}
+
+MLOps applies DevOps principles such as automation, version control, continuous
+delivery, and monitoring to the particular demands of machine-learning
+systems, where data and models, not only code, evolve over time. Zarour et al.\
+\cite{zarour2025} consolidate the field in a systematic literature review that
+identifies nine recurring best practices. These are automating CI/CD, orchestrating
+workflows, ensuring reproducibility, versioning, collaboration and
+communication, continuously training and evaluating models, tracking and logging
+ML metadata, continuous monitoring, and implementing feedback loops. These nine
+practices provide the organising structure for the system chapter
+(Chapter~\ref{ch:system-implementation}).
+
+The same review surveys five MLOps maturity models, all descended from the
+CMM/CMMI lineage. These are the Google three-level model, the Microsoft and GigaOm
+five-level models, the four-level model of John, Olsson and Bosch, and the
+five-level model of Mateo-Casal\'i et al. This work positions the platform
+against the Google model \cite{google_mlops_maturity}, whose three levels (manual
+process, ML-pipeline automation, and CI/CD-pipeline automation) match the
+granularity of a single-host platform. That choice is justified in
+Chapter~\ref{ch:results-system}. The closest domain application is Subramanya et
+al.\ \cite{subramanya2022devops2mlops}, who build an MLOps pipeline for an
+electricity-market forecasting task and evaluate it as a case study. This is the
+precedent this thesis follows in evaluating its own platform in its real
+operating context.
+
+% -----------------------------------------------------------------------------
+\section{Evaluating machine-learning systems}
+\label{sec:bg-eval}
+
+Because the platform is a single artefact rather than a sample, its system-side
+evaluation follows the single-case study methodology of Runeson and H\"ost
+\cite{runeson2009casestudy}. That method supports analytic generalisation,
+extending findings to cases that share the platform's characteristics, rather
+than statistical generalisation to a population. Within that frame, several
+established instruments are composed. The ML Test Score of Breck et al.\
+\cite{breck2017mltestscore} is a 28-item rubric across four sections (data,
+model development, ML infrastructure, and monitoring) whose final score is the
+minimum of the four section sums, so the weakest area bounds the result.
+Reproducibility is reported in two senses, provenance coverage across runs and a
+worked re-run of one, following Gundersen and
+Kjensmo~\cite{gundersen2018reproducibility}. Finally, the decision of whether drift should
+trigger retraining is informed by the cost-aware analysis of Mahadevan and
+Mathioudakis \cite{mahadevan2024costaware}, who show that triggered retraining
+is worthwhile mainly when retraining is expensive. How these instruments are
+applied, and why each was chosen, is the subject of
+Chapter~\ref{ch:results-system}.

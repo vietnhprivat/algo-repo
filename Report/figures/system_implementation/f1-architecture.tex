@@ -1,90 +1,80 @@
 % F1 — Host-level architecture
 % Standalone TikZ figure: compile with lualatex or pdflatex.
 % The enclosing chapter supplies \caption{}; no caption text lives here.
-\documentclass[tikz,border=5pt]{standalone}
+% Connections verified against docker-compose.yml, prometheus/prometheus.yml,
+% and grafana/provisioning/datasources/datasources.yml:
+%   worker -> server (PREFECT_API_URL); worker -> ephemeral (docker.sock);
+%   ephemeral -> ClickHouse (read/write), -> ENTSO-E (fetch), -> Loki (push);
+%   Prometheus scrapes ClickHouse and Grafana; Grafana queries ClickHouse, Loki, Prometheus.
+\documentclass[tikz,border=8pt]{standalone}
 \usetikzlibrary{positioning, arrows.meta, shapes.geometric, backgrounds, fit, calc}
 
 \begin{document}
 \begin{tikzpicture}[
-  % --- node styles ---
-  service/.style={
-    draw, rectangle,
-    minimum width=2.8cm, minimum height=1.0cm,
-    align=center, font=\small
-  },
-  db/.style={
-    draw, cylinder,
-    shape border rotate=90,
-    minimum width=2.6cm, minimum height=1.0cm,
-    align=center, font=\small,
-    aspect=0.25
-  },
-  ephemeral/.style={
-    draw, rectangle, dashed,
-    minimum width=3.0cm, minimum height=1.0cm,
-    align=center, font=\small
-  },
-  hostbox/.style={
-    draw, rectangle,
-    inner sep=20pt
-  },
-  % --- arrow styles ---
+  service/.style={draw, rectangle, minimum width=2.7cm, minimum height=1.0cm,
+                  align=center, font=\small, fill=white},
+  db/.style={draw, cylinder, shape border rotate=90, minimum width=2.5cm,
+             minimum height=1.0cm, align=center, font=\small, aspect=0.25, fill=white},
+  ephemeral/.style={draw, rectangle, dashed, minimum width=2.9cm, minimum height=1.0cm,
+                    align=center, font=\small, fill=white},
+  external/.style={draw, dashed, rounded corners=8pt, minimum width=2.6cm,
+                   minimum height=1.2cm, align=center, font=\small, fill=gray!10},
+  hostbox/.style={draw, rounded corners=4pt, fill=gray!4, inner sep=16pt},
   solid/.style={-{Stealth[length=6pt]}, thick},
   dashed_arr/.style={-{Stealth[length=6pt]}, thick, dashed},
-  spawns/.style={-{Stealth[length=6pt]}, thick, densely dotted}
+  spawns/.style={-{Stealth[length=6pt]}, thick, densely dotted},
+  lbl/.style={font=\scriptsize},
 ]
 
-% ---- long-lived services (top row) ----
-\node[db]      (ch)      {ClickHouse\\(algo DB)};
-\node[service] (server)  [right=2.0cm of ch]    {Prefect Server\\(API + UI)};
-\node[service] (worker)  [right=2.0cm of server]{Prefect Worker\\(docker-pool)};
+% ---- top row ----
+\node[db]      (ch)     at (0,0)    {ClickHouse\\(algo DB)};
+\node[service] (server) at (3.8,0)  {Prefect Server\\(API + UI)};
+\node[service] (worker) at (7.6,0)  {Prefect Worker\\(docker-pool)};
 
-% ---- ephemeral container (below worker) ----
-\node[ephemeral] (algo)  [below=2.2cm of worker]
-    {algo-repo:latest\\(ephemeral)};
+% ---- ephemeral flow-run container + external source ----
+\node[ephemeral] (algo)   at (7.6,-2.7)  {algo-repo:latest\\(ephemeral)};
+\node[external]  (entsoe) at (12.6,-2.7) {ENTSO-E\\Transparency\\Platform};
 
-% ---- observability row (well below upper services) ----
-\node[service] (grafana) [below=4.6cm of ch]    {Grafana\\(dashboards)};
-\node[service] (loki)    [right=2.0cm of grafana]{Loki\\(logs)};
+% ---- monitoring tier (wide spacing) ----
+\node[service] (prom)    at (-5,-5.6) {Prometheus\\(metrics)};
+\node[service] (grafana) at (0,-5.6)  {Grafana\\(dashboards)};
+\node[service] (loki)    at (5,-5.6)  {Loki\\(logs)};
+
+% ---- host boundary ----
+\begin{pgfonlayer}{background}
+  \node[hostbox, fit=(ch)(server)(worker)(algo)(prom)(grafana)(loki)] (host) {};
+\end{pgfonlayer}
+\node[anchor=south west, font=\small\bfseries] at (host.north west)
+    {Docker Compose host (single machine)};
 
 % ---- arrows ----
+% worker polls server
+\draw[solid] (worker.west) -- (server.east) node[lbl, midway, above]{polls};
+% worker spawns the ephemeral container
+\draw[spawns] (worker.south) -- (algo.north) node[lbl, midway, left]{spawns per flow run};
 
-% Prefect Worker polls Prefect Server (solid)
-\draw[solid] (worker.west) -- (server.east)
-    node[midway, above, font=\scriptsize] {polls};
+% ephemeral reads/writes ClickHouse: down out of algo, left under the top row,
+% up through the ClickHouse--Server gap, and into ClickHouse from the right.
+\draw[solid] (algo.west) -- (1.9,-2.7) -- (1.9,0) -- (ch.east);
+\node[lbl, below] at (4.1,-2.7) {reads / writes};
 
-% Prefect Worker spawns ephemeral container (dotted, labelled)
-\draw[spawns] (worker.south) -- (algo.north)
-    node[midway, right, font=\scriptsize] {spawns per flow run};
+% ephemeral fetches from ENTSO-E (leaves the host)
+\draw[solid] (algo.east) -- (entsoe.west) node[lbl, midway, above]{fetch};
 
-% Ephemeral container reads/writes ClickHouse (solid).
-% Exits algo on its west side, routes UP a short distance, LEFT under the
-% Prefect Server box, then UP again on the left and into ch.east — so the
-% horizontal passes BENEATH Prefect Server with no overlap.
-\coordinate (alg_w)         at ([xshift=-0.4cm]algo.west);
-\coordinate (under_top_row) at ([yshift=-1.0cm]server.south);
-\coordinate (under_right)   at (alg_w           |- under_top_row);
-\coordinate (under_left)    at ([xshift=0.4cm]ch.east |- under_top_row);
-\coordinate (e_off)         at ([xshift=0.4cm]ch.east);
-\draw[solid] (algo.west) -- (alg_w) -- (under_right) -- (under_left) -- (e_off) -- (ch.east);
-\node[font=\scriptsize, below=2pt] at ($(under_right)!0.5!(under_left)$) {reads/writes CH};
+% ephemeral pushes logs to Loki (enters Loki from the right)
+\draw[dashed_arr] (algo.south) |- (loki.east) node[lbl, pos=0.28, right]{log push};
 
-% Ephemeral container pushes logs to Loki (dashed).
-% Label sits on the vertical leg, well clear of the long horizontal
-% dashed segment that ends at loki.north.
-\draw[dashed_arr] (algo.south)
-    -- node[right=3pt, font=\scriptsize] {log push} ++(0,-0.9)
-    -| (loki.north);
+% Prometheus scrapes ClickHouse (up the left, into ClickHouse from the left)
+\draw[solid] (prom.north) -- (-5,0) -- (ch.west);
+\node[lbl, above] at (-3.1,0) {scrapes};
 
-% Grafana queries Loki (solid)
-\draw[solid] (grafana.east) -- (loki.west)
-    node[midway, above, font=\scriptsize] {queries};
+% Prometheus scrapes Grafana; Grafana queries Prometheus (bidirectional pair)
+\draw[solid] (grafana.west) to[bend left=22] node[lbl, midway, below]{queries} (prom.east);
+\draw[solid] (prom.east)    to[bend left=22] node[lbl, midway, above]{scrapes} (grafana.west);
 
-% Grafana queries ClickHouse (solid) — enters ClickHouse from below
-% (south), so the two arrows hitting ClickHouse use clearly different
-% sides (algo enters from east, grafana enters from south).
-\draw[solid] (grafana.north) -- (ch.south)
-    node[midway, right, font=\scriptsize] {queries};
+% Grafana queries ClickHouse (up) and Loki (right)
+\draw[solid] (grafana.north) -- (ch.south) node[lbl, midway, right]{queries};
+\draw[solid] (grafana.east)  -- (loki.west) node[lbl, midway, above]{queries};
 
 \end{tikzpicture}
 \end{document}

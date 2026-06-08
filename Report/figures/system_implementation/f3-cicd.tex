@@ -1,175 +1,56 @@
-% F3 — CI/CD pipeline (swimlane diagram)
-% Standalone TikZ figure: compile with lualatex or pdflatex.
-% The enclosing chapter supplies \caption{}; no caption text lives here.
+% F3 — CI/CD as a two-phase flow: what happens on a PR vs. on merge to main.
+% Standalone TikZ; caption lives in the chapter. Grounded in .github/workflows/
+% (pr_test, pr_ruff-lint, pr_smoke; cd_deploy: build_image -> deploy_* -> smoke_run).
 \documentclass[tikz,border=8pt]{standalone}
 \usetikzlibrary{positioning, arrows.meta, shapes.geometric, backgrounds, fit, calc}
 
 \begin{document}
 \begin{tikzpicture}[
-  % --- node styles ---
-  pipestep/.style={
-    draw, rectangle,
-    minimum width=3.0cm, minimum height=0.85cm,
-    align=center, font=\small
-  },
-  gate/.style={
-    draw, diamond,
-    minimum width=2.2cm, minimum height=0.85cm,
-    align=center, font=\scriptsize,
-    aspect=2.5
-  },
-  lane_label/.style={
-    font=\footnotesize\bfseries, anchor=west
-  },
-  % --- arrow styles ---
-  arr/.style={-{Stealth[length=5pt]}, thick},
-  darr/.style={-{Stealth[length=5pt]}, thick, dashed},
+  >={Stealth[length=6pt]},
+  box/.style={draw, rounded corners=2pt, minimum width=3.3cm, minimum height=1.0cm,
+              align=center, font=\small, fill=white},
+  trig/.style={draw, rounded corners=10pt, minimum width=3.3cm, minimum height=0.9cm,
+               align=center, font=\small, fill=white},
+  gate/.style={draw, diamond, aspect=2.4, inner sep=1pt, align=center, font=\small, fill=white},
+  arr/.style={->, thick},
+  lane/.style={font=\small\bfseries},
 ]
 
-% -------------------------------------------------------
-% LANE LAYOUT (fixed coordinates)
-%   GitHub Actions lane  :  y in [2.8, 7.4]
-%   Lane separator       :  y = 0.2
-%   Deploy host lane     :  y in [-6.2, -0.2]
-% -------------------------------------------------------
+% ---- pull-request phase ----
+\node[trig] (pr)     at (0,5.4)     {Pull request};
+\node[box] (pytest) at (-3.6,3.6)  {\texttt{pr\_test}\\pytest suite};
+\node[box] (ruff)   at (0,3.6)     {\texttt{pr\_ruff-lint}\\\texttt{ruff} lint};
+\node[box] (smoke)  at (3.6,3.6)   {\texttt{pr\_smoke}\\Compose e2e\\(synthetic data)};
+\node[gate] (gate)   at (0,1.7)     {all checks\\pass};
 
-% ============================================================
-% GITHUB ACTIONS LANE
-% ============================================================
+\draw[arr] (pr.south) -- (pytest.north);
+\draw[arr] (pr.south) -- (ruff.north);
+\draw[arr] (pr.south) -- (smoke.north);
+\draw[arr] (pytest.south) -- (gate.west);
+\draw[arr] (ruff.south)   -- (gate.north);
+\draw[arr] (smoke.south)  -- (gate.east);
 
-% --- PR-time workflows (left cluster, stacked vertically) ---
-\node[pipestep] (pr_test)
-    at (-7.5, 6.2)
-    {pr\_test};
+% ---- merge ----
+\draw[arr] (gate.south) -- (0,-0.55)
+   node[midway, right, font=\scriptsize]{merge to \texttt{main}};
 
-\node[pipestep] (pr_lint)
-    [below=0.45cm of pr_test]
-    {pr\_ruff-lint};
+% ---- deploy phase (on the host, over Tailscale) ----
+\node[box] (build)    at (0,-1.1) {Build image on host\\(migrations, \texttt{GIT\_SHA})};
+\node[box] (redeploy) at (0,-2.9) {Redeploy Prefect\\deployments};
+\node[box] (smoke2)   at (0,-4.7) {Smoke forecast\\(poll until \textsc{completed})};
+\draw[arr] (build.south)    -- (redeploy.north);
+\draw[arr] (redeploy.south) -- (smoke2.north);
 
-\node[pipestep] (pr_smoke)
-    [below=0.45cm of pr_lint]
-    {pr\_smoke};
-
-% PR gate diamond (centre of lane, horizontally between PR jobs and post-merge)
-\node[gate] (pr_gate)
-    at (-3.0, 4.5)
-    {PR\\gate};
-
-% --- Post-merge (push to main) workflows --- spaced out so the merge
-% arrow has room and labels don't sit on top of arrows.
-\node[pipestep] (cd_changes)
-    at (2.2, 6.2)
-    {cd\_deploy\\path filter};
-
-\node[pipestep] (cache_warm)
-    at (6.6, 6.2)
-    {main\_cache\_warm};
-
-% ============================================================
-% DEPLOY HOST LANE
-% ============================================================
-
-\node[pipestep] (build_img)
-    at (2.2, -1.5)
-    {git pull + run migrations\\+ docker build\\algo-repo:latest};
-
-\node[pipestep] (deploy_ing)
-    [below=0.55cm of build_img]
-    {deploy\_ingestion.py};
-
-\node[pipestep] (deploy_fcast)
-    [below=0.55cm of deploy_ing]
-    {deploy\_forecast.py};
-
-\node[pipestep] (reload_gf)
-    at (6.6, -1.5)
-    {git pull +\\docker compose\\restart grafana};
-
-\node[pipestep] (smoke_run)
-    [below=0.55cm of deploy_fcast]
-    {trigger daily-forecast-\\dk1\_lear\\\& poll until COMPLETED};
-
-% ============================================================
-% ARROWS — GitHub Actions lane
-% ============================================================
-
-% PR workflows → gate
-\draw[arr] (pr_test.east)  -| (pr_gate.north west);
-\draw[arr] (pr_lint.east)  -- (pr_gate.west);
-\draw[arr] (pr_smoke.east) -| (pr_gate.south west);
-
-% Gate → "merge to main" label → fan out to post-merge workflows.
-% Routed so the label sits on its own clear segment and the two fan-out
-% arrows leave from distinct points (no longer a tangled junction).
-\coordinate (merge_pt) at ($(pr_gate.east)+(1.6,0)$);
-
-\draw[arr] (pr_gate.east) -- (merge_pt)
-    node[pos=0.35, above=14pt, font=\scriptsize, align=center]
-    {pass\\merge to main};
-
-\draw[arr] (merge_pt) |- (cd_changes.west);
-% cache_warm fan-out goes via a higher waypoint so it passes ABOVE
-% the cd_deploy box instead of cutting through it.
-\draw[arr] (merge_pt) -- ++(0,2.6) -| (cache_warm.north);
-
-% ============================================================
-% ARROWS — GitHub Actions → Deploy host (cross-lane, dashed)
-% ============================================================
-
-% cd_changes → build_img: one continuous dashed arrow exiting cd_deploy's
-% south, passing through the SSH-over-Tailscale label (drawn after this
-% arrow so it sits ON TOP), and entering build_img from the top.
-\draw[darr] (cd_changes.south) -- (build_img.north);
-
-% cd_changes → reload_grafana (via SSH; path: grafana)
-\draw[darr] (cd_changes.east) -- ++(0.5,0) |- (reload_gf.north);
-
-% ============================================================
-% SSH OVER TAILSCALE boundary label (sits on lane separator,
-% drawn AFTER the dashed arrow so it overlays the line)
-% ============================================================
-
-\node[draw=gray!70, rectangle, fill=white, inner sep=3pt,
-      font=\scriptsize\bfseries]
-    (ssh_label)
-    at (2.2, 0.2)
-    {SSH over Tailscale};
-
-% ============================================================
-% ARROWS — Deploy host internal (solid)
-% ============================================================
-
-\draw[arr] (build_img.south)   -- (deploy_ing.north);
-\draw[arr] (deploy_ing.south)  -- (deploy_fcast.north);
-\draw[arr] (deploy_fcast.south) -- (smoke_run.north);
-
-% ============================================================
-% SWIMLANE BACKGROUNDS (drawn behind all nodes)
-% ============================================================
-
+% ---- phase bands ----
 \begin{pgfonlayer}{background}
-  % GitHub Actions lane — widened to give the new cd_deploy / cache_warm
-  % column horizontal breathing room, and deepened so pr_smoke's three
-  % lines of text sit comfortably inside.
-  \fill[gray!10, draw=gray!50, rounded corners=4pt]
-      (-10.2, 2.0) rectangle (9.0, 7.4);
-
-  % Deploy host lane — widened and deepened so smoke_run and reload_gf
-  % both sit comfortably inside.
-  \fill[gray!20, draw=gray!60, rounded corners=4pt]
-      (-10.2, -7.8) rectangle (9.0, -0.2);
-
-  % Lane separator
-  \draw[gray!60, dashed, line width=0.7pt]
-      (-10.2, 0.2) -- (9.0, 0.2);
+  \node[fill=gray!8,  rounded corners=4pt, inner sep=11pt,
+        fit=(pr)(pytest)(smoke)(gate)] (band1) {};
+  \node[fill=gray!16, rounded corners=4pt, inner sep=11pt,
+        fit=(build)(redeploy)(smoke2)] (band2) {};
 \end{pgfonlayer}
-
-% ============================================================
-% LANE LABELS
-% ============================================================
-
-\node[lane_label] at (-10.0, 7.2)  {GitHub Actions};
-\node[lane_label] at (-10.0, -0.5) {Deploy host};
+\node[lane, anchor=south west] at (band1.north west) {On a pull request};
+\node[lane, anchor=north west] at (band2.south west)
+   {On merge to \texttt{main} \, (\texttt{cd\_deploy}, over Tailscale SSH to the host)};
 
 \end{tikzpicture}
 \end{document}
