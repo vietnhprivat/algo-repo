@@ -23,6 +23,12 @@ services:
     command: prefect server start --host 0.0.0.0
     environment:
       PREFECT_SERVER_API_HOST: "0.0.0.0"
+      # The UI runs in the browser, so it must call the API at a host the
+      # client can reach. Default is http://0.0.0.0:4200/api, which only
+      # resolves from the host itself, so remote access breaks (e.g. over
+      # Tailscale from another machine). Point it at the tailnet MagicDNS
+      # name, which resolves from both the host and any tailnet peer.
+      PREFECT_UI_API_URL: "http://fedora.tailf19320.ts.net:4200/api"
     ports:
       - "4200:4200"
     volumes:
