@@ -84,6 +84,7 @@ FORECAST_CONFIGS = [
     "de_dnn",
     "dk1_transformer",
     "de_transformer",
+    "dk2_lear",
 ]
 DRIFT_AREAS = ["DK1", "DE"]
 
