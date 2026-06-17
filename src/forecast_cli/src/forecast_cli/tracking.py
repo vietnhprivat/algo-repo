@@ -172,6 +172,7 @@ def track_backtest_run(
             summary=metrics,
             per_day=per_day,
             tags=tags,
+            predictions=predictions_df.to_dicts(),
         )
     except Exception:
         LOGGER.warning(

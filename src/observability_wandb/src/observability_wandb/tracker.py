@@ -43,6 +43,7 @@ class WandbTracker:
         summary: Mapping[str, float],
         per_day: Iterable[Mapping[str, Any]],
         tags: Iterable[str],
+        predictions: Iterable[Mapping[str, Any]] | None = None,
     ) -> None:
         if not self._enabled:
             return None
@@ -59,8 +60,65 @@ class WandbTracker:
                 run.log(dict(row), step=step)
             for key, value in summary.items():
                 run.summary[key] = value
+            if predictions is not None:
+                self._log_backtest_charts(run, predictions)
         finally:
             run.finish()
+
+    def _log_backtest_charts(
+        self, run: Any, predictions: Iterable[Mapping[str, Any]]
+    ) -> None:
+        """Log predicted-vs-actual overlay, per-hour error profile and residual
+        distribution from a backtest's hourly (predicted, actual) records."""
+        rows = [
+            (r["timestamp_utc"], float(r["predicted"]), float(r["actual"]))
+            for r in predictions
+        ]
+        if not rows:
+            return None
+        rows.sort(key=lambda x: x[0])
+        preds = [p for _, p, _ in rows]
+        acts = [a for _, _, a in rows]
+        residuals = [p - a for _, p, a in rows]
+
+        run.log(
+            {
+                "forecast/pred_vs_actual": self._wandb.plot.line_series(
+                    xs=list(range(len(rows))),
+                    ys=[preds, acts],
+                    keys=["predicted", "actual"],
+                    title="Predicted vs actual",
+                    xname="period index",
+                )
+            }
+        )
+
+        hour_abs: dict[int, list[float]] = {}
+        for (ts, _p, _a), res in zip(rows, residuals):
+            hour = ts.hour if hasattr(ts, "hour") else int(str(ts)[11:13])
+            hour_abs.setdefault(hour, []).append(abs(res))
+        hour_table = self._wandb.Table(
+            data=[[h, sum(v) / len(v)] for h, v in sorted(hour_abs.items())],
+            columns=["hour", "mae"],
+        )
+        run.log(
+            {
+                "forecast/mae_by_hour": self._wandb.plot.bar(
+                    hour_table, "hour", "mae", title="MAE by hour of day"
+                )
+            }
+        )
+
+        resid_table = self._wandb.Table(
+            data=[[r] for r in residuals], columns=["residual"]
+        )
+        run.log(
+            {
+                "forecast/residuals": self._wandb.plot.histogram(
+                    resid_table, "residual", title="Residual distribution"
+                )
+            }
+        )
 
     def log_predict_run(
         self,
