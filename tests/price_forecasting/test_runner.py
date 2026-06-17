@@ -127,7 +127,7 @@ class TestLiveRunner:
         runner = LiveRunner(config)
 
         features, targets = make_synthetic_features_and_targets()
-        runner._load_and_preprocess_data = lambda dataframe=None: (features, targets)
+        runner._load_and_preprocess_data = lambda target_date=None, dataframe=None: (features, targets)
         runner._get_model_factory = lambda: (lambda: StubModel(prediction_value=55.0))
 
         result = runner.run_live("2019-02-01")
@@ -143,7 +143,7 @@ class TestLiveRunner:
         )
         runner = LiveRunner(config)
         features, targets = make_synthetic_features_and_targets()
-        runner._load_and_preprocess_data = lambda dataframe=None: (features, targets)
+        runner._load_and_preprocess_data = lambda target_date=None, dataframe=None: (features, targets)
         runner._get_model_factory = lambda: (lambda: StubModel())
 
         with pytest.raises(ValueError, match="Target date not found"):

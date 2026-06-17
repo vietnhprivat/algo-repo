@@ -124,3 +124,40 @@ class DataPreprocessor:
         targets = targets.loc[valid_mask]
 
         return features, targets
+
+    def build_dataset_for_prediction(
+        self, target_date, dataframe: pd.DataFrame | None = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Return (features, targets) for a live forecast of ``target_date``.
+
+        Identical to :meth:`build_dataset` except the target-date row is kept
+        even when its target (actual price) is missing or NaN: the validity
+        filter is applied to the training rows only. The target row's feature
+        vector is built from past price lags and ahead-published exogenous
+        forecasts, so it exists before the actual clears. The engine trains on
+        ``features.index < target_date`` and predicts from this feature row, so
+        the missing target is never read (see ``BacktestEngine._slice_data``).
+        """
+        if dataframe is None:
+            dataframe = load_dataset(self.experiment_config)
+
+        features = self.generate_full_feature_matrix(dataframe)
+        targets = pivot_to_daily(dataframe, self.experiment_config.target_column)
+
+        features.index = pd.to_datetime(features.index)
+        targets.index = pd.to_datetime(targets.index)
+        target_ts = pd.to_datetime(target_date)
+
+        # Align targets to the feature index; the target row may be absent from
+        # targets (actual not yet published) and becomes NaN after reindex.
+        targets = targets.reindex(features.index)
+
+        feature_ok = features.notna().all(axis=1)
+        target_ok = targets.notna().all(axis=1)
+        is_target = features.index == target_ts
+        valid_mask = feature_ok & (target_ok | is_target)
+
+        features = features.loc[valid_mask].sort_index()
+        targets = targets.loc[valid_mask].sort_index()
+
+        return features, targets

@@ -45,16 +45,18 @@ class LiveRunner:
         return factory
 
     def _load_and_preprocess_data(
-        self, dataframe: pd.DataFrame | None = None
+        self, target_date: str, dataframe: pd.DataFrame | None = None
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         preprocessor = DataPreprocessor(self.config)
-        features, targets = preprocessor.build_dataset(dataframe)
+        features, targets = preprocessor.build_dataset_for_prediction(
+            target_date, dataframe
+        )
         return features, targets
 
     def run_live_with_metadata(
         self, target_date: str, dataframe: pd.DataFrame | None = None
     ) -> LiveResult:
-        features, targets = self._load_and_preprocess_data(dataframe)
+        features, targets = self._load_and_preprocess_data(target_date, dataframe)
         target_timestamp = pd.to_datetime(target_date)
         model_factory = self._get_model_factory()
         engine = BacktestEngine(self.config)
