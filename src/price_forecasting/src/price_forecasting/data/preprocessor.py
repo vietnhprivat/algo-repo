@@ -161,3 +161,25 @@ class DataPreprocessor:
         targets = targets.loc[valid_mask].sort_index()
 
         return features, targets
+
+    def latest_complete_target(self, dataframe: pd.DataFrame | None = None):
+        """Return the most recent date whose feature row is fully available.
+
+        This is the latest day a live forecast can be produced for: its inputs
+        (price lags from past days, ahead-published exogenous forecasts) are all
+        present. Used when no explicit target date is given, so the scheduled
+        forecast always targets the freshest *complete* day rather than a
+        partially-available leading-edge day (e.g. tomorrow, whose last UTC
+        hours are not yet published).
+        """
+        if dataframe is None:
+            dataframe = load_dataset(self.experiment_config)
+
+        features = self.generate_full_feature_matrix(dataframe)
+        features.index = pd.to_datetime(features.index)
+        complete = features.notna().all(axis=1)
+        if not complete.any():
+            raise ValueError(
+                "No complete feature row available; cannot pick a forecast target."
+            )
+        return features.index[complete].max()
