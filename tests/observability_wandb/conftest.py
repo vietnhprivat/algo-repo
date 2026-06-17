@@ -43,9 +43,45 @@ class FakeArtifact:
 
 
 @dataclass
+class FakeTable:
+    columns: list[str] = field(default_factory=list)
+    data: list[list[Any]] = field(default_factory=list)
+
+
+@dataclass
+class FakeChart:
+    kind: str
+    kwargs: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class FakePlot:
+    """Records wandb.plot.* calls; returns sentinel chart objects."""
+
+    calls: list[FakeChart] = field(default_factory=list)
+
+    def line_series(self, **kwargs: Any) -> FakeChart:
+        chart = FakeChart("line_series", dict(kwargs))
+        self.calls.append(chart)
+        return chart
+
+    def bar(self, table: Any, label: str, value: str, title: str | None = None) -> FakeChart:
+        chart = FakeChart("bar", {"table": table, "label": label, "value": value, "title": title})
+        self.calls.append(chart)
+        return chart
+
+    def histogram(self, table: Any, value: str, title: str | None = None) -> FakeChart:
+        chart = FakeChart("histogram", {"table": table, "value": value, "title": title})
+        self.calls.append(chart)
+        return chart
+
+
+@dataclass
 class FakeWandb:
     runs: list[FakeRun] = field(default_factory=list)
     init_calls: list[dict[str, Any]] = field(default_factory=list)
+    tables: list[FakeTable] = field(default_factory=list)
+    plot: FakePlot = field(default_factory=FakePlot)
 
     def init(self, **kwargs: Any) -> FakeRun:
         self.init_calls.append(dict(kwargs))
@@ -60,6 +96,11 @@ class FakeWandb:
 
     def Artifact(self, name: str, type: str, metadata: dict[str, Any] | None = None) -> FakeArtifact:  # noqa: N802 — mirrors wandb API
         return FakeArtifact(name=name, type=type, metadata=dict(metadata or {}))
+
+    def Table(self, data: Any = None, columns: Any = None) -> FakeTable:  # noqa: N802 — mirrors wandb API
+        table = FakeTable(columns=list(columns or []), data=[list(r) for r in (data or [])])
+        self.tables.append(table)
+        return table
 
 
 @pytest.fixture
