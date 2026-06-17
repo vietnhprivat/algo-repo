@@ -39,6 +39,7 @@ def _make_live_result(n_periods: int = 24) -> LiveResult:
         data_end_utc=datetime(2026, 4, 10, tzinfo=timezone.utc),
         training_duration_seconds=5.0,
         trained_models={},
+        target_date="2026-04-11",
     )
 
 
@@ -134,7 +135,7 @@ class TestDailyForecastFlow:
     @patch("schedules.forecast.track_prediction_task")
     @patch("schedules.forecast.predict_task")
     @patch("schedules.forecast.load_config_task")
-    def test_flow_defaults_to_tomorrow_when_no_date(
+    def test_flow_defers_target_resolution_when_no_date(
         self, mock_load, mock_predict, mock_track
     ):
         config = _make_config()
@@ -145,11 +146,13 @@ class TestDailyForecastFlow:
 
         result = daily_forecast_flow.fn(config_name="dk1_lear")
 
-        _, predict_call_args, _ = mock_predict.mock_calls[0]
-        target_date = predict_call_args[1]
-        # Should be a valid date string in YYYY-MM-DD format
-        datetime.strptime(target_date, "%Y-%m-%d")
-        assert result["target_date"] == target_date
+        # No date given -> the flow passes None through; the LiveRunner picks the
+        # most recent forecastable day and reports it back on the result.
+        mock_predict.assert_called_once_with(config, None)
+        assert result["target_date"] == live_result.target_date
+        # the resolved date is what gets tracked
+        _, track_args, _ = mock_track.mock_calls[0]
+        assert track_args[1] == live_result.target_date
 
     @patch("schedules.forecast.track_prediction_task")
     @patch("schedules.forecast.predict_task")

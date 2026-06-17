@@ -7,6 +7,7 @@ import pandas as pd
 
 from price_forecasting.configs import ExperimentConfig
 from price_forecasting.data.preprocessor import DataPreprocessor
+from price_forecasting.data.clickhouse_loader import load_dataset
 from price_forecasting.backtesting import BacktestEngine
 from price_forecasting.models import BaseModel, get_model
 
@@ -20,6 +21,7 @@ class LiveResult:
     data_end_utc: datetime
     training_duration_seconds: float
     trained_models: dict  # window_size -> BaseModel
+    target_date: str = ""  # the date actually forecast (resolved when not given)
 
 
 class LiveRunner:
@@ -54,8 +56,17 @@ class LiveRunner:
         return features, targets
 
     def run_live_with_metadata(
-        self, target_date: str, dataframe: pd.DataFrame | None = None
+        self, target_date: str | None = None, dataframe: pd.DataFrame | None = None
     ) -> LiveResult:
+        # No explicit target: forecast the most recent day with complete inputs.
+        if target_date is None:
+            if dataframe is None:
+                dataframe = load_dataset(self.config)
+            target_date = (
+                DataPreprocessor(self.config)
+                .latest_complete_target(dataframe)
+                .strftime("%Y-%m-%d")
+            )
         features, targets = self._load_and_preprocess_data(target_date, dataframe)
         target_timestamp = pd.to_datetime(target_date)
         model_factory = self._get_model_factory()
@@ -99,10 +110,11 @@ class LiveRunner:
             data_end_utc=data_end_utc,
             training_duration_seconds=training_duration,
             trained_models=trained_models,
+            target_date=target_date,
         )
 
     def run_live(
-        self, target_date: str, dataframe: pd.DataFrame | None = None
+        self, target_date: str | None = None, dataframe: pd.DataFrame | None = None
     ) -> pd.Series:
         result = self.run_live_with_metadata(target_date, dataframe)
         return result.prediction

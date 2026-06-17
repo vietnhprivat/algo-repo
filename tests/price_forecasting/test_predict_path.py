@@ -76,3 +76,25 @@ class TestLivePredictPath:
         low = _predict(tmp_path, target_actual=-9999.0)
         np.testing.assert_array_equal(high, low)
         np.testing.assert_array_equal(missing, high)
+
+
+class TestLatestForecastableTarget:
+    """With no explicit target_date, forecast the most recent day whose inputs
+    are complete — never break on a partially-available leading-edge day."""
+
+    def test_target_none_resolves_to_latest_complete_day(self, tmp_path):
+        df = make_hourly_dataframe(
+            start_date="2019-01-01", end_date="2019-04-21", exogenous_columns=["load"]
+        )
+        # Make the most recent day's exogenous incomplete -> not forecastable;
+        # the latest *complete* day is then the one before it.
+        last = pd.Timestamp("2019-04-20")
+        last_mask = (df.index >= last) & (df.index < last + pd.Timedelta(days=1))
+        df.loc[last_mask, "load"] = np.nan
+
+        result = LiveRunner(_lear_config(tmp_path)).run_live_with_metadata(
+            target_date=None, dataframe=df
+        )
+
+        assert result.target_date == "2019-04-19"
+        assert len(result.prediction) == N_PERIODS

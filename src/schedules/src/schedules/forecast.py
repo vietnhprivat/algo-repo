@@ -5,8 +5,6 @@ Uses the same shared service layer pattern as ingestion: forecast_cli
 handles config loading and tracking, price_forecasting handles prediction.
 """
 
-from datetime import datetime, timedelta, timezone
-
 from prefect import flow, task
 
 from forecast_cli.config_loader import load_config
@@ -34,7 +32,7 @@ def load_config_task(config_name: str) -> ExperimentConfig:
 
 
 @task(retries=2, retry_delay_seconds=60, log_prints=True)
-def predict_task(config: ExperimentConfig, target_date: str) -> LiveResult:
+def predict_task(config: ExperimentConfig, target_date: str | None = None) -> LiveResult:
     runner = LiveRunner(config)
     result = runner.run_live_with_metadata(target_date)
     LOGGER.info(
@@ -42,11 +40,11 @@ def predict_task(config: ExperimentConfig, target_date: str) -> LiveResult:
         extra=build_log_extra(
             area=config.area,
             config_name=config.experiment_name,
-            target_date=target_date,
+            target_date=result.target_date,
         ),
     )
     print(
-        f"Prediction for {target_date}: {len(result.prediction)} periods, "
+        f"Prediction for {result.target_date}: {len(result.prediction)} periods, "
         f"training took {result.training_duration_seconds:.2f}s"
     )
     return result
@@ -84,28 +82,28 @@ def track_prediction_task(
 
 @flow(name="daily-forecast", log_prints=True)
 def daily_forecast_flow(config_name: str = "dk1_lear", target_date: str | None = None):
-    if target_date is None:
-        target_date = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
-
+    # target_date=None means "forecast the most recent day with complete inputs";
+    # the LiveRunner resolves it and reports the chosen date on the result.
     LOGGER.info(
         "Starting daily forecast flow",
         extra=build_log_extra(
             config_name=config_name,
-            target_date=target_date,
+            target_date=target_date or "auto-latest",
         ),
     )
-    print(f"Running forecast: config={config_name}, target_date={target_date}")
+    print(f"Running forecast: config={config_name}, target_date={target_date or 'auto-latest'}")
 
     config = load_config_task(config_name)
     result = predict_task(config, target_date)
-    run_id = track_prediction_task(config, target_date, result, config_name)
+    resolved_target_date = result.target_date
+    run_id = track_prediction_task(config, resolved_target_date, result, config_name)
 
     LOGGER.info(
         "Completed daily forecast flow",
         extra=build_log_extra(
             area=config.area,
             config_name=config_name,
-            target_date=target_date,
+            target_date=resolved_target_date,
             run_id=run_id,
         ),
     )
@@ -113,7 +111,7 @@ def daily_forecast_flow(config_name: str = "dk1_lear", target_date: str | None =
     return {
         "config_name": config_name,
         "area": config.area,
-        "target_date": target_date,
+        "target_date": resolved_target_date,
         "run_id": run_id,
         "n_periods": len(result.prediction),
         "training_duration_seconds": result.training_duration_seconds,
