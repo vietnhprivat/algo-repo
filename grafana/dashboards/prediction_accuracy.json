@@ -1,0 +1,283 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "description": "Realised price (bold black ACTUAL) overlaid with each selected model's prediction for $market. Predictions extend past the ACTUAL line for any day not yet reconciled.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "showPoints": "never",
+            "fillOpacity": 0,
+            "spanNulls": false
+          },
+          "unit": "currencyEUR"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ACTUAL"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#000000",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT time, metric, value FROM (\nSELECT ep.timestamp_utc AS time, er.model_type AS metric, argMax(ep.predicted, er.created_utc) AS value\nFROM algo.experiment_predictions AS ep FINAL\nINNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id\nWHERE er.area = '${market}'\n  AND er.model_type IN (${model:singlequote})\n  AND $__timeFilter(ep.timestamp_utc)\nGROUP BY time, metric\nUNION ALL\nSELECT ep.timestamp_utc AS time, 'ACTUAL' AS metric,\n  if(toDate(ep.timestamp_utc) >= (SELECT max(toDate(timestamp_utc)) FROM algo.experiment_predictions), NULL, argMax(ep.actual, er.created_utc)) AS value\nFROM algo.experiment_predictions AS ep FINAL\nINNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id\nWHERE er.area = '${market}'\n  AND $__timeFilter(ep.timestamp_utc)\nGROUP BY time\n) ORDER BY time, metric",
+          "refId": "A"
+        }
+      ],
+      "title": "Actual vs predicted — $market",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "description": "Hourly residual (actual - predicted) per model for $market. Actual and residual stay blank until that day is reconciled.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "unit": "currencyEUR",
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "time:YYYY-MM-DD HH:mm"
+              },
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "model"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "string"
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "residual"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-RdYlGr"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 18,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 2,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "sql",
+          "rawSql": "SELECT ep.timestamp_utc AS time, er.model_type AS model,\n  round(argMax(ep.predicted, er.created_utc), 2) AS predicted,\n  if(toDate(ep.timestamp_utc) >= (SELECT max(toDate(timestamp_utc)) FROM algo.experiment_predictions), NULL, round(argMax(ep.actual, er.created_utc), 2)) AS actual,\n  if(toDate(ep.timestamp_utc) >= (SELECT max(toDate(timestamp_utc)) FROM algo.experiment_predictions), NULL, round(argMax(ep.actual, er.created_utc) - argMax(ep.predicted, er.created_utc), 2)) AS residual\nFROM algo.experiment_predictions AS ep FINAL\nINNER JOIN algo.experiment_runs AS er FINAL ON ep.run_id = er.run_id\nWHERE er.area = '${market}'\n  AND er.model_type IN (${model:singlequote})\n  AND $__timeFilter(ep.timestamp_utc)\nGROUP BY time, model\nORDER BY time DESC, model",
+          "refId": "A"
+        }
+      ],
+      "title": "Residuals (actual − predicted) — $market",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "algo-repo",
+    "model-performance",
+    "live-predictions"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "DK1",
+          "value": "DK1"
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "definition": "SELECT DISTINCT area FROM algo.experiment_runs FINAL ORDER BY area",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Market",
+        "multi": false,
+        "name": "market",
+        "options": [],
+        "query": "SELECT DISTINCT area FROM algo.experiment_runs FINAL ORDER BY area",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "clickhouse"
+        },
+        "definition": "SELECT DISTINCT model_type FROM algo.experiment_runs FINAL ORDER BY model_type",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Model",
+        "multi": true,
+        "name": "model",
+        "options": [],
+        "query": "SELECT DISTINCT model_type FROM algo.experiment_runs FINAL ORDER BY model_type",
+        "refresh": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-14d",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Prediction Accuracy",
+  "uid": "algo-prediction-accuracy",
+  "version": 2,
+  "weekStart": ""
+}
