@@ -26,17 +26,32 @@
         "type": "grafana-clickhouse-datasource",
         "uid": "clickhouse"
       },
+      "description": "Hours since the most recent ingestion (ingested_utc) for every curve in $area, across realised prices (timeseries) and day-ahead inputs (forecasts). Uses ingestion time, not data timestamp, so day-ahead horizons do not read as stale. Green < 26h, amber 26-48h, red > 48h.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "showPoints": "auto"
-          }
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 26
+              },
+              {
+                "color": "red",
+                "value": 48
+              }
+            ]
+          },
+          "unit": "h",
+          "decimals": 0,
+          "min": 0
         },
         "overrides": []
       },
@@ -46,18 +61,21 @@
         "x": 0,
         "y": 0
       },
-      "id": 1,
+      "id": 5,
       "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "showUnfilled": true,
+        "valueMode": "color"
       },
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -65,14 +83,86 @@
             "uid": "clickhouse"
           },
           "editorType": "sql",
-          "format": 0,
+          "format": 1,
           "queryType": "sql",
-          "rawSql": "SELECT toStartOfHour(max(timestamp_utc)) AS time, curve_name AS metric, dateDiff('hour', max(timestamp_utc), now()) AS freshness_hours\nFROM algo.timeseries FINAL\nWHERE area = '${area}'\nGROUP BY curve_name\nORDER BY curve_name",
+          "rawSql": "SELECT curve_name, dateDiff('hour', max(ingested_utc), now()) AS hours_since_ingest\nFROM (\n  SELECT curve_name, ingested_utc FROM algo.timeseries FINAL WHERE area = '${area}'\n  UNION ALL\n  SELECT curve_name, ingested_utc FROM algo.forecasts FINAL WHERE area = '${area}'\n)\nGROUP BY curve_name\nORDER BY hours_since_ingest DESC",
           "refId": "A"
         }
       ],
-      "title": "Freshness By Curve",
-      "type": "timeseries"
+      "title": "Ingestion freshness — hours since last ingest",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
+      "description": "How many hours of future (day-ahead) data each curve currently holds: max(timestamp_utc) - now(). A healthy day-ahead pipeline sits around 12-36h. Red < 6h, amber 6-18h, green > 18h. If a curve drops low, tomorrow's forecast inputs are missing.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 6
+              },
+              {
+                "color": "green",
+                "value": 18
+              }
+            ]
+          },
+          "unit": "h",
+          "decimals": 0,
+          "min": 0,
+          "max": 48
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "queryType": "sql",
+          "rawSql": "SELECT curve_name, dateDiff('hour', now(), max(timestamp_utc)) AS horizon_hours\nFROM (\n  SELECT curve_name, timestamp_utc FROM algo.timeseries FINAL WHERE area = '${area}'\n  UNION ALL\n  SELECT curve_name, timestamp_utc FROM algo.forecasts FINAL WHERE area = '${area}'\n)\nGROUP BY curve_name\nORDER BY horizon_hours ASC",
+          "refId": "A"
+        }
+      ],
+      "title": "Day-ahead horizon coverage",
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -94,8 +184,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 0
+        "x": 0,
+        "y": 8
       },
       "id": 2,
       "options": {
@@ -130,6 +220,59 @@
         "type": "grafana-clickhouse-datasource",
         "uid": "clickhouse"
       },
+      "description": "Rows ingested per day keyed on ingested_utc (not the data's timestamp). A missing or short bar means the ingestion pipeline did not run that day. Use it to spot pipeline downtime that the data-date row counts can hide.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "clickhouse"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "queryType": "sql",
+          "rawSql": "SELECT time, metric, value FROM (\n  SELECT toDate(ingested_utc) AS time, 'price (timeseries)' AS metric, count() AS value\n  FROM algo.timeseries FINAL\n  WHERE area = '${area}' AND ingested_utc >= now() - INTERVAL 30 DAY\n  GROUP BY time\n  UNION ALL\n  SELECT toDate(ingested_utc) AS time, 'forecasts' AS metric, count() AS value\n  FROM algo.forecasts FINAL\n  WHERE area = '${area}' AND ingested_utc >= now() - INTERVAL 30 DAY\n  GROUP BY time\n)\nORDER BY time, metric",
+          "refId": "A"
+        }
+      ],
+      "title": "Ingestion Gaps By Ingest Date",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "clickhouse"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -147,7 +290,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "id": 3,
       "options": {
@@ -194,7 +337,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 16
       },
       "id": 4,
       "options": {
@@ -264,6 +407,6 @@
   "timezone": "browser",
   "title": "Data Quality",
   "uid": "algo-data-quality",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
