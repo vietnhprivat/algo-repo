@@ -30,7 +30,10 @@ class LearModel(BaseModel):
 
             if self.alpha in (None, "auto"):
                 model = LassoCV(
-                    alphas=self.lasso_alphas,
+                    # sklearn deprecates alphas=None (becomes 100 in 1.9); pass
+                    # 100 explicitly when no grid is given to keep the same path
+                    # and silence the FutureWarning.
+                    alphas=self.lasso_alphas if self.lasso_alphas is not None else 100,
                     cv=TimeSeriesSplit(n_splits=self.cross_validation_folds),
                     max_iter=self.maximum_iterations,
                 )

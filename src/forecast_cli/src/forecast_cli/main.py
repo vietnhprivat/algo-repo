@@ -37,7 +37,10 @@ def backtest(
     typer.echo(f"  Windows:   {config.calibration_windows}")
     if config.exogenous_columns:
         typer.echo(f"  Exogenous: {', '.join(config.exogenous_columns)}")
-    typer.echo(f"  Split:     {config.train_ratio}/{config.validation_ratio}/{config.test_ratio}")
+    if config.test_start_date and config.test_end_date:
+        typer.echo(f"  Test:      {config.test_start_date} to {config.test_end_date}")
+    else:
+        typer.echo(f"  Split:     {config.train_ratio}/{config.validation_ratio}/{config.test_ratio}")
     typer.echo("")
 
     runner = BacktestRunner(config)
